@@ -1,13 +1,11 @@
 // Materia/StatReader.cs
-// Pulls the player's current substat values directly from PlayerState.
-// PlayerState.Attributes is an array indexed by BaseParam ID — the same IDs
-// our Substat enum uses. Reading is a single struct access; no allocation.
+// Pulls the player's current substat values from PlayerState.Attributes,
+// and the level from Dalamud's IObjectTable.LocalPlayer.Level (canonical).
 //
-// Note: stats here are the *final, displayed* values, identical to what shows
-// in the in-game Character window. Buffs, food, FC bonuses are baked in.
-// For meld optimization we want "natural" stats (no food), so we expose both:
-//   - ReadCurrent()  : whatever the game shows right now (food included)
-//   - ReadBaseline() : best-effort food-stripped values, for offline planning
+// We previously tried PlayerState.ClassJobLevels[jobId] but that array's
+// indexing convention isn't a simple jobId lookup — it returned 0 for
+// Lv 100 jobs, breaking every percentage downstream. Using LocalPlayer.Level
+// is what every other plugin uses and it Just Works.
 
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 
@@ -28,21 +26,18 @@ public readonly record struct StatSnapshot(
 public static unsafe class StatReader
 {
     /// <summary>
-    /// Read current substats off PlayerState. Includes food/FC buffs.
-    /// Returns null if PlayerState is unavailable (not logged in, between zones, etc.).
+    /// Read current substats off PlayerState plus level/job from Dalamud's LocalPlayer.
+    /// Returns null if either is unavailable.
     /// </summary>
     public static StatSnapshot? ReadCurrent()
     {
         var ps = PlayerState.Instance();
         if (ps == null) return null;
 
-        var attrs = ps->Attributes;
-        var jobId = ps->CurrentClassJobId;
+        var player = GearGoblin.DalamudServices.ObjectTable.LocalPlayer;
+        if (player is null) return null;
 
-        // ClassJobLevels is indexed by job id; safe to read the current job's level.
-        int level = 0;
-        if (jobId < ps->ClassJobLevels.Length)
-            level = ps->ClassJobLevels[jobId];
+        var attrs = ps->Attributes;
 
         return new StatSnapshot(
             Crit:  attrs[(int)Substat.CriticalHit],
@@ -52,8 +47,8 @@ public static unsafe class StatReader
             SpS:   attrs[(int)Substat.SpellSpeed],
             Ten:   attrs[(int)Substat.Tenacity],
             Pie:   attrs[(int)Substat.Piety],
-            Level: level,
-            JobId: jobId
+            Level: player.Level,
+            JobId: player.ClassJob.RowId
         );
     }
 
