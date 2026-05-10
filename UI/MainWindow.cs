@@ -1,6 +1,6 @@
 using System;
 using System.Numerics;
-using Dalamud.Game.ClientState.Objects.SubKinds;
+using System.Reflection;
 using Dalamud.Interface.Windowing;
 using Dalamud.Bindings.ImGui;
 using GearGoblin.Services;
@@ -10,33 +10,46 @@ namespace GearGoblin.UI;
 public sealed class MainWindow : Window, IDisposable
 {
     private readonly Plugin plugin;
+    private static readonly string s_versionString = ResolveVersion();
+
     public MainWindow(Plugin plugin) : base("GearGoblin###GearGoblinMain")
     {
         this.plugin = plugin;
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(560, 420),
+            MinimumSize = new Vector2(640, 460),
             MaximumSize = new Vector2(float.MaxValue, float.MaxValue),
         };
-        Size      = new Vector2(720, 520);
+        Size      = new Vector2(820, 600);
         SizeCondition = ImGuiCond.FirstUseEver;
     }
+
     public void Dispose() { }
+
     public override void Draw()
     {
-        // Dalamud v14 moved LocalPlayer off IClientState to IObjectTable.
         var player = DalamudServices.ObjectTable.LocalPlayer;
         if (player is null)
         {
             ImGui.TextDisabled("Not logged in.");
             return;
         }
+
         var job = player.ClassJob.Value.Abbreviation.ExtractText();
         var lvl = player.Level;
         ImGui.Text($"{player.Name} — {job} Lv {lvl}");
         ImGui.SameLine();
-        if (ImGui.SmallButton("Refresh")) { /* nothing cached yet, but keeps the muscle memory */ }
+        if (ImGui.SmallButton("Refresh")) { /* placeholder for future cache invalidation */ }
+
+        // v0.3 badge — right-aligned in the header line
+        var avail = ImGui.GetContentRegionAvail();
+        var badgeText = $"v{s_versionString}";
+        var badgeWidth = ImGui.CalcTextSize(badgeText).X + 12;
+        ImGui.SameLine(ImGui.GetCursorPosX() + avail.X - badgeWidth);
+        ImGui.TextColored(new Vector4(0.55f, 0.75f, 1f, 1f), badgeText);
+
         ImGui.Separator();
+
         if (ImGui.BeginTabBar("##goblintabs"))
         {
             if (ImGui.BeginTabItem("Current Gear"))
@@ -46,17 +59,23 @@ public sealed class MainWindow : Window, IDisposable
             }
             if (ImGui.BeginTabItem("Plan"))
             {
-                ImGui.TextDisabled("Coming in v0.3: paste an Etro/XIVGear link or pick a casual preset.");
+                PlanTab.Draw(plugin.Inventory);
                 ImGui.EndTabItem();
             }
             if (ImGui.BeginTabItem("Materia"))
             {
-                MateriaTab.Draw();
+                MateriaTab.Draw(plugin.Inventory);
+                ImGui.EndTabItem();
+            }
+            if (ImGui.BeginTabItem("About"))
+            {
+                DrawAbout();
                 ImGui.EndTabItem();
             }
             ImGui.EndTabBar();
         }
     }
+
     private void DrawCurrentGear()
     {
         var equipped = plugin.Inventory.ReadEquipped();
@@ -99,5 +118,39 @@ public sealed class MainWindow : Window, IDisposable
             }
             ImGui.EndTable();
         }
+    }
+
+    private void DrawAbout()
+    {
+        ImGui.TextUnformatted("GearGoblin");
+        ImGui.SameLine();
+        ImGui.TextColored(new Vector4(0.55f, 0.75f, 1f, 1f), $"v{s_versionString}");
+
+        ImGui.Spacing();
+        ImGui.TextWrapped("BiS planner, gear inventory reader, and materia advisor for FFXIV.");
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        ImGui.TextUnformatted("By LastOnionKnight");
+        ImGui.TextDisabled("Refia Rakkiri — the Last Onion Knight");
+
+        ImGui.Spacing();
+        ImGui.TextUnformatted("v0.3.0 features:");
+        ImGui.BulletText("Stat sheet with breakpoint analysis");
+        ImGui.BulletText("Plan mode: recommended materia for empty meld slots");
+        ImGui.BulletText("Audit mode: review existing melds for issues");
+        ImGui.BulletText("Pure-math vs Balance-preset weighting");
+        ImGui.BulletText("Etro / XIVGear BiS comparison");
+
+        ImGui.Spacing();
+        ImGui.TextDisabled("Materia formulas re-derived from public datamining sources");
+        ImGui.TextDisabled("(Akhmorning Allagan Studies, FFXIV datamining repo).");
+    }
+
+    private static string ResolveVersion()
+    {
+        var v = Assembly.GetExecutingAssembly().GetName().Version;
+        return v is null ? "0.3.0" : $"{v.Major}.{v.Minor}.{v.Build}";
     }
 }
