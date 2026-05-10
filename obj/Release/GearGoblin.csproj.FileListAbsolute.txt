@@ -1,0 +1,11 @@
+D:\GearGoblin-v0.1\GearGoblin\obj\Release\GearGoblin.csproj.AssemblyReference.cache
+D:\GearGoblin-v0.1\GearGoblin\obj\Release\GearGoblin.GeneratedMSBuildEditorConfig.editorconfig
+D:\GearGoblin-v0.1\GearGoblin\obj\Release\GearGoblin.AssemblyInfoInputs.cache
+D:\GearGoblin-v0.1\GearGoblin\obj\Release\GearGoblin.AssemblyInfo.cs
+D:\GearGoblin-v0.1\GearGoblin\obj\Release\GearGoblin.csproj.CoreCompileInputs.cache
+D:\GearGoblin-v0.1\GearGoblin\bin\release\GearGoblin.json
+D:\GearGoblin-v0.1\GearGoblin\bin\release\GearGoblin.deps.json
+D:\GearGoblin-v0.1\GearGoblin\bin\release\GearGoblin.dll
+D:\GearGoblin-v0.1\GearGoblin\bin\release\GearGoblin.pdb
+D:\GearGoblin-v0.1\GearGoblin\obj\release\GearGoblin.dll
+D:\GearGoblin-v0.1\GearGoblin\obj\release\GearGoblin.pdb

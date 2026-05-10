@@ -1,0 +1,52 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Download Dalamud dev libs
+        run: |
+          Invoke-WebRequest -Uri https://goatcorp.github.io/dalamud-distrib/latest.zip -OutFile latest.zip
+          Expand-Archive -Force latest.zip "$env:AppData\XIVLauncher\addon\Hooks\dev\"
+        shell: pwsh
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build -c Release --no-restore
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          $stagingDir = "release-staging"
+          New-Item -ItemType Directory -Force -Path $stagingDir | Out-Null
+          Copy-Item "bin\Release\GearGoblin.dll"  -Destination $stagingDir
+          Copy-Item "bin\Release\GearGoblin.json" -Destination $stagingDir
+          if (Test-Path "bin\Release\GearGoblin.pdb") {
+            Copy-Item "bin\Release\GearGoblin.pdb" -Destination $stagingDir
+          }
+          Compress-Archive -Path "$stagingDir\*" -DestinationPath "latest.zip" -Force
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: latest.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
