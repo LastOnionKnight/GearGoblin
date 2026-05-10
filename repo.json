@@ -3,7 +3,7 @@
     "Author": "LastOnionKnight",
     "Name": "GearGoblin",
     "InternalName": "GearGoblin",
-    "AssemblyVersion": "0.2.4.0",
+    "AssemblyVersion": "0.3.0.0",
     "Description": "BiS planner with acquisition tracking and materia advisor for FFXIV. Reads your gear, compares against an Etro/XIVGear BiS or a casual stat-priority preset, and tells you what to farm next, what to meld, and what not to bother melding.",
     "Punchline": "BiS planner with acquisition tracking and materia advisor.",
     "RepoUrl": "https://github.com/LastOnionKnight/GearGoblin",
@@ -21,9 +21,9 @@
       "https://raw.githubusercontent.com/LastOnionKnight/GearGoblin/main/images/banner-1-profile.png",
       "https://raw.githubusercontent.com/LastOnionKnight/GearGoblin/main/images/banner-2-pixel.png"
     ],
-    "DownloadLinkInstall": "https://github.com/LastOnionKnight/GearGoblin/releases/download/v0.2.4/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/LastOnionKnight/GearGoblin/releases/download/v0.2.4/latest.zip",
-    "DownloadLinkTesting": "https://github.com/LastOnionKnight/GearGoblin/releases/download/v0.2.4/latest.zip",
-    "LastUpdate": 1778444099
+    "DownloadLinkInstall": "https://github.com/LastOnionKnight/GearGoblin/releases/download/v0.3.0/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/LastOnionKnight/GearGoblin/releases/download/v0.3.0/latest.zip",
+    "DownloadLinkTesting": "https://github.com/LastOnionKnight/GearGoblin/releases/download/v0.3.0/latest.zip",
+    "LastUpdate": 1778454173
   }
 ]
