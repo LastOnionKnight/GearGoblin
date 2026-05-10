@@ -3,6 +3,12 @@ using System.Linq;
 using Dalamud.Game.Inventory;
 using Lumina.Excel.Sheets;
 
+// Disambiguate the Lumina materia sheet type from our new GearGoblin.Materia namespace.
+// Without this alias, "Materia" is ambiguous because:
+//   - Lumina.Excel.Sheets.Materia is a struct (the game data sheet row type)
+//   - GearGoblin.Materia is a namespace (our advisor code)
+using LuminaMateria = Lumina.Excel.Sheets.Materia;
+
 namespace GearGoblin.Services;
 
 /// <summary>
@@ -107,7 +113,7 @@ public class InventoryReader
 
     private (string name, int value) ResolveMateria(ushort materiaId, byte grade)
     {
-        var sheet = DalamudServices.DataManager.GetExcelSheet<Materia>();
+        var sheet = DalamudServices.DataManager.GetExcelSheet<LuminaMateria>();
         var row = sheet.GetRowOrDefault(materiaId);
         if (row is null) return ("?", 0);
 
