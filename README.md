@@ -2,9 +2,21 @@
 
 BiS planner with acquisition tracking and materia advisor for Final Fantasy XIV. A Dalamud plugin.
 
+## Install (for users)
+
+In-game, type `/xlsettings` → **Experimental** tab → **Custom Plugin Repositories** → add this URL:
+
+```
+https://raw.githubusercontent.com/LastOnionKnight/GearGoblin/main/repo.json
+```
+
+Hit save. Then `/xlplugins` → search for **GearGoblin** → install.
+
 ## What v0.1 does
 
 Reads your equipped gear and shows it in a window with materia melds and average item level. That's it. It's the foundation — proves the inventory plumbing works end to end.
+
+`/goblin` toggles the window.
 
 ## Roadmap
 
@@ -15,7 +27,7 @@ Reads your equipped gear and shows it in a window with materia melds and average
 - **v0.5** Casual presets — generic stat priorities per job/role for non-raiders
 - **v0.6** Multi-job tracking, weekly action summary
 
-## Build
+## Build (for developers)
 
 Requires the Dalamud dev libs at `%appdata%\XIVLauncher\addon\Hooks\dev\` (the default path Dalamud installs to). Or set `DALAMUD_HOME` to override.
 
@@ -24,11 +36,18 @@ dotnet restore
 dotnet build -c Release
 ```
 
-The output `.dll` and `GearGoblin.json` go in a folder named `GearGoblin` under `%appdata%\XIVLauncher\devPlugins\`. Then `/xlplugins` in-game and load it as a dev plugin.
+For local testing, point Dalamud at the build output: `/xlsettings` → **Experimental** → **Dev Plugin Locations** → add the path to your `bin\Release` folder. Then `/xlplugins` → **Dev Tools** → load.
 
-## In-game
+## Releases
 
-`/goblin` toggles the window.
+Tagged versions trigger a GitHub Actions build that produces `latest.zip` containing the plugin DLL and manifest. Dalamud's `repo.json` points at the latest release, so end users always get the current version.
+
+To cut a release: bump `AssemblyVersion` in both `GearGoblin.json` and `repo.json`, commit, then:
+
+```
+git tag v0.1.0
+git push origin v0.1.0
+```
 
 ## Architecture
 
@@ -37,9 +56,3 @@ The output `.dll` and `GearGoblin.json` go in a folder named `GearGoblin` under 
 - `Configuration` — per-character `JobPlanData` (mode + BiS URL or casual preset). Persisted via `IPluginConfiguration`.
 - `Services/InventoryReader` — wraps `IGameInventory` to produce typed `EquippedPiece` records with materia melds resolved against the `Materia` and `BaseParam` Lumina sheets.
 - `UI/MainWindow` — tabbed: Current Gear (working), Plan (stub), Materia (stub).
-
-## Notes for the next pass
-
-- The materia value lookup uses `BaseParam.Name` for display. For the materia planner we'll need the actual stat ID, not just the name, to do tier-breakpoint math.
-- Inventory slot index → `EquipSlot` mapping is hardcoded against the standard order. If a future Dalamud API change reorders these, it'll break visibly (slots show as Unknown) rather than silently.
-- No retainer reading yet. `IGameInventory` exposes retainer slots but only when the retainer is open. v0.3+ will need a cached "last seen" approach.

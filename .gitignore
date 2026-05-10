@@ -1,0 +1,35 @@
+# Build output
+bin/
+obj/
+*.dll
+*.pdb
+
+# NuGet
+packages/
+*.nupkg
+
+# IDEs
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider
+_ReSharper*/
+*.DotSettings
+*.DotSettings.user
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+
+# Local Dalamud refs
+Hooks/
+addon/
