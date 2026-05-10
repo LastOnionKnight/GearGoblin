@@ -3,10 +3,7 @@ using System.Linq;
 using Dalamud.Game.Inventory;
 using Lumina.Excel.Sheets;
 
-// Disambiguate the Lumina materia sheet type from our new GearGoblin.Materia namespace.
-// Without this alias, "Materia" is ambiguous because:
-//   - Lumina.Excel.Sheets.Materia is a struct (the game data sheet row type)
-//   - GearGoblin.Materia is a namespace (our advisor code)
+// Disambiguate the Lumina materia sheet type from our GearGoblin.Materia namespace.
 using LuminaMateria = Lumina.Excel.Sheets.Materia;
 
 namespace GearGoblin.Services;
@@ -18,23 +15,34 @@ namespace GearGoblin.Services;
 /// </summary>
 public class InventoryReader
 {
-    /// <summary>The 13 equippable slots Dalamud exposes via GameInventoryType.EquippedItems.</summary>
     public static readonly EquipSlot[] AllSlots =
     {
         EquipSlot.MainHand, EquipSlot.OffHand, EquipSlot.Head, EquipSlot.Body,
-        EquipSlot.Hands,    EquipSlot.Waist,   EquipSlot.Legs, EquipSlot.Feet,
+        EquipSlot.Hands,    EquipSlot.Legs,    EquipSlot.Feet,
         EquipSlot.Earring,  EquipSlot.Necklace,EquipSlot.Bracelet,
         EquipSlot.RingLeft, EquipSlot.RingRight,
     };
 
     /// <summary>
     /// Snapshot the equipped gearset. Returns one entry per non-empty slot.
-    /// Empty slots are omitted; callers expecting full coverage should fill gaps.
+    ///
+    /// Bug D fix (v0.3.1): we no longer guess the slot from the inventory array index.
+    /// The array layout changed between Dalamud versions (the Waist slot was deprecated
+    /// and removed, which shifted Legs→5, Feet→6, accessories→7-11). Instead of tracking
+    /// that mapping, we read EquipSlotCategory from the Item itself: that field on the
+    /// Lumina Item row is what the game uses to decide where an item can be equipped,
+    /// and it never changes shape. We also fall back to the array index for the few
+    /// pieces (weapons with no category set) where the item doesn't carry a category.
     /// </summary>
     public List<EquippedPiece> ReadEquipped()
     {
         var result = new List<EquippedPiece>(13);
         var items  = DalamudServices.GameInventory.GetInventoryItems(GameInventoryType.EquippedItems);
+
+        // The first ring slot we see goes into RingLeft, the second into RingRight.
+        // EquipSlotCategory groups both rings under the same category, so we need
+        // a counter to distinguish them in iteration order.
+        int ringsSeen = 0;
 
         foreach (var item in items)
         {
@@ -43,15 +51,23 @@ public class InventoryReader
             var sheetItem = DalamudServices.DataManager.GetExcelSheet<Item>().GetRowOrDefault(item.ItemId);
             if (sheetItem is null) continue;
 
-            var slot = SlotFromInventoryIndex((int)item.InventorySlot);
+            var slotCategory = sheetItem.Value.EquipSlotCategory.RowId;
+            var slot         = SlotFromCategory(slotCategory, ref ringsSeen);
+
+            // Fall back to index-based mapping if the item has no usable category.
+            if (slot == EquipSlot.Unknown)
+                slot = SlotFromInventoryIndex((int)item.InventorySlot);
+
             var piece = new EquippedPiece
             {
-                Slot          = slot,
-                ItemId        = item.ItemId,
-                Name          = sheetItem.Value.Name.ExtractText(),
-                ItemLevel     = sheetItem.Value.LevelItem.RowId,
-                IsHighQuality = item.IsHq,
-                Materia       = ReadMateriaFromItem(item),
+                Slot              = slot,
+                ItemId            = item.ItemId,
+                Name              = sheetItem.Value.Name.ExtractText(),
+                ItemLevel         = sheetItem.Value.LevelItem.RowId,
+                IsHighQuality     = item.IsHq,
+                MateriaSlotCount  = sheetItem.Value.MateriaSlotCount,
+                IsOvermeldAllowed = sheetItem.Value.IsAdvancedMeldingPermitted,
+                Materia           = ReadMateriaFromItem(item),
             };
             result.Add(piece);
         }
@@ -59,7 +75,6 @@ public class InventoryReader
         return result;
     }
 
-    /// <summary>Total ilvl across equipped pieces, with 2H weapons counted in both MH and OH.</summary>
     public int CalculateAverageItemLevel(IReadOnlyList<EquippedPiece> equipped)
     {
         if (equipped.Count == 0) return 0;
@@ -67,7 +82,6 @@ public class InventoryReader
         int total = 0, slots = 0;
         var bySlot = equipped.ToDictionary(p => p.Slot);
 
-        // Standard 13-slot average; treat a 2H main-hand as filling the off-hand too.
         foreach (var slot in AllSlots)
         {
             if (bySlot.TryGetValue(slot, out var piece))
@@ -90,8 +104,6 @@ public class InventoryReader
     {
         var melds = new List<MateriaMeld>(5);
 
-        // GameInventoryItem exposes Materia and MateriaGrade as fixed-size 5-element
-        // collections, indexed by meld slot. A zero ID means the slot is empty.
         for (int i = 0; i < 5; i++)
         {
             var materiaId = item.Materia[i];
@@ -117,7 +129,6 @@ public class InventoryReader
         var row = sheet.GetRowOrDefault(materiaId);
         if (row is null) return ("?", 0);
 
-        // Materia rows expose BaseParam (the stat) and Value[grade] (the magnitude).
         var paramRow = row.Value.BaseParam.ValueNullable;
         var statName = paramRow?.Name.ExtractText() ?? "?";
         var value    = grade < row.Value.Value.Count ? row.Value.Value[grade] : (short)0;
@@ -125,6 +136,52 @@ public class InventoryReader
         return (statName, value);
     }
 
+    /// <summary>
+    /// Map the Item sheet's EquipSlotCategory row ID to our EquipSlot enum.
+    /// EquipSlotCategory IDs are stable game data — the row indices haven't changed since 2.0.
+    /// </summary>
+    /// <param name="categoryId">EquipSlotCategory RowId from Item sheet.</param>
+    /// <param name="ringsSeen">Counter incremented when we identify a ring; first ring is Left, second is Right.</param>
+    private static EquipSlot SlotFromCategory(uint categoryId, ref int ringsSeen)
+    {
+        return categoryId switch
+        {
+            1  => EquipSlot.MainHand,  // Main Hand
+            2  => EquipSlot.OffHand,   // Off Hand
+            3  => EquipSlot.Head,
+            4  => EquipSlot.Body,
+            5  => EquipSlot.Hands,
+            6  => EquipSlot.Waist,     // deprecated slot — kept for compat
+            7  => EquipSlot.Legs,
+            8  => EquipSlot.Feet,
+            9  => EquipSlot.Earring,
+            10 => EquipSlot.Necklace,
+            11 => EquipSlot.Bracelet,
+            12 => AssignRing(ref ringsSeen),
+            13 => EquipSlot.MainHand,  // Two-handed weapon (occupies both MH+OH)
+            // 14-23 are gear combos (e.g., body+head+hands+legs+feet single-piece);
+            // treat as Body for the primary visible slot — accurate enough for stat caps.
+            14 => EquipSlot.Body,
+            15 => EquipSlot.Body,
+            16 => EquipSlot.Body,
+            17 => EquipSlot.Body,
+            // 18+ are exotic/soul-stone categories we don't display
+            _  => EquipSlot.Unknown,
+        };
+
+        static EquipSlot AssignRing(ref int ringsSeen)
+        {
+            var slot = ringsSeen == 0 ? EquipSlot.RingLeft : EquipSlot.RingRight;
+            ringsSeen++;
+            return slot;
+        }
+    }
+
+    /// <summary>
+    /// Fallback mapping based on Dalamud's GameInventory array index order.
+    /// Updated for current Dalamud: Waist was removed, so legs is index 5, not 6.
+    /// Used only when EquipSlotCategory is missing or unrecognized.
+    /// </summary>
     private static EquipSlot SlotFromInventoryIndex(int idx) => idx switch
     {
         0  => EquipSlot.MainHand,
@@ -132,13 +189,13 @@ public class InventoryReader
         2  => EquipSlot.Head,
         3  => EquipSlot.Body,
         4  => EquipSlot.Hands,
-        6  => EquipSlot.Legs,
-        7  => EquipSlot.Feet,
-        8  => EquipSlot.Earring,
-        9  => EquipSlot.Necklace,
-        10 => EquipSlot.Bracelet,
-        11 => EquipSlot.RingLeft,
-        12 => EquipSlot.RingRight,
+        5  => EquipSlot.Legs,
+        6  => EquipSlot.Feet,
+        7  => EquipSlot.Earring,
+        8  => EquipSlot.Necklace,
+        9  => EquipSlot.Bracelet,
+        10 => EquipSlot.RingLeft,
+        11 => EquipSlot.RingRight,
         _  => EquipSlot.Unknown,
     };
 }
@@ -154,11 +211,18 @@ public enum EquipSlot
 
 public class EquippedPiece
 {
-    public EquipSlot Slot          { get; set; }
-    public uint      ItemId        { get; set; }
-    public string    Name          { get; set; } = "";
-    public uint      ItemLevel     { get; set; }
-    public bool      IsHighQuality { get; set; }
+    public EquipSlot Slot              { get; set; }
+    public uint      ItemId            { get; set; }
+    public string    Name              { get; set; } = "";
+    public uint      ItemLevel         { get; set; }
+    public bool      IsHighQuality     { get; set; }
+
+    /// <summary>Number of guaranteed materia slots the item ships with (0-2).</summary>
+    public byte      MateriaSlotCount  { get; set; }
+
+    /// <summary>Whether the player can overmeld additional slots beyond the guaranteed count.</summary>
+    public bool      IsOvermeldAllowed { get; set; }
+
     public List<MateriaMeld> Materia { get; set; } = new();
 }
 

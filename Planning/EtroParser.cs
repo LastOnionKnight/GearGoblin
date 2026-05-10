@@ -45,6 +45,7 @@ public static class EtroParser
 
         var slots = new List<BisSlot>();
         AddSlot(slots, root, "weapon",  EquipSlot.MainHand);
+        AddSlot(slots, root, "offHand", EquipSlot.OffHand);
         AddSlot(slots, root, "head",    EquipSlot.Head);
         AddSlot(slots, root, "body",    EquipSlot.Body);
         AddSlot(slots, root, "hands",   EquipSlot.Hands);

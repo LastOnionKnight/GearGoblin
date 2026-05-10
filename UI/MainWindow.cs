@@ -144,6 +144,13 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.BulletText("Etro / XIVGear BiS comparison");
 
         ImGui.Spacing();
+        ImGui.TextUnformatted("v0.3.1 fixes:");
+        ImGui.BulletText("Plan/Audit now use real per-piece slot counts from item data");
+        ImGui.BulletText("Materia tier mapping corrected (was off by four tiers)");
+        ImGui.BulletText("Equipment slots read from item category, not inventory index");
+        ImGui.BulletText("Etro: shields/off-hands now parsed correctly");
+
+        ImGui.Spacing();
         ImGui.TextDisabled("Materia formulas re-derived from public datamining sources");
         ImGui.TextDisabled("(Akhmorning Allagan Studies, FFXIV datamining repo).");
     }
@@ -151,6 +158,6 @@ public sealed class MainWindow : Window, IDisposable
     private static string ResolveVersion()
     {
         var v = Assembly.GetExecutingAssembly().GetName().Version;
-        return v is null ? "0.3.0" : $"{v.Major}.{v.Minor}.{v.Build}";
+        return v is null ? "0.3.1" : $"{v.Major}.{v.Minor}.{v.Build}";
     }
 }

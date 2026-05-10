@@ -1,7 +1,16 @@
 // Materia/MeldSlots.cs
-// Per-piece meld slot model. Each equipped item has 0-2 guaranteed slots
-// (depending on whether it's high-quality / overmeldable) plus 0-3 overmeld
-// slots that have decreasing success rates: ~36% / ~25% / ~20% / ~10% / ~5%.
+// Per-piece meld slot model.
+//
+// v0.3.1 (Bug B): real slot counts now come from the Item sheet via
+// EquippedPiece.MateriaSlotCount (guaranteed slots, 0-2) and
+// EquippedPiece.IsOvermeldAllowed (can the player add slots 2-4 via overmeld?).
+//
+// Total slots = MateriaSlotCount + (IsOvermeldAllowed ? extras : 0).
+//   - Crafted gear:        2 guaranteed + 3 overmeld = 5
+//   - Augmented tomestone: 2 guaranteed + 3 overmeld = 5
+//   - Raid drops:          2 guaranteed + 0 overmeld = 2
+//   - Job stone, etc.:     0 guaranteed + 0 overmeld = 0
+// Overmeld success rates: ~36% / 25% / 20% for slots 2/3/4.
 
 using System.Collections.Generic;
 using System.Linq;
@@ -32,18 +41,28 @@ public sealed class MeldablePiece
 
 public static class MeldSlotsBuilder
 {
-    public static MeldablePiece FromEquipped(EquippedPiece piece, int totalAllowedSlots = 5)
+    /// <summary>Total slots a piece can theoretically support (guaranteed + overmeld).</summary>
+    private const int MaxOvermeldSlots = 5;
+
+    public static MeldablePiece FromEquipped(EquippedPiece piece)
     {
+        // v0.3.1: derive real slot count from the item's metadata.
+        // Guaranteed count comes straight from the Item sheet; overmeld adds up to slot 4
+        // only if the item explicitly allows it.
+        int guaranteed = piece.MateriaSlotCount;
+        int total      = piece.IsOvermeldAllowed ? MaxOvermeldSlots : guaranteed;
+
         var melds = new List<MeldSlot>();
         var stats = new Dictionary<Substat, int>();
 
+        // Filled slots come straight from the inventory data.
         foreach (var m in piece.Materia)
         {
             var spec = MateriaCatalog.FromGrade(m.StatName, m.Grade, m.StatValue);
             melds.Add(new MeldSlot
             {
                 SlotIndex    = m.SlotIndex,
-                IsGuaranteed = m.SlotIndex < 2,
+                IsGuaranteed = m.SlotIndex < guaranteed,
                 Current      = spec,
                 SuccessRate  = SuccessRateForSlot(m.SlotIndex),
             });
@@ -58,13 +77,14 @@ public static class MeldSlotsBuilder
         var existingIndices = new HashSet<int>();
         foreach (var m in melds) existingIndices.Add(m.SlotIndex);
 
-        for (int i = 0; i < totalAllowedSlots; i++)
+        // Empty slots: only as many as the piece actually supports.
+        for (int i = 0; i < total; i++)
         {
             if (existingIndices.Contains(i)) continue;
             melds.Add(new MeldSlot
             {
                 SlotIndex    = i,
-                IsGuaranteed = i < 2,
+                IsGuaranteed = i < guaranteed,
                 Current      = null,
                 SuccessRate  = SuccessRateForSlot(i),
             });
