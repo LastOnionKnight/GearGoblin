@@ -33,3 +33,10 @@ desktop.ini
 # Local Dalamud refs
 Hooks/
 addon/
+
+# Local Dalamud refs
+Hooks/
+addon/
+
+# NuGet lock file
+packages.lock.json
