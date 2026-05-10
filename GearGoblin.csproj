@@ -17,10 +17,5 @@
     <LangVersion>latest</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
-  <IconUrl>https://raw.githubusercontent.com/LastOnionKnight/GearGoblin/main/images/icon.png</IconUrl>
-<ImageUrls>
-  https://raw.githubusercontent.com/LastOnionKnight/GearGoblin/main/images/banner-1-profile.png,
-  https://raw.githubusercontent.com/LastOnionKnight/GearGoblin/main/images/banner-2-pixel.png
-</ImageUrls>
 
 </Project>
