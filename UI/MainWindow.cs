@@ -10,7 +10,6 @@ namespace GearGoblin.UI;
 public sealed class MainWindow : Window, IDisposable
 {
     private readonly Plugin plugin;
-
     public MainWindow(Plugin plugin) : base("GearGoblin###GearGoblinMain")
     {
         this.plugin = plugin;
@@ -22,9 +21,7 @@ public sealed class MainWindow : Window, IDisposable
         Size      = new Vector2(720, 520);
         SizeCondition = ImGuiCond.FirstUseEver;
     }
-
     public void Dispose() { }
-
     public override void Draw()
     {
         // Dalamud v14 moved LocalPlayer off IClientState to IObjectTable.
@@ -34,16 +31,12 @@ public sealed class MainWindow : Window, IDisposable
             ImGui.TextDisabled("Not logged in.");
             return;
         }
-
         var job = player.ClassJob.Value.Abbreviation.ExtractText();
         var lvl = player.Level;
         ImGui.Text($"{player.Name} — {job} Lv {lvl}");
-
         ImGui.SameLine();
         if (ImGui.SmallButton("Refresh")) { /* nothing cached yet, but keeps the muscle memory */ }
-
         ImGui.Separator();
-
         if (ImGui.BeginTabBar("##goblintabs"))
         {
             if (ImGui.BeginTabItem("Current Gear"))
@@ -51,23 +44,19 @@ public sealed class MainWindow : Window, IDisposable
                 DrawCurrentGear();
                 ImGui.EndTabItem();
             }
-
             if (ImGui.BeginTabItem("Plan"))
             {
-                ImGui.TextDisabled("Coming in v0.2: paste an Etro/XIVGear link or pick a casual preset.");
+                ImGui.TextDisabled("Coming in v0.3: paste an Etro/XIVGear link or pick a casual preset.");
                 ImGui.EndTabItem();
             }
-
             if (ImGui.BeginTabItem("Materia"))
             {
-                ImGui.TextDisabled("Coming in v0.4: meld plan, breakpoint analysis, sell-vs-meld.");
+                MateriaTab.Draw();
                 ImGui.EndTabItem();
             }
-
             ImGui.EndTabBar();
         }
     }
-
     private void DrawCurrentGear()
     {
         var equipped = plugin.Inventory.ReadEquipped();
@@ -76,11 +65,9 @@ public sealed class MainWindow : Window, IDisposable
             ImGui.TextDisabled("No equipped items detected.");
             return;
         }
-
         var ilvl = plugin.Inventory.CalculateAverageItemLevel(equipped);
         ImGui.Text($"Average Item Level: {ilvl}");
         ImGui.Spacing();
-
         if (ImGui.BeginTable("##gear", 4,
                 ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInner | ImGuiTableFlags.SizingStretchProp))
         {
@@ -89,7 +76,6 @@ public sealed class MainWindow : Window, IDisposable
             ImGui.TableSetupColumn("iLvl",    ImGuiTableColumnFlags.WidthFixed, 50);
             ImGui.TableSetupColumn("Materia", ImGuiTableColumnFlags.WidthStretch);
             ImGui.TableHeadersRow();
-
             foreach (var piece in equipped)
             {
                 ImGui.TableNextRow();
@@ -98,7 +84,6 @@ public sealed class MainWindow : Window, IDisposable
                 ImGui.Text(piece.IsHighQuality ? $"{piece.Name} ★" : piece.Name);
                 ImGui.TableNextColumn(); ImGui.Text(piece.ItemLevel.ToString());
                 ImGui.TableNextColumn();
-
                 if (piece.Materia.Count == 0)
                 {
                     ImGui.TextDisabled("—");
