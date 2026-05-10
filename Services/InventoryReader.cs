@@ -80,7 +80,14 @@ public class InventoryReader
         if (equipped.Count == 0) return 0;
 
         int total = 0, slots = 0;
-        var bySlot = equipped.ToDictionary(p => p.Slot);
+        // Defensive: skip duplicate-slot entries rather than crash if the slot
+        // mapping ever returns two pieces in the same slot.
+        var bySlot = new Dictionary<EquipSlot, EquippedPiece>();
+        foreach (var p in equipped)
+        {
+            if (bySlot.ContainsKey(p.Slot)) continue;
+            bySlot[p.Slot] = p;
+        }
 
         foreach (var slot in AllSlots)
         {
@@ -159,12 +166,11 @@ public class InventoryReader
             11 => EquipSlot.Bracelet,
             12 => AssignRing(ref ringsSeen),
             13 => EquipSlot.MainHand,  // Two-handed weapon (occupies both MH+OH)
-            // 14-23 are gear combos (e.g., body+head+hands+legs+feet single-piece);
-            // treat as Body for the primary visible slot — accurate enough for stat caps.
-            14 => EquipSlot.Body,
-            15 => EquipSlot.Body,
-            16 => EquipSlot.Body,
-            17 => EquipSlot.Body,
+            // 14-17 are "combination" slot categories (body+head+hands as one piece, etc.)
+            // We don't try to map these by category — they fall back to inventory index,
+            // where the game still reports them in a single slot. Mapping them to Body
+            // here caused duplicate-Body crashes when both a combo item and a real Body
+            // piece were equipped on different jobs in the player's gearset history.
             // 18+ are exotic/soul-stone categories we don't display
             _  => EquipSlot.Unknown,
         };

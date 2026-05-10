@@ -151,6 +151,11 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.BulletText("Etro: shields/off-hands now parsed correctly");
 
         ImGui.Spacing();
+        ImGui.TextUnformatted("v0.3.2 fixes:");
+        ImGui.BulletText("Plan/Audit no longer crash on combination-slot items");
+        ImGui.BulletText("Hardened against duplicate-slot inventory edge cases");
+
+        ImGui.Spacing();
         ImGui.TextDisabled("Materia formulas re-derived from public datamining sources");
         ImGui.TextDisabled("(Akhmorning Allagan Studies, FFXIV datamining repo).");
     }
@@ -158,6 +163,6 @@ public sealed class MainWindow : Window, IDisposable
     private static string ResolveVersion()
     {
         var v = Assembly.GetExecutingAssembly().GetName().Version;
-        return v is null ? "0.3.1" : $"{v.Major}.{v.Minor}.{v.Build}";
+        return v is null ? "0.3.2" : $"{v.Major}.{v.Minor}.{v.Build}";
     }
 }

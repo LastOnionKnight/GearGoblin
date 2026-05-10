@@ -117,10 +117,16 @@ public static class MeldOptimizer
             [Substat.Piety]         = stats.Pie,
         };
 
-        // Working copy of per-piece meld totals (to track overcap during planning)
-        var workingPieceMelds = pieces.ToDictionary(
-            p => p.Slot,
-            p => new Dictionary<Substat, int>(p.CurrentMeldStats));
+        // Working copy of per-piece meld totals (to track overcap during planning).
+        // Defensive: if InventoryReader returns two pieces with the same slot
+        // (which shouldn't happen but has in past patches), keep the first and skip
+        // the rest rather than crashing the whole tab.
+        var workingPieceMelds = new Dictionary<EquipSlot, Dictionary<Substat, int>>();
+        foreach (var p in pieces)
+        {
+            if (workingPieceMelds.ContainsKey(p.Slot)) continue;
+            workingPieceMelds[p.Slot] = new Dictionary<Substat, int>(p.CurrentMeldStats);
+        }
 
         // Collect all empty slots, paired with their pieces
         var emptySlots = new List<(MeldablePiece piece, MeldSlot slot)>();

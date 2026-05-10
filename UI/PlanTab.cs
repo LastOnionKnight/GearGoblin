@@ -6,6 +6,7 @@
 // item name. v0.4 can add ilvl deltas, materia diffs, and "what to farm next."
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Threading;
@@ -117,7 +118,13 @@ public static class PlanTab
         ImGui.Spacing();
 
         var equipped = inventory.ReadEquipped();
-        var equippedBySlot = equipped.ToDictionary(e => e.Slot);
+        // Defensive: skip duplicate-slot entries rather than crash.
+        var equippedBySlot = new Dictionary<EquipSlot, EquippedPiece>();
+        foreach (var e in equipped)
+        {
+            if (equippedBySlot.ContainsKey(e.Slot)) continue;
+            equippedBySlot[e.Slot] = e;
+        }
 
         var itemSheet = DalamudServices.DataManager.GetExcelSheet<Item>();
 
