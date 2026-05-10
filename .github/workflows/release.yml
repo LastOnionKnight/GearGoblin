@@ -21,35 +21,31 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Download Dalamud dev libs
-        run: |
-          Invoke-WebRequest -Uri https://goatcorp.github.io/dalamud-distrib/latest.zip -OutFile latest.zip
-          Expand-Archive -Force latest.zip "$env:AppData\XIVLauncher\addon\Hooks\dev\"
-        shell: pwsh
-
       - name: Restore
         run: dotnet restore
 
       - name: Build
         run: dotnet build -c Release --no-restore
 
-      - name: Package
+      - name: Locate plugin zip
+        id: locate
         shell: pwsh
         run: |
-          $version = "${{ github.ref_name }}".TrimStart('v')
-          $stagingDir = "release-staging"
-          New-Item -ItemType Directory -Force -Path $stagingDir | Out-Null
-          Copy-Item "bin\Release\GearGoblin.dll"  -Destination $stagingDir
-          Copy-Item "bin\Release\GearGoblin.json" -Destination $stagingDir
-          if (Test-Path "bin\Release\GearGoblin.pdb") {
-            Copy-Item "bin\Release\GearGoblin.pdb" -Destination $stagingDir
+          # DalamudPackager (bundled with Dalamud.NET.Sdk) emits a ready-to-ship
+          # zip under bin/Release/<InternalName>/latest.zip. Find it and surface
+          # the path so the release step can attach it.
+          $zip = Get-ChildItem -Path "bin\Release" -Filter "latest.zip" -Recurse | Select-Object -First 1
+          if (-not $zip) {
+            Write-Error "latest.zip not found under bin\Release. DalamudPackager may have failed or output to an unexpected path."
+            exit 1
           }
-          Compress-Archive -Path "$stagingDir\*" -DestinationPath "latest.zip" -Force
+          Write-Host "Found plugin zip at: $($zip.FullName)"
+          "zip=$($zip.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: latest.zip
+          files: ${{ steps.locate.outputs.zip }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
