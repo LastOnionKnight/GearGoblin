@@ -20,4 +20,9 @@ public class DalamudServices
     [PluginService] public static IPluginLog            Log              { get; private set; } = null!;
     [PluginService] public static IChatGui              ChatGui          { get; private set; } = null!;
     [PluginService] public static ITextureProvider      TextureProvider  { get; private set; } = null!;
+
+    // v0.4.0: native AtkNode injection into the CharacterStatus addon.
+    [PluginService] public static IAddonLifecycle       AddonLifecycle    { get; private set; } = null!;
+    [PluginService] public static IGameGui              GameGui           { get; private set; } = null!;
+    [PluginService] public static IAddonEventManager    AddonEventManager { get; private set; } = null!;
 }

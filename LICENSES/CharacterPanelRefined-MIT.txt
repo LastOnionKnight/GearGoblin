@@ -1,0 +1,49 @@
+GearGoblin v0.4.0 — CharacterPanelRefined Attribution
+======================================================
+
+Portions of GearGoblin's native AtkNode injection (introduced in v0.4.0) are
+derived from CharacterPanelRefined (CPR), an open-source FFXIV Dalamud plugin
+that augments the in-game Character Status window with additional derived
+statistics.
+
+Specifically, the following are adapted from CPR:
+
+  - The CloneNode<T> primitive in Util/NodeUtil.cs (verbatim port).
+  - The AddStatRow injection helper in Services/StatusPanelInjector.cs
+    (simplified port — original supports an hideOriginal flag and color-copy
+    mode that GearGoblin does not use).
+  - The hardcoded CharacterStatus addon section IDs (26 = Attributes, 36 =
+    Offensive Properties, 44 = Defensive Properties, 51 = Physical Properties,
+    58 = Mental Properties, 80 = Gear, 86 = Role Properties). These were
+    discovered through in-game inspection by the CPR authors and reused with
+    attribution.
+  - The sibling-walk navigation patterns for finding Crit / Det / DH parents
+    within Offensive Properties.
+
+Original project: https://github.com/Caraxi/ffxiv-characterstatus-refined
+Original author:  Kouzukii (and contributors)
+License:          MIT
+
+Verbatim license text follows below.
+
+================================================================================
+
+Copyright (c) 2022 Kouzukii
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

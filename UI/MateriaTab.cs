@@ -66,7 +66,36 @@ public static class MateriaTab
             ImGui.SameLine();
             if (ImGui.RadioButton("Balance preset", s_weightMode == WeightMode.BalancePreset))
                 s_weightMode = WeightMode.BalancePreset;
+
+            // v0.4.0: caption explaining the active mode. Single italic line,
+            // disabled-text style so it doesn't compete with the tab content.
+            DrawModeDisclaimer();
         }
+    }
+
+    private static void DrawModeDisclaimer()
+    {
+        // Indent a little so the caption visually attaches to the selector
+        // rather than the sub-tab body that follows.
+        ImGui.Indent(12);
+        if (s_weightMode == WeightMode.PureMath)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.55f, 0.55f, 0.55f, 1f));
+            ImGui.TextWrapped(
+                "Pure math ranks melds by the formula deltas alone, with no opinion. " +
+                "Doesn't model Crit's multiplier effect on Det/DH — for tighter raid recs, " +
+                "switch to Balance preset.");
+            ImGui.PopStyleColor();
+        }
+        else
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.55f, 0.55f, 0.55f, 1f));
+            ImGui.TextWrapped(
+                "Balance preset uses per-job weights from thebalanceffxiv.com. " +
+                "Community consensus circa Patch 7.5 (May 2026); weights drift over time.");
+            ImGui.PopStyleColor();
+        }
+        ImGui.Unindent(12);
     }
 
     // ─── Stat Sheet ────────────────────────────────────────────────────────

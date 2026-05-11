@@ -15,7 +15,10 @@ public sealed class Plugin : IDalamudPlugin
     public Configuration Configuration { get; }
     public WindowSystem WindowSystem { get; } = new("GearGoblin");
 
-    public InventoryReader Inventory { get; }
+    public InventoryReader      Inventory   { get; }
+
+    // v0.4.0: native injection into the CharacterStatus addon.
+    public StatusPanelInjector StatusPanel { get; }
 
     private readonly MainWindow mainWindow;
 
@@ -29,7 +32,8 @@ public sealed class Plugin : IDalamudPlugin
         Configuration.Initialize(DalamudServices.PluginInterface);
 
         // Services.
-        Inventory = new InventoryReader();
+        Inventory   = new InventoryReader();
+        StatusPanel = new StatusPanelInjector(this);
 
         // UI.
         mainWindow = new MainWindow(this);
@@ -50,6 +54,11 @@ public sealed class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
+        // Tear down in reverse construction order. StatusPanel must dispose
+        // before the WindowSystem so its click-handler unregistration runs
+        // while Dalamud's services are still alive.
+        StatusPanel?.Dispose();
+
         DalamudServices.PluginInterface.UiBuilder.Draw         -= DrawUI;
         DalamudServices.PluginInterface.UiBuilder.OpenConfigUi -= ToggleMain;
         DalamudServices.PluginInterface.UiBuilder.OpenMainUi   -= ToggleMain;
@@ -61,7 +70,12 @@ public sealed class Plugin : IDalamudPlugin
 
     private void OnCommand(string command, string args) => ToggleMain();
 
-    private void ToggleMain() => mainWindow.Toggle();
+    /// <summary>
+    /// Toggle the standalone /goblin window. Public so the v0.4.0
+    /// StatusPanelInjector can invoke it from the in-addon Materia Advisor
+    /// footer's click handler.
+    /// </summary>
+    public void ToggleMain() => mainWindow.Toggle();
 
     private void DrawUI() => WindowSystem.Draw();
 }

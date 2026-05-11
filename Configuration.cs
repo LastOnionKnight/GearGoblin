@@ -16,6 +16,15 @@ public class Configuration : IPluginConfiguration
     /// <summary>Cached Etro/XIVGear responses by URL, persisted to avoid redundant fetches.</summary>
     public Dictionary<string, CachedBis> BisCache { get; set; } = new();
 
+    /// <summary>
+    /// v0.4.0: enables the native AtkNode-injected stat panel inside the Character
+    /// window (breakpoint hints, derived GCD, Materia Advisor section). When false,
+    /// the standalone /goblin window remains the only UI surface. Default is true;
+    /// existing configs upgrading to v0.4.0 will pick this up via the property
+    /// initializer since the field is absent from their persisted JSON.
+    /// </summary>
+    public bool EnableNativeStatPanel { get; set; } = true;
+
     [NonSerialized] private IDalamudPluginInterface? pluginInterface;
 
     public void Initialize(IDalamudPluginInterface pi) => pluginInterface = pi;
