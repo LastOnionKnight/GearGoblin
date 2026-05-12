@@ -66,13 +66,13 @@ public sealed unsafe class StatusPanelInjector : IDisposable
     private AtkTextNode* sksGcdValue;
     private AtkTextNode* sksBpValue;
 
-    // Materia Advisor section pointers.
+    // Materia Advisor section pointers. v0.4.2 consolidated layout:
+    // header carries both status counts and the clickable /goblin glyph in
+    // its value cell, so the separate status/footer fields are retired.
     private AtkTextNode* advisorHeader;
     private AtkTextNode* advisorRec1;
     private AtkTextNode* advisorRec2;
     private AtkTextNode* advisorRec3;
-    private AtkTextNode* advisorStatus;
-    private AtkTextNode* advisorFooter;
 
     // Footer click handle — must be removed on dispose.
     private IAddonEventHandle? footerClickHandle;
@@ -177,6 +177,15 @@ public sealed unsafe class StatusPanelInjector : IDisposable
     /// Add a small italic-gray row under Crit, Det, and DH showing how many
     /// more points are needed to hit the next 0.1% tier.
     /// </summary>
+    /// <remarks>
+    /// v0.4.2 fix (bug 2): previously walked siblings positionally
+    /// (ChildNode → PrevSibling → PrevSibling) and assumed DH-then-Det-then-Crit
+    /// order. That order isn't guaranteed across patches or with other plugins
+    /// like CPR injecting their own rows. Now we iterate all children and
+    /// identify each stat component by reading its label text, which is
+    /// stable per game language. English client only for v0.4.2; localized
+    /// matching via Addon sheet is a follow-up.
+    /// </remarks>
     private void InjectBreakpointHints()
     {
         var offensive = characterStatusPtr->UldManager.SearchNodeById(OffensivePropertiesNodeId);
@@ -187,20 +196,72 @@ public sealed unsafe class StatusPanelInjector : IDisposable
             return;
         }
 
-        // CPR's verified walk: in Offensive Properties,
-        //   ChildNode             = DH  parent (last visually, first in linked list)
-        //   ->PrevSiblingNode     = Det parent
-        //   ->PrevSiblingNode     = Crit parent
-        var dh   = offensive->ChildNode;
-        if (dh   == null) return;
-        var det  = dh->PrevSiblingNode;
-        if (det  == null) return;
-        var crit = det->PrevSiblingNode;
-        if (crit == null) return;
+        // Walk all child components and identify each by label text.
+        AtkComponentNode* critComponent = null;
+        AtkComponentNode* detComponent  = null;
+        AtkComponentNode* dhComponent   = null;
 
-        critBpValue = AddStatRow((AtkComponentNode*)crit, "next tier:");
-        detBpValue  = AddStatRow((AtkComponentNode*)det,  "next tier:");
-        dhBpValue   = AddStatRow((AtkComponentNode*)dh,   "next tier:");
+        var child = offensive->ChildNode;
+        int safety = 0;
+        while (child != null && safety++ < 32)
+        {
+            // We only care about component nodes — section headers etc. have
+            // different layouts and won't carry a stat label.
+            if (child->Type == NodeType.Component)
+            {
+                var component = (AtkComponentNode*)child;
+                var label     = GetComponentLabelText(component);
+                if (!string.IsNullOrEmpty(label))
+                {
+                    // Match by prefix so "Critical Hit" matches whether the
+                    // full label is "Critical Hit" or "Critical Hit Rate".
+                    if      (label.StartsWith("Critical Hit"))   critComponent = component;
+                    else if (label.StartsWith("Determination"))  detComponent  = component;
+                    else if (label.StartsWith("Direct Hit"))     dhComponent   = component;
+                }
+            }
+            child = child->NextSiblingNode;
+        }
+
+        if (critComponent == null || detComponent == null || dhComponent == null)
+        {
+            DalamudServices.Log.Warning(
+                "StatusPanelInjector: could not identify all three offensive substat rows " +
+                $"by label (crit={(critComponent != null)} det={(detComponent != null)} dh={(dhComponent != null)}). " +
+                "Breakpoint hints partially or fully skipped.");
+        }
+
+        // Inject in visual order (Crit first, DH last) — order doesn't actually
+        // matter mechanically since each parent is independent, but matches
+        // the player's reading order.
+        if (critComponent != null) critBpValue = AddStatRow(critComponent, "next tier:");
+        if (detComponent  != null) detBpValue  = AddStatRow(detComponent,  "next tier:");
+        if (dhComponent   != null) dhBpValue   = AddStatRow(dhComponent,   "next tier:");
+    }
+
+    /// <summary>
+    /// Read the label TextNode contents from a stat-row component. Returns
+    /// null if the component's internal layout doesn't match the expected
+    /// (collisionNode, numberNode, labelNode) sibling chain. v0.4.2.
+    /// </summary>
+    private static string? GetComponentLabelText(AtkComponentNode* component)
+    {
+        if (component == null || component->Component == null) return null;
+        var root = component->Component->UldManager.RootNode;
+        if (root == null) return null;
+        var number = (AtkTextNode*)root->PrevSiblingNode;
+        if (number == null) return null;
+        var label = (AtkTextNode*)number->AtkResNode.PrevSiblingNode;
+        if (label == null) return null;
+
+        try
+        {
+            return label->NodeText.ToString();
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     /// <summary>
@@ -231,8 +292,12 @@ public sealed unsafe class StatusPanelInjector : IDisposable
 
     /// <summary>
     /// Materia Advisor section: a pseudo-section made of stacked AddStatRow
-    /// calls under the Gear container. Real section creation (with its own
-    /// header divider) is deferred to v0.4.1.
+    /// calls under the Gear container. v0.4.2 (bug 1): consolidated from 6
+    /// rows to 4 — the header row now carries the status-count text in its
+    /// value cell along with the clickable <c>▶ /goblin</c> glyph. This
+    /// saves 40px of vertical real estate that was pushing the footer off
+    /// the bottom of the Character window. A real section node with its own
+    /// header divider remains queued for a later release.
     /// </summary>
     private void InjectAdvisorSection()
     {
@@ -246,35 +311,33 @@ public sealed unsafe class StatusPanelInjector : IDisposable
 
         var avgIlvlComponent = (AtkComponentNode*)gear->ChildNode;
 
-        // Visual header — using box-drawing chars so it reads as a divider
-        // even though we're not creating a real section node.
+        // 4 rows total: header (clickable, carries status) + 3 rec rows.
         advisorHeader = AddStatRow(avgIlvlComponent, "── Materia Advisor ──");
         advisorRec1   = AddStatRow(avgIlvlComponent, "");
         advisorRec2   = AddStatRow(avgIlvlComponent, "");
         advisorRec3   = AddStatRow(avgIlvlComponent, "");
-        advisorStatus = AddStatRow(avgIlvlComponent, "");
-        advisorFooter = AddStatRow(avgIlvlComponent, "▶ /goblin");
 
-        // Recolor advisor rows with the gold accent so they read as a unit.
+        // Recolor the header so it reads as a unit. Rec rows stay in the
+        // default injected-row gray so they don't compete for attention.
         if (advisorHeader != null) advisorHeader->TextColor = AdvisorAccentColor;
-        if (advisorFooter != null) advisorFooter->TextColor = AdvisorAccentColor;
 
-        // Make footer clickable.
-        if (advisorFooter != null)
+        // Make the header value cell clickable. We register on the value
+        // cell (right side) since that's where "▶ /goblin · status" renders.
+        if (advisorHeader != null)
         {
-            var footerNode = (AtkResNode*)advisorFooter;
-            footerNode->NodeFlags |=
+            var headerNode = (AtkResNode*)advisorHeader;
+            headerNode->NodeFlags |=
                 NodeFlags.EmitsEvents | NodeFlags.RespondToMouse | NodeFlags.HasCollision;
 
             footerClickHandle = DalamudServices.AddonEventManager.AddEvent(
                 (nint)characterStatusPtr,
-                (nint)footerNode,
+                (nint)headerNode,
                 AddonEventType.MouseClick,
                 OnAdvisorFooterClick);
 
             if (footerClickHandle == null)
                 DalamudServices.Log.Warning(
-                    "StatusPanelInjector: AddEvent returned null; footer will be non-interactive.");
+                    "StatusPanelInjector: AddEvent returned null; advisor header will be non-interactive.");
         }
     }
 
@@ -403,18 +466,42 @@ public sealed unsafe class StatusPanelInjector : IDisposable
                 }
             }
 
-            SetAdvisorRow(advisorRec1, candidates.ElementAtOrDefault(0));
-            SetAdvisorRow(advisorRec2, candidates.ElementAtOrDefault(1));
-            SetAdvisorRow(advisorRec3, candidates.ElementAtOrDefault(2));
-
-            // Status counts.
+            // Status counts — folded into header value cell in the v0.4.2
+            // consolidated layout.
             var crit  = result.Audits.Count(a => a.Severity == AuditSeverity.Critical);
             var warn  = result.Audits.Count(a => a.Severity == AuditSeverity.Warning);
             var empty = result.PlanRecommendations.Count;
-            if (advisorStatus != null)
+
+            // v0.4.2 (bug 4): diagnostic logging so we can tell genuine "all
+            // melds optimal" from silent optimizer failure. Logged at Debug
+            // level so it doesn't flood normal logs.
+            DalamudServices.Log.Debug(
+                $"Advisor: pieces={pieces.Count} audits={result.Audits.Count} " +
+                $"crit={crit} warn={warn} planRecs={result.PlanRecommendations.Count} " +
+                $"candidates={candidates.Count}");
+
+            // Rec rows.
+            if (candidates.Count == 0)
             {
-                advisorStatus->SetText(
-                    $"{crit} critical · {warn} warning · {empty} empty");
+                // v0.4.2 (bug 4): explicit "everything looks fine" message so
+                // the section doesn't render as 3 blank rows. Communicates
+                // that we looked and found nothing, vs appearing broken.
+                SetAdvisorRow(advisorRec1, "All guaranteed slots filled · no upgrades suggested");
+                SetAdvisorRow(advisorRec2, null);
+                SetAdvisorRow(advisorRec3, null);
+            }
+            else
+            {
+                SetAdvisorRow(advisorRec1, candidates.ElementAtOrDefault(0));
+                SetAdvisorRow(advisorRec2, candidates.ElementAtOrDefault(1));
+                SetAdvisorRow(advisorRec3, candidates.ElementAtOrDefault(2));
+            }
+
+            // Header value cell: status counts plus the clickable /goblin
+            // glyph. v0.4.2 consolidated layout.
+            if (advisorHeader != null)
+            {
+                advisorHeader->SetText($"{crit}c · {warn}w · {empty}e   ▶ /goblin");
             }
         }
         catch (Exception ex)
@@ -435,7 +522,8 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         SetAdvisorRow(advisorRec1, placeholder);
         SetAdvisorRow(advisorRec2, null);
         SetAdvisorRow(advisorRec3, null);
-        if (advisorStatus != null) advisorStatus->SetText("");
+        // Header keeps its label; clear the value-cell status.
+        if (advisorHeader != null) advisorHeader->SetText("▶ /goblin");
     }
 
     // ── CPR-ported core helper ──────────────────────────────────────────
@@ -474,7 +562,11 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         var prevSiblingBeforeLabel = labelNode->AtkResNode.PrevSiblingNode;
         labelNode->AtkResNode.PrevSiblingNode  = (AtkResNode*)newNumberNode;
         newNumberNode->AtkResNode.NextSiblingNode = (AtkResNode*)labelNode;
-        newNumberNode->AtkResNode.Y    = parentNode->AtkResNode.Height - 24;
+        // v0.4.2 fix (bug 3): was -24, which placed the new row 4px ABOVE the
+        // original content's bottom edge and caused visible overlap with the
+        // last vanilla row under each parent. -20 aligns the new row exactly
+        // at the old bottom edge (i.e., Y = old height before the +20 bump).
+        newNumberNode->AtkResNode.Y    = parentNode->AtkResNode.Height - 20;
         newNumberNode->TextColor       = InjectedRowColor;
         NodeUtil.AllocateFreshTextBuffer(newNumberNode);
 
@@ -483,7 +575,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         newNumberNode->AtkResNode.PrevSiblingNode = (AtkResNode*)newLabelNode;
         newLabelNode->AtkResNode.PrevSiblingNode  = prevSiblingBeforeLabel;
         newLabelNode->AtkResNode.NextSiblingNode  = (AtkResNode*)newNumberNode;
-        newLabelNode->AtkResNode.Y    = parentNode->AtkResNode.Height - 24;
+        newLabelNode->AtkResNode.Y    = parentNode->AtkResNode.Height - 20;
         newLabelNode->TextColor       = InjectedRowColor;
         NodeUtil.AllocateFreshTextBuffer(newLabelNode);
         newLabelNode->SetText(label);
@@ -499,6 +591,5 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         sksGcdValue = null;  sksBpValue = null;
         advisorHeader = null;
         advisorRec1 = null;  advisorRec2 = null;  advisorRec3 = null;
-        advisorStatus = null;  advisorFooter = null;
     }
 }

@@ -4,6 +4,69 @@ All notable changes to GearGoblin are documented here. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning loosely
 follows [Semantic Versioning](https://semver.org/).
 
+## [0.4.2] — 2026-05-11
+
+Bugfix release. Four issues uncovered during in-game field testing of v0.4.0
++ v0.4.1: the `▶ /goblin` advisor footer was rendering off the bottom of the
+Character window, the Critical Hit breakpoint hint wasn't appearing, the
+injected rows visually overlapped the vanilla content above them, and the
+advisor rendered as three blank rows when no recommendations were available.
+All four are fixed in `Services/StatusPanelInjector.cs`.
+
+### Fixed
+
+- **Off-panel `▶ /goblin` footer (bug 1).** The Materia Advisor section was
+  injecting six rows (header + 3 recs + status + footer), adding 120px of
+  vertical content to the Gear panel. Combined with the breakpoint-hint
+  rows (+60px) and speed-derivation rows (+40px), the total +220px pushed
+  the footer below the Character window's visible area. Now consolidated
+  to four rows: the header row carries the status counts AND the clickable
+  `▶ /goblin` glyph in its value cell, and the dedicated status and footer
+  rows are retired. Saves 40px; footer no longer clips.
+- **Missing Critical Hit breakpoint hint (bug 2).** `InjectBreakpointHints`
+  used a positional sibling walk (`offensive->ChildNode →
+  ->PrevSiblingNode → ->PrevSiblingNode`) and assumed DH-then-Det-then-Crit
+  linked-list order. When that assumption broke — possibly due to extra
+  nodes inserted by the addon itself or by interaction with other plugins —
+  the Crit pointer landed on the wrong component, producing an orphan
+  injected row at the bottom of Offensive Properties instead of a hint
+  under Critical Hit. The walk now iterates all children of the offensive
+  node and identifies each stat component by reading its label TextNode
+  contents ("Critical Hit", "Determination", "Direct Hit"). Robust against
+  reorder, extra children, and other plugins injecting into the same
+  section. English client only for v0.4.2; localized matching via the
+  Lumina `Addon` sheet is a follow-up.
+- **Visual overlap on injected rows (bug 3).** `AddStatRow` computed the new
+  row's Y coordinate as `parentNode.Height - 24` *after* bumping the
+  parent's height by 20px. The result was Y = old_height - 4, which placed
+  the new row's top edge 4px inside the original content's bottom edge —
+  a visible 4px overlap on the first injected row under each parent.
+  Changed to `parentNode.Height - 20`, which places the new row's top
+  exactly at the old bottom edge. The overlap on Det/DH/etc. is gone.
+- **Empty advisor showing three blank rows (bug 4).** When `MeldOptimizer`
+  returned no critical/warning audits and no plan recommendations, the
+  three rec rows each got set to empty strings — invisible text but still
+  consuming 60px of vertical real estate. Now when there are zero
+  candidates, rec1 displays "All guaranteed slots filled · no upgrades
+  suggested" and rec2/rec3 stay empty. Diagnostic logging at Debug level
+  also records the optimizer's result counts (`audits`, `planRecs`,
+  `candidates`) on every update tick, so we can distinguish "genuinely
+  optimal melds" from "silent optimizer failure" without guessing.
+
+### Added
+
+- `GetComponentLabelText` helper in `StatusPanelInjector` — reads a stat
+  row component's label TextNode contents. Used by the new label-based
+  breakpoint-hint identification (bug 2 fix). Returns null defensively if
+  the component's internal node layout doesn't match expectations.
+
+### Removed
+
+- `advisorStatus` and `advisorFooter` field declarations in
+  `StatusPanelInjector` — retired by the bug 1 consolidation. Status counts
+  now live in the header row's value cell; the click handler is registered
+  on the header instead of a separate footer.
+
 ## [0.4.1] — 2026-05-11
 
 ### Added
@@ -150,6 +213,7 @@ follows [Semantic Versioning](https://semver.org/).
 - Initial inventory reader, equipped-gear inspection.
 - Standalone `/goblin` window.
 
+[0.4.2]: https://github.com/LastOnionKnight/GearGoblin/releases/tag/v0.4.2
 [0.4.1]: https://github.com/LastOnionKnight/GearGoblin/releases/tag/v0.4.1
 [0.4.0]: https://github.com/LastOnionKnight/GearGoblin/releases/tag/v0.4.0
 [0.3.2]: https://github.com/LastOnionKnight/GearGoblin/releases/tag/v0.3.2

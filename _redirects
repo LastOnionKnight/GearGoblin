@@ -1,0 +1,5 @@
+# wwwroot/_redirects — Cloudflare Pages SPA fallback for Blazor.
+# Any unmatched URL serves index.html with HTTP 200 so Blazor's router can
+# resolve it client-side. Without this, deep links return 404.
+
+/*    /index.html    200
