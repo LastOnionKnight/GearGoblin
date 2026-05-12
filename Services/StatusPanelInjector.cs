@@ -18,6 +18,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Dalamud.Game.Addon.Events;
+using Dalamud.Game.Addon.Events.EventDataTypes;
 using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using FFXIVClientStructs.FFXIV.Client.Graphics;
@@ -277,7 +278,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         }
     }
 
-    private void OnAdvisorFooterClick(AddonEventType type, nint addon, nint node)
+    private void OnAdvisorFooterClick(AddonEventType type, AddonEventData data)
     {
         try
         {

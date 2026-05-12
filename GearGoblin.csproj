@@ -4,9 +4,9 @@
     <Author>LastOnionKnight</Author>
     <Name>GearGoblin</Name>
     <InternalName>GearGoblin</InternalName>
-    <AssemblyVersion>0.4.0.0</AssemblyVersion>
-    <FileVersion>0.4.0.0</FileVersion>
-    <Version>0.4.0.0</Version>
+    <AssemblyVersion>0.4.1.0</AssemblyVersion>
+    <FileVersion>0.4.1.0</FileVersion>
+    <Version>0.4.1.0</Version>
     <MinimumDalamudVersion>15.0.0</MinimumDalamudVersion>
     <Punchline>BiS planner with native Character window integration, materia advisor, and Etro/XIVGear comparison.</Punchline>
     <Description>BiS planner, gear inventory reader, and materia advisor for FFXIV. Adds breakpoint hints, real GCD derivation, and a Materia Advisor section directly inside the native Character window. Reads your equipped gear, recommends materia for empty meld slots, audits existing melds for overcap and tier issues, and compares against an Etro or XIVGear BiS. Pure-math or Balance-preset weighting, your choice. Materia formulas re-derived from public datamining sources.</Description>

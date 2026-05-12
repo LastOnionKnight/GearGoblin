@@ -10,12 +10,15 @@ namespace GearGoblin;
 public sealed class Plugin : IDalamudPlugin
 {
     public string Name => "GearGoblin";
-    private const string CommandName = "/goblin";
+
+    private const string CommandName       = "/goblin";
+    private const string ExportCommandName = "/goblinexport";   // v0.4.1
 
     public Configuration Configuration { get; }
-    public WindowSystem WindowSystem { get; } = new("GearGoblin");
+    public WindowSystem  WindowSystem  { get; } = new("GearGoblin");
 
-    public InventoryReader      Inventory   { get; }
+    public InventoryReader  Inventory { get; }
+    public GearsetExporter  Exporter  { get; }   // v0.4.1
 
     // v0.4.0: native injection into the CharacterStatus addon.
     public StatusPanelInjector StatusPanel { get; }
@@ -33,6 +36,7 @@ public sealed class Plugin : IDalamudPlugin
 
         // Services.
         Inventory   = new InventoryReader();
+        Exporter    = new GearsetExporter(Inventory);                       // v0.4.1
         StatusPanel = new StatusPanelInjector(this);
 
         // UI.
@@ -43,10 +47,14 @@ public sealed class Plugin : IDalamudPlugin
         DalamudServices.PluginInterface.UiBuilder.OpenConfigUi += ToggleMain;
         DalamudServices.PluginInterface.UiBuilder.OpenMainUi   += ToggleMain;
 
-        // Command.
+        // Commands.
         DalamudServices.CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
             HelpMessage = "Open GearGoblin. Usage: /goblin"
+        });
+        DalamudServices.CommandManager.AddHandler(ExportCommandName, new CommandInfo(OnExportCommand)
+        {
+            HelpMessage = "Export your equipped gearset to clipboard for use in Tonberry Tactics."
         });
 
         DalamudServices.Log.Info($"GearGoblin v{GetType().Assembly.GetName().Version} loaded.");
@@ -62,13 +70,24 @@ public sealed class Plugin : IDalamudPlugin
         DalamudServices.PluginInterface.UiBuilder.Draw         -= DrawUI;
         DalamudServices.PluginInterface.UiBuilder.OpenConfigUi -= ToggleMain;
         DalamudServices.PluginInterface.UiBuilder.OpenMainUi   -= ToggleMain;
+
         DalamudServices.CommandManager.RemoveHandler(CommandName);
+        DalamudServices.CommandManager.RemoveHandler(ExportCommandName);    // v0.4.1
 
         WindowSystem.RemoveAllWindows();
         mainWindow.Dispose();
     }
 
     private void OnCommand(string command, string args) => ToggleMain();
+
+    /// <summary>
+    /// v0.4.1: /goblinexport command. Serializes the currently-equipped
+    /// gearset (job, level, items, melded materia) to a base64-encoded JSON
+    /// string and copies it to the system clipboard for use in the Tonberry
+    /// Tactics web app at tonberrytactics.pages.dev. Pure read; doesn't open
+    /// any UI.
+    /// </summary>
+    private void OnExportCommand(string command, string args) => Exporter.ExportToClipboard();
 
     /// <summary>
     /// Toggle the standalone /goblin window. Public so the v0.4.0
