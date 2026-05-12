@@ -4,6 +4,89 @@ All notable changes to GearGoblin are documented here. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning loosely
 follows [Semantic Versioning](https://semver.org/).
 
+## [0.4.5] — 2026-05-12
+
+**Headline:** GearGoblin replaces CharacterPanelRefined. Same data CPR
+surfaces, plus breakpoint hints, real GCD, role-gated Tenacity/Piety rows,
+and the Materia Advisor — all in one plugin, with a compact layout that
+fits inside the default Character window without scrolling.
+
+If you have CPR installed, GG auto-detects it on each panel open and steps
+aside (skips derived stats so you don't see them twice). You can uninstall
+CPR after upgrading; GG covers everything it did. Or set
+`ForceDerivationsOverCpr = true` in the config file if you want both.
+
+### Added
+
+- **Compact derived stat row per substat** under Offensive Properties. One
+  row each for Crit, Det, DH carrying chance / damage multiplier / damage
+  increase contribution AND the breakpoint hint on a single line. Example:
+  `20.8% · ×1.556 · +11.6% dmg · +13→tier`. Replaces the v0.4.2 standalone
+  "next tier:" rows.
+- **Tenacity row** in Role Properties for tank jobs. Format:
+  `+2.5% dmg · -2.5% taken`. Suppressed entirely on non-tank jobs.
+- **Piety row** in Role Properties for healer jobs. Format:
+  `200 MP/tick`. Suppressed entirely on non-healer jobs.
+- **CPR detection** via `IDalamudPluginInterface.InstalledPlugins`.
+  When `CharacterPanelRefined` is loaded, GearGoblin defaults its
+  derived-stat injection OFF so the two plugins don't double-display the
+  same percentages. Breakpoint hints, real GCD, and Materia Advisor still
+  inject normally — those are GG-unique and worth showing alongside CPR.
+- **Per-section configuration toggles**: `EnableDerivedStatInjection`
+  (master), `ShowCritDerivations`, `ShowDetDerivations`,
+  `ShowDhDerivations`, `ShowSpeedDerivations`, `ShowTenacityRow`,
+  `ShowPietyRow`, `ForceDerivationsOverCpr`, `CompactDerivationLayout`.
+  All default to sensible values (on, compact, defer to CPR).
+- **First-inject chat-log signature**: on the first time the Character
+  window opens in a Dalamud session, GG logs
+  `StatusPanelInjector v0.4.5: first inject complete. CPR active: {bool}. Derivations enabled: {bool}.`
+  You can confirm which version of the plugin is actually loaded by
+  running `/xllog` and searching for `v0.4.5`. Added because v0.4.2 had
+  a build-cache issue where the runtime didn't match the source.
+
+### Changed
+
+- **Offensive section row count is the same as v0.4.2.** v0.4.5 doesn't
+  add extra rows under Crit/Det/DH; the v0.4.2 "next tier:" row is
+  replaced by the new compact derived row. Three injected rows in
+  Offensive Properties, just like v0.4.2.
+- **Speed section consolidated.** v0.4.2 had two injected rows under
+  Skill/Spell Speed (GCD real, next GCD tier). v0.4.5 keeps GCD real
+  but folds the breakpoint hint and speed-damage contribution into a
+  single row: `+0.1% dmg · +22→tier`. Net: one fewer row in the speed
+  section.
+- **StatusPanelInjector rewritten from the ground up.** v0.4.2 was a
+  patch on top of v0.4.1; v0.4.5 ships a clean rewrite of
+  `Services/StatusPanelInjector.cs` so partial-build state from earlier
+  versions can't bleed through. All v0.4.2 bug fixes (label-walk,
+  Y-position, height bump, advisor consolidation) are preserved verbatim.
+- **`GearGoblin.csproj` Punchline and Description** rewritten to reflect
+  CPR-replacement positioning. Tag list adds `cpr`, `character-panel`.
+- **About tab** (inside the plugin's `/goblin` window) now covers v0.4.0
+  through v0.4.5 properly. It was stuck on v0.3.x. Includes the new
+  Refia / Aisling byline.
+
+### Notes
+
+- **CPR coexistence.** If both plugins are installed and loaded:
+  - GearGoblin still injects breakpoint hints, real GCD, and the Materia
+    Advisor section — those are GG-unique and don't conflict with CPR.
+  - GearGoblin skips the new v0.4.5 compact derived rows by default to
+    avoid double-display of the chance/damage/DI numbers CPR already
+    shows.
+  - You can override with `ForceDerivationsOverCpr = true` in the
+    plugin config (will be on the Settings tab in v0.4.6).
+  - Recommendation: pick one. GG is now a strict superset of CPR plus
+    breakpoints, Tenacity/Piety, real GCD, and the Advisor.
+- **Bug 2 status carried forward.** v0.4.2's label-walk identification
+  of Crit / Det / DH components is preserved unchanged in v0.4.5.
+  If you still see a missing derivation row, check `/xllog` for the
+  warning `could not identify all three offensive substat rows by label`
+  — that means SE changed the addon's internal node layout in a patch
+  and the StartsWith() matchers need updating.
+
+[0.4.5]: https://github.com/LastOnionKnight/GearGoblin/releases/tag/v0.4.5
+
 ## [0.4.2] — 2026-05-11
 
 Bugfix release. Four issues uncovered during in-game field testing of v0.4.0

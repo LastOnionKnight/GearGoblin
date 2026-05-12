@@ -4,14 +4,14 @@
     <Author>LastOnionKnight</Author>
     <Name>GearGoblin</Name>
     <InternalName>GearGoblin</InternalName>
-    <AssemblyVersion>0.4.2.0</AssemblyVersion>
-    <FileVersion>0.4.2.0</FileVersion>
-    <Version>0.4.2.0</Version>
+    <AssemblyVersion>0.4.5.0</AssemblyVersion>
+    <FileVersion>0.4.5.0</FileVersion>
+    <Version>0.4.5.0</Version>
     <MinimumDalamudVersion>15.0.0</MinimumDalamudVersion>
-    <Punchline>BiS planner with native Character window integration, materia advisor, and Etro/XIVGear comparison.</Punchline>
-    <Description>BiS planner, gear inventory reader, and materia advisor for FFXIV. Adds breakpoint hints, real GCD derivation, and a Materia Advisor section directly inside the native Character window. Reads your equipped gear, recommends materia for empty meld slots, audits existing melds for overcap and tier issues, and compares against an Etro or XIVGear BiS. Pure-math or Balance-preset weighting, your choice. Materia formulas re-derived from public datamining sources.</Description>
+    <Punchline>BiS planner + native Character panel takeover. Replaces CharacterPanelRefined with compact derived stats, breakpoint hints, real GCD, Tenacity/Piety rows, and a built-in Materia Advisor.</Punchline>
+    <Description>GearGoblin is a BiS planner, gear inventory reader, and materia advisor for FFXIV that takes over the native Character window. As of v0.4.5 it ships as a full CharacterPanelRefined replacement: compact one-line derived stats per substat (Crit chance / damage multiplier / damage increase, Det damage increase, DH chance / damage increase, Tenacity damage and mitigation for tanks, Piety MP/tick for healers), breakpoint hints inline, real GCD under Skill/Spell Speed, and a Materia Advisor section under Gear that surfaces the top three meld actions. Plus the standalone /goblin window for Plan/Audit modes, Etro and XIVGear BiS comparison, /goblinexport for Tonberry Tactics handoff, and a /goblin-clickable header. Auto-detects CPR and steps aside if both are installed. Materia formulas re-derived from public datamining sources.</Description>
     <RepoUrl>https://github.com/LastOnionKnight/GearGoblin</RepoUrl>
-    <Tags>gear;bis;materia;etro;xivgear;raid;advisor</Tags>
+    <Tags>gear;bis;materia;etro;xivgear;raid;advisor;cpr;character-panel</Tags>
 
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>

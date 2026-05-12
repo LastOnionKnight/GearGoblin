@@ -25,6 +25,45 @@ public class Configuration : IPluginConfiguration
     /// </summary>
     public bool EnableNativeStatPanel { get; set; } = true;
 
+    /// <summary>
+    /// v0.4.5: GearGoblin now ships full CPR-equivalent derived stat injection
+    /// (Crit Chance %, Crit Damage %, DH Chance %, Det Damage Increase %, etc.).
+    /// When true, GG injects derived percentages alongside its breakpoint hints.
+    /// Auto-disabled if CharacterPanelRefined is also installed and active, so
+    /// the two plugins don't double-inject — unless the user explicitly toggles
+    /// <see cref="ForceDerivationsOverCpr"/> on. Default true.
+    /// </summary>
+    public bool EnableDerivedStatInjection { get; set; } = true;
+
+    /// <summary>
+    /// v0.4.5: per-section visibility for derived stat rows. Each substat has its
+    /// own toggle so users can dial back what gets shown without losing the
+    /// breakpoint hint or the Materia Advisor (those remain controlled by
+    /// <see cref="EnableNativeStatPanel"/>). All default true.
+    /// </summary>
+    public bool ShowCritDerivations  { get; set; } = true;
+    public bool ShowDetDerivations   { get; set; } = true;
+    public bool ShowDhDerivations    { get; set; } = true;
+    public bool ShowSpeedDerivations { get; set; } = true;
+    public bool ShowTenacityRow      { get; set; } = true;  // tank-only; ignored on other jobs
+    public bool ShowPietyRow         { get; set; } = true;  // healer-only; ignored on other jobs
+
+    /// <summary>
+    /// v0.4.5: when true, GG will inject its derivations even if
+    /// CharacterPanelRefined is detected as active. The user gets double-display
+    /// in exchange for explicit override. Off by default — CPR users typically
+    /// want one source of truth.
+    /// </summary>
+    public bool ForceDerivationsOverCpr { get; set; } = false;
+
+    /// <summary>
+    /// v0.4.5: if true, derived stats render in compact one-line form
+    /// (<c>20.8% / ×1.556 / +11.6% dmg</c>) rather than CPR-style one-row-per-stat.
+    /// Saves ~6 rows of vertical real estate at the cost of slightly denser text.
+    /// Off by default to match CPR's familiar layout.
+    /// </summary>
+    public bool CompactDerivationLayout { get; set; } = false;
+
     [NonSerialized] private IDalamudPluginInterface? pluginInterface;
 
     public void Initialize(IDalamudPluginInterface pi) => pluginInterface = pi;

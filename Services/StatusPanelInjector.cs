@@ -1,18 +1,39 @@
 // Services/StatusPanelInjector.cs
 //
-// v0.4.0 headline feature: inject GearGoblin's derived data and Materia
-// Advisor recommendations directly into FFXIV's native CharacterStatus addon.
+// v0.4.5 — full CPR-replacement release.
+// ============================================================================
+//
+// Inject GearGoblin's derived stat data and Materia Advisor directly into
+// FFXIV's native CharacterStatus addon. As of v0.4.5 we replace
+// CharacterPanelRefined entirely: each substat gets a single compact derived
+// row containing the chance / damage multiplier / damage-increase
+// contribution AND the breakpoint hint, all on one line. Tenacity and Piety
+// get role-gated rows. Materia Advisor section remains four rows.
+//
+// Lineage:
+//   v0.4.0  first injection — breakpoint hints + GCD + Materia Advisor
+//   v0.4.1  /goblinexport + Dalamud SDK compat (AddonEventData signature)
+//   v0.4.2  4 bug fixes: footer off-panel, missing Crit hint, row overlap,
+//           empty-advisor blank rows; advisor consolidated 6→4 rows
+//   v0.4.5  THIS RELEASE
+//           - Replace separate "next tier:" rows with combined compact
+//             derived rows (chance · damage · DI · next +N)
+//           - Add Tenacity row (tank role only)
+//           - Add Piety row (healer role only)
+//           - Speed section consolidated to (GCD real) + (next + dmg)
+//           - CPR detection: if CharacterPanelRefined is active, skip
+//             derivation injection unless ForceDerivationsOverCpr is set
+//           - Per-section toggles via Configuration
+//           - Visible v0.4.5 chat-log signature on first inject so users
+//             can verify which version is actually running
 //
 // Injection patterns (AddStatRow, node walks, hardcoded section IDs) are
 // adapted from CharacterPanelRefined (MIT). See LICENSES/CharacterPanelRefined-MIT.txt.
 //
 // Lifecycle:
-//   PostSetup            → InjectAllRows (called every time the addon opens)
-//   PostRequestedUpdate  → UpdateAllValues (called on every game tick while open)
-//   PreFinalize          → cleanup pointers; addon teardown frees allocated memory
-//
-// We register against the AddonLifecycle service, NOT IGameGui's directly, so
-// Dalamud manages our subscriptions correctly across plugin reloads.
+//   PostSetup            → InjectAllRows (every time the addon opens)
+//   PostRequestedUpdate  → UpdateAllValues (every game tick while open)
+//   PreFinalize          → cleanup pointers; addon teardown frees memory
 
 using System;
 using System.Collections.Generic;
@@ -31,51 +52,48 @@ namespace GearGoblin.Services;
 public sealed unsafe class StatusPanelInjector : IDisposable
 {
     // ── Node IDs verified by CharacterPanelRefined in-game inspection ──
-    // These are stable across the current expansion patch cycle but should
-    // be re-verified after major patches (X.0, X.1).
     private const uint AttributesNodeId          = 26;
     private const uint OffensivePropertiesNodeId = 36;
     private const uint DefensivePropertiesNodeId = 44;
-    private const uint PhysicalPropertiesNodeId  = 51;  // Skill Speed lives here
-    private const uint MentalPropertiesNodeId    = 58;  // Spell Speed lives here
-    private const uint GearNodeId                = 80;  // Avg item level
-    private const uint RolePropertiesNodeId      = 86;  // Piety / Tenacity
+    private const uint PhysicalPropertiesNodeId  = 51;
+    private const uint MentalPropertiesNodeId    = 58;
+    private const uint GearNodeId                = 80;
+    private const uint RolePropertiesNodeId      = 86;
 
     private const string AddonName = "CharacterStatus";
 
-    // Gray text matches CPR convention so injected rows read as
-    // "supplementary" rather than competing with SE's own data.
     private static readonly ByteColor InjectedRowColor =
         new() { A = 0xFF, R = 0xA0, G = 0xA0, B = 0xA0 };
 
-    // Slightly warmer gold for the advisor section to set it apart visually.
     private static readonly ByteColor AdvisorAccentColor =
         new() { A = 0xFF, R = 0xC9, G = 0xB2, B = 0x7E };
 
-    // ── Dependencies ────────────────────────────────────────────────────
     private readonly Plugin plugin;
-
-    // ── Live state ──────────────────────────────────────────────────────
     private AtkUnitBase* characterStatusPtr;
     private bool registered;
+    private bool firstInjectLogged;
 
-    // Breakpoint hint value-cell pointers (one per substat we annotate).
-    private AtkTextNode* critBpValue;
-    private AtkTextNode* detBpValue;
-    private AtkTextNode* dhBpValue;
-    private AtkTextNode* sksGcdValue;
-    private AtkTextNode* sksBpValue;
+    // Compact derived-stat value cells (one per substat).
+    private AtkTextNode* critCompactValue;
+    private AtkTextNode* detCompactValue;
+    private AtkTextNode* dhCompactValue;
 
-    // Materia Advisor section pointers. v0.4.2 consolidated layout:
-    // header carries both status counts and the clickable /goblin glyph in
-    // its value cell, so the separate status/footer fields are retired.
+    // Speed section: GCD time row + combined breakpoint+damage row.
+    private AtkTextNode* speedGcdValue;
+    private AtkTextNode* speedCompactValue;
+
+    // Role-gated rows.
+    private AtkTextNode* tenacityCompactValue;
+    private AtkTextNode* pietyCompactValue;
+
+    // Materia Advisor section pointers (v0.4.2 consolidated layout).
     private AtkTextNode* advisorHeader;
     private AtkTextNode* advisorRec1;
     private AtkTextNode* advisorRec2;
     private AtkTextNode* advisorRec3;
 
-    // Footer click handle — must be removed on dispose.
     private IAddonEventHandle? footerClickHandle;
+    private bool cprDetectedActive;
 
     // ── Construction / disposal ─────────────────────────────────────────
 
@@ -99,13 +117,11 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         registered = true;
 
         DalamudServices.Log.Info(
-            "StatusPanelInjector: registered AddonLifecycle listeners for CharacterStatus.");
+            "StatusPanelInjector v0.4.5: registered AddonLifecycle listeners for CharacterStatus.");
     }
 
     public void Dispose()
     {
-        // Remove click handler explicitly. Dalamud auto-cleans on plugin
-        // unload, but we own the handle while the plugin lives.
         if (footerClickHandle != null)
         {
             try { DalamudServices.AddonEventManager.RemoveEvent(footerClickHandle); }
@@ -130,9 +146,27 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         try
         {
             characterStatusPtr = (AtkUnitBase*)args.Addon.Address;
+
+            cprDetectedActive = CprDetection.IsCprActive();
+            if (cprDetectedActive && !plugin.Configuration.ForceDerivationsOverCpr)
+            {
+                DalamudServices.Log.Info(
+                    "StatusPanelInjector v0.4.5: CharacterPanelRefined detected as active; " +
+                    "skipping derived-stat injection (set ForceDerivationsOverCpr=true to override). " +
+                    "Breakpoint hints, real GCD, and Materia Advisor will still inject normally.");
+            }
+
             InjectAllRows();
-            // First-paint values: don't wait for the next RequestedUpdate.
             UpdateAllValues();
+
+            if (!firstInjectLogged)
+            {
+                firstInjectLogged = true;
+                DalamudServices.Log.Info(
+                    "StatusPanelInjector v0.4.5: first inject complete. " +
+                    $"CPR active: {cprDetectedActive}. " +
+                    $"Derivations enabled: {WillInjectDerivations()}.");
+            }
         }
         catch (Exception ex)
         {
@@ -143,8 +177,6 @@ public sealed unsafe class StatusPanelInjector : IDisposable
 
     private void OnPreFinalize(AddonEvent type, AddonArgs args)
     {
-        // The addon's node memory is freed by the game on teardown; we just
-        // null our pointers and release the click handle.
         if (footerClickHandle != null)
         {
             try { DalamudServices.AddonEventManager.RemoveEvent(footerClickHandle); }
@@ -164,39 +196,43 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         }
     }
 
-    // ── Injection: walk the addon's node tree and clone in our rows ─────
+    private bool WillInjectDerivations()
+    {
+        if (!plugin.Configuration.EnableDerivedStatInjection) return false;
+        if (cprDetectedActive && !plugin.Configuration.ForceDerivationsOverCpr) return false;
+        return true;
+    }
+
+    // ── Injection ───────────────────────────────────────────────────────
 
     private void InjectAllRows()
     {
-        InjectBreakpointHints();
-        InjectSpeedDerivation();
+        if (characterStatusPtr == null) return;
+
+        if (WillInjectDerivations())
+        {
+            InjectOffensiveDerivations();
+            InjectSpeedSection();
+            InjectRoleDerivations();
+        }
         InjectAdvisorSection();
     }
 
     /// <summary>
-    /// Add a small italic-gray row under Crit, Det, and DH showing how many
-    /// more points are needed to hit the next 0.1% tier.
+    /// Inject a compact derived-stat row under each of Crit / Det / DH.
+    /// One row per substat, label cell empty, value cell carries the full
+    /// "chance · damage · DI · +N→tier" compact string.
     /// </summary>
-    /// <remarks>
-    /// v0.4.2 fix (bug 2): previously walked siblings positionally
-    /// (ChildNode → PrevSibling → PrevSibling) and assumed DH-then-Det-then-Crit
-    /// order. That order isn't guaranteed across patches or with other plugins
-    /// like CPR injecting their own rows. Now we iterate all children and
-    /// identify each stat component by reading its label text, which is
-    /// stable per game language. English client only for v0.4.2; localized
-    /// matching via Addon sheet is a follow-up.
-    /// </remarks>
-    private void InjectBreakpointHints()
+    private void InjectOffensiveDerivations()
     {
         var offensive = characterStatusPtr->UldManager.SearchNodeById(OffensivePropertiesNodeId);
         if (offensive == null)
         {
             DalamudServices.Log.Warning(
-                "StatusPanelInjector: OffensiveProperties node not found; breakpoint hints skipped.");
+                "StatusPanelInjector v0.4.5: OffensiveProperties node not found; derivations skipped.");
             return;
         }
 
-        // Walk all child components and identify each by label text.
         AtkComponentNode* critComponent = null;
         AtkComponentNode* detComponent  = null;
         AtkComponentNode* dhComponent   = null;
@@ -205,16 +241,12 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         int safety = 0;
         while (child != null && safety++ < 32)
         {
-            // We only care about component nodes — section headers etc. have
-            // different layouts and won't carry a stat label.
             if (child->Type == NodeType.Component)
             {
                 var component = (AtkComponentNode*)child;
                 var label     = GetComponentLabelText(component);
                 if (!string.IsNullOrEmpty(label))
                 {
-                    // Match by prefix so "Critical Hit" matches whether the
-                    // full label is "Critical Hit" or "Critical Hit Rate".
                     if      (label.StartsWith("Critical Hit"))   critComponent = component;
                     else if (label.StartsWith("Determination"))  detComponent  = component;
                     else if (label.StartsWith("Direct Hit"))     dhComponent   = component;
@@ -226,23 +258,162 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         if (critComponent == null || detComponent == null || dhComponent == null)
         {
             DalamudServices.Log.Warning(
-                "StatusPanelInjector: could not identify all three offensive substat rows " +
+                "StatusPanelInjector v0.4.5: could not identify all three offensive substat rows " +
                 $"by label (crit={(critComponent != null)} det={(detComponent != null)} dh={(dhComponent != null)}). " +
-                "Breakpoint hints partially or fully skipped.");
+                "Some derivation rows will be missing.");
         }
 
-        // Inject in visual order (Crit first, DH last) — order doesn't actually
-        // matter mechanically since each parent is independent, but matches
-        // the player's reading order.
-        if (critComponent != null) critBpValue = AddStatRow(critComponent, "next tier:");
-        if (detComponent  != null) detBpValue  = AddStatRow(detComponent,  "next tier:");
-        if (dhComponent   != null) dhBpValue   = AddStatRow(dhComponent,   "next tier:");
+        if (critComponent != null && plugin.Configuration.ShowCritDerivations)
+            critCompactValue = AddStatRow(critComponent, "");
+        if (detComponent != null && plugin.Configuration.ShowDetDerivations)
+            detCompactValue = AddStatRow(detComponent, "");
+        if (dhComponent != null && plugin.Configuration.ShowDhDerivations)
+            dhCompactValue = AddStatRow(dhComponent, "");
+    }
+
+    private void InjectSpeedSection()
+    {
+        if (!plugin.Configuration.ShowSpeedDerivations) return;
+
+        var snap = StatReader.ReadCurrent();
+        if (snap == null) return;
+        var profile = JobProfiles.All.GetValueOrDefault(snap.Value.JobId);
+        if (profile == null) return;
+
+        var useSpellSpeed = profile.Role == Role.MagicalRangedDps || profile.Role == Role.Healer;
+        var sectionId    = useSpellSpeed ? MentalPropertiesNodeId : PhysicalPropertiesNodeId;
+
+        var section = characterStatusPtr->UldManager.SearchNodeById(sectionId);
+        if (section == null || section->ChildNode == null)
+        {
+            DalamudServices.Log.Warning(
+                $"StatusPanelInjector v0.4.5: speed section ({sectionId}) not found; speed rows skipped.");
+            return;
+        }
+
+        AtkComponentNode* speedComponent = null;
+        var child = section->ChildNode;
+        int safety = 0;
+        var wantedLabel = useSpellSpeed ? "Spell Speed" : "Skill Speed";
+        while (child != null && safety++ < 32)
+        {
+            if (child->Type == NodeType.Component)
+            {
+                var component = (AtkComponentNode*)child;
+                var label     = GetComponentLabelText(component);
+                if (!string.IsNullOrEmpty(label) && label.StartsWith(wantedLabel))
+                {
+                    speedComponent = component;
+                    break;
+                }
+            }
+            child = child->NextSiblingNode;
+        }
+
+        if (speedComponent == null)
+        {
+            DalamudServices.Log.Warning(
+                $"StatusPanelInjector v0.4.5: '{wantedLabel}' component not found; speed rows skipped.");
+            return;
+        }
+
+        speedGcdValue     = AddStatRow(speedComponent, "GCD (real):");
+        speedCompactValue = AddStatRow(speedComponent, "");
+    }
+
+    private void InjectRoleDerivations()
+    {
+        var snap = StatReader.ReadCurrent();
+        if (snap == null) return;
+        var profile = JobProfiles.All.GetValueOrDefault(snap.Value.JobId);
+        if (profile == null) return;
+
+        var injectTenacity = profile.Role == Role.Tank   && plugin.Configuration.ShowTenacityRow;
+        var injectPiety    = profile.Role == Role.Healer && plugin.Configuration.ShowPietyRow;
+        if (!injectTenacity && !injectPiety) return;
+
+        var roleSection = characterStatusPtr->UldManager.SearchNodeById(RolePropertiesNodeId);
+        if (roleSection == null || roleSection->ChildNode == null)
+        {
+            DalamudServices.Log.Warning(
+                "StatusPanelInjector v0.4.5: Role Properties section not found; role rows skipped.");
+            return;
+        }
+
+        AtkComponentNode* targetComponent = null;
+        var wantedLabel = injectTenacity ? "Tenacity" : "Piety";
+
+        var child = roleSection->ChildNode;
+        int safety = 0;
+        while (child != null && safety++ < 32)
+        {
+            if (child->Type == NodeType.Component)
+            {
+                var component = (AtkComponentNode*)child;
+                var label     = GetComponentLabelText(component);
+                if (!string.IsNullOrEmpty(label) && label.StartsWith(wantedLabel))
+                {
+                    targetComponent = component;
+                    break;
+                }
+            }
+            child = child->NextSiblingNode;
+        }
+
+        if (targetComponent == null)
+        {
+            DalamudServices.Log.Warning(
+                $"StatusPanelInjector v0.4.5: '{wantedLabel}' component not found in Role Properties.");
+            return;
+        }
+
+        if (injectTenacity)
+            tenacityCompactValue = AddStatRow(targetComponent, "");
+        else
+            pietyCompactValue    = AddStatRow(targetComponent, "");
+    }
+
+    private void InjectAdvisorSection()
+    {
+        var gear = characterStatusPtr->UldManager.SearchNodeById(GearNodeId);
+        if (gear == null || gear->ChildNode == null)
+        {
+            DalamudServices.Log.Warning(
+                "StatusPanelInjector v0.4.5: Gear node not found; Materia Advisor skipped.");
+            return;
+        }
+
+        var avgIlvlComponent = (AtkComponentNode*)gear->ChildNode;
+
+        advisorHeader = AddStatRow(avgIlvlComponent, "── Materia Advisor ──");
+        advisorRec1   = AddStatRow(avgIlvlComponent, "");
+        advisorRec2   = AddStatRow(avgIlvlComponent, "");
+        advisorRec3   = AddStatRow(avgIlvlComponent, "");
+
+        if (advisorHeader != null) advisorHeader->TextColor = AdvisorAccentColor;
+
+        if (advisorHeader != null)
+        {
+            var headerNode = (AtkResNode*)advisorHeader;
+            headerNode->NodeFlags |=
+                NodeFlags.EmitsEvents | NodeFlags.RespondToMouse | NodeFlags.HasCollision;
+
+            footerClickHandle = DalamudServices.AddonEventManager.AddEvent(
+                (nint)characterStatusPtr,
+                (nint)headerNode,
+                AddonEventType.MouseClick,
+                OnAdvisorHeaderClick);
+
+            if (footerClickHandle == null)
+                DalamudServices.Log.Warning(
+                    "StatusPanelInjector v0.4.5: AddEvent returned null; advisor header will be non-interactive.");
+        }
     }
 
     /// <summary>
     /// Read the label TextNode contents from a stat-row component. Returns
     /// null if the component's internal layout doesn't match the expected
-    /// (collisionNode, numberNode, labelNode) sibling chain. v0.4.2.
+    /// (collisionNode, numberNode, labelNode) sibling chain.
     /// </summary>
     private static string? GetComponentLabelText(AtkComponentNode* component)
     {
@@ -254,165 +425,94 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         var label = (AtkTextNode*)number->AtkResNode.PrevSiblingNode;
         if (label == null) return null;
 
-        try
-        {
-            return label->NodeText.ToString();
-        }
-        catch
-        {
-            return null;
-        }
+        try { return label->NodeText.ToString(); }
+        catch { return null; }
     }
 
-    /// <summary>
-    /// Add a "real GCD" row under Skill Speed (physical jobs) or Spell Speed
-    /// (caster jobs). Vanilla shows base 2.50s; we show the speed-adjusted GCD.
-    /// </summary>
-    private void InjectSpeedDerivation()
-    {
-        // Try physical first; if missing, try mental. Some jobs only render
-        // one of the two property sections at a time.
-        var phys = characterStatusPtr->UldManager.SearchNodeById(PhysicalPropertiesNodeId);
-        if (phys != null && phys->ChildNode != null)
-        {
-            var skillSpeed = phys->ChildNode;
-            sksGcdValue = AddStatRow((AtkComponentNode*)skillSpeed, "GCD (real):");
-            sksBpValue  = AddStatRow((AtkComponentNode*)skillSpeed, "next GCD tier:");
-            return;
-        }
-
-        var mental = characterStatusPtr->UldManager.SearchNodeById(MentalPropertiesNodeId);
-        if (mental != null && mental->ChildNode != null)
-        {
-            var spellSpeed = mental->ChildNode;
-            sksGcdValue = AddStatRow((AtkComponentNode*)spellSpeed, "GCD (real):");
-            sksBpValue  = AddStatRow((AtkComponentNode*)spellSpeed, "next GCD tier:");
-        }
-    }
-
-    /// <summary>
-    /// Materia Advisor section: a pseudo-section made of stacked AddStatRow
-    /// calls under the Gear container. v0.4.2 (bug 1): consolidated from 6
-    /// rows to 4 — the header row now carries the status-count text in its
-    /// value cell along with the clickable <c>▶ /goblin</c> glyph. This
-    /// saves 40px of vertical real estate that was pushing the footer off
-    /// the bottom of the Character window. A real section node with its own
-    /// header divider remains queued for a later release.
-    /// </summary>
-    private void InjectAdvisorSection()
-    {
-        var gear = characterStatusPtr->UldManager.SearchNodeById(GearNodeId);
-        if (gear == null || gear->ChildNode == null)
-        {
-            DalamudServices.Log.Warning(
-                "StatusPanelInjector: Gear node not found; Materia Advisor skipped.");
-            return;
-        }
-
-        var avgIlvlComponent = (AtkComponentNode*)gear->ChildNode;
-
-        // 4 rows total: header (clickable, carries status) + 3 rec rows.
-        advisorHeader = AddStatRow(avgIlvlComponent, "── Materia Advisor ──");
-        advisorRec1   = AddStatRow(avgIlvlComponent, "");
-        advisorRec2   = AddStatRow(avgIlvlComponent, "");
-        advisorRec3   = AddStatRow(avgIlvlComponent, "");
-
-        // Recolor the header so it reads as a unit. Rec rows stay in the
-        // default injected-row gray so they don't compete for attention.
-        if (advisorHeader != null) advisorHeader->TextColor = AdvisorAccentColor;
-
-        // Make the header value cell clickable. We register on the value
-        // cell (right side) since that's where "▶ /goblin · status" renders.
-        if (advisorHeader != null)
-        {
-            var headerNode = (AtkResNode*)advisorHeader;
-            headerNode->NodeFlags |=
-                NodeFlags.EmitsEvents | NodeFlags.RespondToMouse | NodeFlags.HasCollision;
-
-            footerClickHandle = DalamudServices.AddonEventManager.AddEvent(
-                (nint)characterStatusPtr,
-                (nint)headerNode,
-                AddonEventType.MouseClick,
-                OnAdvisorFooterClick);
-
-            if (footerClickHandle == null)
-                DalamudServices.Log.Warning(
-                    "StatusPanelInjector: AddEvent returned null; advisor header will be non-interactive.");
-        }
-    }
-
-    private void OnAdvisorFooterClick(AddonEventType type, AddonEventData data)
-    {
-        try
-        {
-            // Toggle the standalone /goblin window. Plugin owns the toggle method.
-            plugin.ToggleMain();
-        }
-        catch (Exception ex)
-        {
-            DalamudServices.Log.Error(ex, "StatusPanelInjector: footer click handler threw.");
-        }
-    }
-
-    // ── Update: refresh values every tick the addon is open ─────────────
+    // ── Update ──────────────────────────────────────────────────────────
 
     private void UpdateAllValues()
     {
         var snap = StatReader.ReadCurrent();
-        if (snap is null) return;
+        if (snap == null) return;
         var s = snap.Value;
-        var mod = LevelTable.Get(s.Level);
-        var profile = JobProfiles.GetOrDefault(s.JobId);
 
-        UpdateBreakpoints(s, mod);
-        UpdateSpeedDerivation(s, mod, profile);
+        var mod = LevelTable.Get(s.Level);
+        var profile = JobProfiles.All.GetValueOrDefault(s.JobId);
+        if (profile == null) return;
+
+        UpdateOffensiveDerivations(s, mod);
+        UpdateSpeedSection(s, mod, profile);
+        UpdateRoleDerivations(s, mod, profile);
         UpdateAdvisor(s, mod, profile);
     }
 
-    private void UpdateBreakpoints(StatSnapshot s, LevelMod mod)
+    private void UpdateOffensiveDerivations(StatSnapshot s, in LevelMod mod)
     {
-        if (critBpValue != null)
+        if (critCompactValue != null)
         {
-            var bd = Formulas.CritRate(s.Crit, mod);
-            var delta = bd.NextTier - s.Crit;
-            critBpValue->SetText(delta > 0 ? $"+{delta} → {bd.NextTier}" : "at cap");
+            var rate    = Formulas.CritRate(s.Crit, mod);
+            var derived = DerivedStatFormatter.CritCompact(s.Crit, mod);
+            var delta   = rate.NextTier - s.Crit;
+            var hint    = delta > 0 ? $"+{delta}→tier" : "at cap";
+            critCompactValue->SetText($"{derived} · {hint}");
         }
-        if (detBpValue != null)
+        if (detCompactValue != null)
         {
-            var bd = Formulas.Determination(s.Det, mod);
-            var delta = bd.NextTier - s.Det;
-            detBpValue->SetText(delta > 0 ? $"+{delta} → {bd.NextTier}" : "at cap");
+            var bd      = Formulas.Determination(s.Det, mod);
+            var derived = DerivedStatFormatter.DetCompact(s.Det, mod);
+            var delta   = bd.NextTier - s.Det;
+            var hint    = delta > 0 ? $"+{delta}→tier" : "at cap";
+            detCompactValue->SetText($"{derived} · {hint}");
         }
-        if (dhBpValue != null)
+        if (dhCompactValue != null)
         {
-            var bd = Formulas.DirectHit(s.DH, mod);
-            var delta = bd.NextTier - s.DH;
-            dhBpValue->SetText(delta > 0 ? $"+{delta} → {bd.NextTier}" : "at cap");
+            var bd      = Formulas.DirectHit(s.DH, mod);
+            var derived = DerivedStatFormatter.DhCompact(s.DH, mod);
+            var delta   = bd.NextTier - s.DH;
+            var hint    = delta > 0 ? $"+{delta}→tier" : "at cap";
+            dhCompactValue->SetText($"{derived} · {hint}");
         }
     }
 
-    private void UpdateSpeedDerivation(StatSnapshot s, LevelMod mod, JobProfile profile)
+    private void UpdateSpeedSection(StatSnapshot s, in LevelMod mod, JobProfile profile)
     {
-        if (sksGcdValue == null) return;
+        if (speedGcdValue == null && speedCompactValue == null) return;
 
-        // Use whichever speed stat the job actually uses.
-        bool usesSps = Array.IndexOf(profile.RelevantStats, Substat.SpellSpeed) >= 0;
-        int speed = usesSps ? s.SpS : s.SkS;
+        var useSpellSpeed = profile.Role == Role.MagicalRangedDps || profile.Role == Role.Healer;
+        var speed = useSpellSpeed ? s.SpS : s.SkS;
 
-        var gcd = Formulas.GcdFromSpeed(speed, mod);
-        sksGcdValue->SetText($"{gcd:0.00}s");
-
-        if (sksBpValue != null)
+        if (speedGcdValue != null)
         {
-            var bd = Formulas.SpeedDamage(speed, mod);
+            var gcd = Formulas.GcdFromSpeed(speed, mod);
+            speedGcdValue->SetText($"{gcd:0.00}s");
+        }
+
+        if (speedCompactValue != null)
+        {
+            var bd    = Formulas.SpeedDamage(speed, mod);
+            var dmg   = DerivedStatFormatter.SpeedDamage(speed, mod);
             var delta = bd.NextTier - speed;
-            sksBpValue->SetText(delta > 0 ? $"+{delta} → next tier" : "at cap");
+            var hint  = delta > 0 ? $"+{delta}→tier" : "at cap";
+            speedCompactValue->SetText($"{dmg} · {hint}");
         }
     }
 
-    private void UpdateAdvisor(StatSnapshot s, LevelMod mod, JobProfile profile)
+    private void UpdateRoleDerivations(StatSnapshot s, in LevelMod mod, JobProfile profile)
     {
-        if (advisorRec1 == null) return;  // section not injected
+        if (tenacityCompactValue != null && profile.Role == Role.Tank)
+        {
+            tenacityCompactValue->SetText(DerivedStatFormatter.TenacityCompact(s.Ten, mod));
+        }
+        if (pietyCompactValue != null && profile.Role == Role.Healer)
+        {
+            pietyCompactValue->SetText(DerivedStatFormatter.PietyMpPerTick(s.Pie, mod));
+        }
+    }
+
+    private void UpdateAdvisor(StatSnapshot s, in LevelMod mod, JobProfile profile)
+    {
+        if (advisorRec1 == null) return;
 
         try
         {
@@ -424,15 +524,8 @@ public sealed unsafe class StatusPanelInjector : IDisposable
                 return;
             }
 
-            // Default to Pure Math weights for the in-addon advisor.
-            // Players who want Balance weights can toggle in the standalone window.
             var result = MeldOptimizer.Optimize(pieces, s, mod, profile, WeightMode.PureMath);
 
-            // Rank candidates: Critical/Warning audits with replacements
-            // suggested, sorted by GainIfReplaced descending so the most
-            // impactful upgrades surface first in the limited 3-row space.
-            // Then fill any remaining slots from PlanRecommendations
-            // (empty meld slots), again sorted by ScoreGain descending.
             var candidates = new List<string>();
             var topAudits = result.Audits
                 .Where(a => a.Severity is AuditSeverity.Critical or AuditSeverity.Warning)
@@ -441,9 +534,6 @@ public sealed unsafe class StatusPanelInjector : IDisposable
                 .Take(3);
             foreach (var audit in topAudits)
             {
-                // MeldAudit shape:
-                //   Piece (EquipSlot), SlotIndex (int),
-                //   SuggestedReplacement (MateriaSpec?), GainIfReplaced (double)
                 var slot = audit.Piece;
                 var idx  = audit.SlotIndex + 1;
                 var repl = audit.SuggestedReplacement!.Value.Display();
@@ -456,9 +546,6 @@ public sealed unsafe class StatusPanelInjector : IDisposable
                     .Take(3 - candidates.Count);
                 foreach (var rec in topPlans)
                 {
-                    // MeldRecommendation shape:
-                    //   Piece (EquipSlot), SlotIndex (int),
-                    //   Materia (MateriaSpec), ScoreGain (double)
                     var slot = rec.Piece;
                     var idx  = rec.SlotIndex + 1;
                     var mat  = rec.Materia.Display();
@@ -466,26 +553,17 @@ public sealed unsafe class StatusPanelInjector : IDisposable
                 }
             }
 
-            // Status counts — folded into header value cell in the v0.4.2
-            // consolidated layout.
             var crit  = result.Audits.Count(a => a.Severity == AuditSeverity.Critical);
             var warn  = result.Audits.Count(a => a.Severity == AuditSeverity.Warning);
             var empty = result.PlanRecommendations.Count;
 
-            // v0.4.2 (bug 4): diagnostic logging so we can tell genuine "all
-            // melds optimal" from silent optimizer failure. Logged at Debug
-            // level so it doesn't flood normal logs.
             DalamudServices.Log.Debug(
                 $"Advisor: pieces={pieces.Count} audits={result.Audits.Count} " +
                 $"crit={crit} warn={warn} planRecs={result.PlanRecommendations.Count} " +
                 $"candidates={candidates.Count}");
 
-            // Rec rows.
             if (candidates.Count == 0)
             {
-                // v0.4.2 (bug 4): explicit "everything looks fine" message so
-                // the section doesn't render as 3 blank rows. Communicates
-                // that we looked and found nothing, vs appearing broken.
                 SetAdvisorRow(advisorRec1, "All guaranteed slots filled · no upgrades suggested");
                 SetAdvisorRow(advisorRec2, null);
                 SetAdvisorRow(advisorRec3, null);
@@ -497,8 +575,6 @@ public sealed unsafe class StatusPanelInjector : IDisposable
                 SetAdvisorRow(advisorRec3, candidates.ElementAtOrDefault(2));
             }
 
-            // Header value cell: status counts plus the clickable /goblin
-            // glyph. v0.4.2 consolidated layout.
             if (advisorHeader != null)
             {
                 advisorHeader->SetText($"{crit}c · {warn}w · {empty}e   ▶ /goblin");
@@ -506,7 +582,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         }
         catch (Exception ex)
         {
-            DalamudServices.Log.Error(ex, "StatusPanelInjector: UpdateAdvisor threw.");
+            DalamudServices.Log.Error(ex, "StatusPanelInjector v0.4.5: UpdateAdvisor threw.");
             ClearAdvisorRows("(advisor error)");
         }
     }
@@ -522,55 +598,60 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         SetAdvisorRow(advisorRec1, placeholder);
         SetAdvisorRow(advisorRec2, null);
         SetAdvisorRow(advisorRec3, null);
-        // Header keeps its label; clear the value-cell status.
         if (advisorHeader != null) advisorHeader->SetText("▶ /goblin");
     }
 
-    // ── CPR-ported core helper ──────────────────────────────────────────
+    // ── Header click → invoke /goblin ───────────────────────────────────
+
+    private void OnAdvisorHeaderClick(AddonEventType type, AddonEventData data)
+    {
+        try
+        {
+            DalamudServices.CommandManager.ProcessCommand("/goblin");
+        }
+        catch (Exception ex)
+        {
+            DalamudServices.Log.Error(ex, "StatusPanelInjector v0.4.5: /goblin invoke failed.");
+        }
+    }
+
+    // ── AddStatRow primitive (adapted from CPR, MIT) ────────────────────
 
     /// <summary>
-    /// Clone the existing label + number text nodes from the parent component,
-    /// link them in via sibling pointers, allocate fresh string buffers,
-    /// and bump the parent's height by 20px. Returns the new number node
-    /// (the value cell on the right) for caller to call <c>SetText</c> on.
+    /// Clone the existing label+number node pair beneath <paramref name="parentNode"/>
+    /// to add a new row of stat text. Returns a pointer to the new value cell
+    /// (right side); caller can SetText on it during update ticks. Returns
+    /// null if the parent doesn't have the expected sub-node layout.
+    ///
+    /// <para>
+    /// v0.4.2 bug 3 fix preserved: new row Y = parentNode.Height - 20
+    /// (NOT -24). With the +20 height bump done first, this places the new
+    /// row's top exactly at the old content bottom, no overlap.
+    /// </para>
     /// </summary>
-    /// <remarks>
-    /// Adapted from CharacterPanelRefined (MIT). The original supports an
-    /// <c>hideOriginal</c> flag and color-copy mode; we only need the simple
-    /// "add a gray-text row" case, so those branches are dropped.
-    /// See CPR's CharacterStatusAugments.cs AddStatRow for the full version.
-    /// </remarks>
     private static AtkTextNode* AddStatRow(AtkComponentNode* parentNode, string label)
     {
         if (parentNode == null) return null;
+        if (parentNode->Component == null) return null;
 
         var collisionNode = parentNode->Component->UldManager.RootNode;
         if (collisionNode == null) return null;
-
-        // Existing rows are paired (label, number) walked from the collision node.
         var numberNode = (AtkTextNode*)collisionNode->PrevSiblingNode;
         if (numberNode == null) return null;
-        var labelNode  = (AtkTextNode*)numberNode->AtkResNode.PrevSiblingNode;
+        var labelNode = (AtkTextNode*)numberNode->AtkResNode.PrevSiblingNode;
         if (labelNode == null) return null;
 
-        // Make room.
         parentNode->AtkResNode.Height += 20;
         collisionNode->Height          += 20;
 
-        // Clone the number node (right side, value cell).
         var newNumberNode = NodeUtil.CloneNode(numberNode);
         var prevSiblingBeforeLabel = labelNode->AtkResNode.PrevSiblingNode;
         labelNode->AtkResNode.PrevSiblingNode  = (AtkResNode*)newNumberNode;
         newNumberNode->AtkResNode.NextSiblingNode = (AtkResNode*)labelNode;
-        // v0.4.2 fix (bug 3): was -24, which placed the new row 4px ABOVE the
-        // original content's bottom edge and caused visible overlap with the
-        // last vanilla row under each parent. -20 aligns the new row exactly
-        // at the old bottom edge (i.e., Y = old height before the +20 bump).
         newNumberNode->AtkResNode.Y    = parentNode->AtkResNode.Height - 20;
         newNumberNode->TextColor       = InjectedRowColor;
         NodeUtil.AllocateFreshTextBuffer(newNumberNode);
 
-        // Clone the label node (left side, descriptor).
         var newLabelNode = NodeUtil.CloneNode(labelNode);
         newNumberNode->AtkResNode.PrevSiblingNode = (AtkResNode*)newLabelNode;
         newLabelNode->AtkResNode.PrevSiblingNode  = prevSiblingBeforeLabel;
@@ -580,16 +661,27 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         NodeUtil.AllocateFreshTextBuffer(newLabelNode);
         newLabelNode->SetText(label);
 
+        if (prevSiblingBeforeLabel != null)
+            prevSiblingBeforeLabel->NextSiblingNode = (AtkResNode*)newLabelNode;
+
         parentNode->Component->UldManager.UpdateDrawNodeList();
+
         return newNumberNode;
     }
 
     private void ClearPointers()
     {
         characterStatusPtr = null;
-        critBpValue = null;  detBpValue = null;  dhBpValue = null;
-        sksGcdValue = null;  sksBpValue = null;
+        critCompactValue = null;
+        detCompactValue  = null;
+        dhCompactValue   = null;
+        speedGcdValue    = null;
+        speedCompactValue = null;
+        tenacityCompactValue = null;
+        pietyCompactValue    = null;
         advisorHeader = null;
-        advisorRec1 = null;  advisorRec2 = null;  advisorRec3 = null;
+        advisorRec1   = null;
+        advisorRec2   = null;
+        advisorRec3   = null;
     }
 }
