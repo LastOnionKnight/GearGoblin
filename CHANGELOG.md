@@ -4,6 +4,311 @@ All notable changes to GearGoblin are documented here. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning loosely
 follows [Semantic Versioning](https://semver.org/).
 
+## [Unreleased] — v0.4.7 "Round Trip"
+
+**Headline:** Closing the export–optimize–import loop. `/goblinexport`
+shipped in v0.4.1; v0.4.7 adds `/goblinimport`, the consumer for the
+`GG-PLAN:v1:` strings Tonberry Tactics emits from its optimizer.
+Round-trip becomes real: equip gear → export → optimize on the web →
+import the plan → tick boxes as you meld → done.
+
+v0.4.7 also adds an in-window Feedback tab so beta reports become
+triagable on arrival (pre-filled GitHub issue URL with `/goblininfo`
+diagnostic block auto-attached, clipboard fallback for Discord/DM).
+
+### Status: scaffold landed, full implementation in progress
+
+The wire-format types, validator, command handler, and Plan-tab
+schema additions are in place. What's still TODO before v0.4.7
+ships:
+
+- `GearsetImporter.ImportFromClipboard()` — clipboard read (currently
+  returns "clipboard empty" because the read isn't wired).
+- `GearsetImporter` persist step — write into
+  `Configuration.JobPlans[contentId][jobId].ImportedPlanJson`, set
+  `Mode = PlanMode.Imported`, reset `MeldCompletion`, call `Save()`.
+- Plan tab "Active Plan" UI surface — show imported plan with
+  per-meld checkboxes, source indicator, "Clear plan" button.
+- Character-panel checklist injection (stretch goal) — surface meld
+  steps below the Materia Advisor when an imported plan is active.
+
+### Added (scaffold)
+
+- **`Theme/TlfTheme.cs`** — Phase-1 visual port of the TLF Gear
+  Division design language from Tonberry Tactics. Palette
+  constants (ink, gold, lantern, Tonberry green, knife, frost,
+  blood/ship/ice states, borders) ported verbatim from TT's
+  `styles.css`. Composite helpers: `Push()`/`Pop()` style stacks
+  for window-wide repaint, `Eyebrow("LABEL")` for `◇ TITLE`
+  section heads in lantern-gold, `Advisor("LABEL")` for
+  `▶ TITLE` workflow markers in gold-bright, `Pill(text, color)`
+  for bracket-framed badges, `Credo(text)` for italic-feeling
+  manifesto copy, and `StandingReadyFooter(version)` for the
+  "◆ The Onion Knight stands ready ◆" tagline matching TT's
+  Footer block.
+- **TLF theme applied window-wide.** `MainWindow.Draw()` now pushes
+  the theme stack at entry (via `try`/`finally` for safety) so
+  window background, child frames, frame backgrounds, tab chrome,
+  separators, and body text all read in the TLF palette.
+  Interactive controls (buttons, checkboxes, sliders) deliberately
+  keep default ImGui chrome so muscle memory survives.
+- **Quick Start tab reskinned.** Top-of-tab TLF Manifesto opener
+  with three offline/no-backend/round-trip pills, eyebrow labels
+  on every section, `Advisor("1. EXPORT")` glyph headers on each
+  loop step, `StandingReadyFooter` replacing the old plain tagline.
+- **About tab reskinned.** `TLF GEAR DIVISION · OPERATIONS BRIEF`
+  eyebrow header, `StandingReadyFooter` at bottom, version badge
+  now TLF gold instead of legacy blue.
+- **Bulk palette sweep.** Every `new Vector4(...)` literal across
+  MainWindow.cs replaced with named TLF colors (`GoldBright`,
+  `Lantern`, `ShipBright`, `Warning`). Single source of truth;
+  swapping the design palette later is now one file's worth of
+  edits.
+
+### Phasing note
+
+This is **Phase 1 ("TLF Lite")** of the visual alignment with
+Tonberry Tactics. The web side's full design (Press Start 2P
+pixel labels, VT323 retro UI, Cinzel serif, walking Tonberry
+sprite, knife cursor, CRT scanlines) doesn't port cleanly to
+ImGui without much heavier work:
+
+- **Phase 2 (v0.5.x)** — custom font loading via Dalamud's
+  `IFontAtlas`. Brings the actual pixel-font typography hierarchy
+  into the plugin so headers feel like SNES menus and body feels
+  like FFXIV.
+- **Phase 3 (v0.6.x stretch)** — manifesto/lantern flourishes
+  injected into the native FFXIV Character window itself, not
+  just the standalone `/goblin` window. Heavy lift; low ROI;
+  may never ship.
+
+Phase 1 lands ~70% of the visual coherence at ~10% of the work,
+which is the right ratio for a scaffold release.
+
+- **`/goblinimport` slash command.** Registered. Validates a
+  `GG-PLAN:v1:<base64>` clipboard string through the full pipeline
+  (prefix check, base64 decode, JSON parse, schema version, emitter
+  identity). Reports parse success and meld count to chat. Persist
+  step is the next-build TODO.
+- **`Services/GearsetImporter.cs`.** New service mirroring
+  `GearsetExporter`. Public methods `ImportFromClipboard()` and
+  `ImportFromString(wire)`. Returns a `PlanImportResult` carrying
+  the typed payload plus any warnings.
+- **`Planning/PlanSchema.cs`.** Typed C# records mirroring TT's
+  `PlanPayloadV1` + `PlanMeldV1` + new `PlanCharacterV1` and
+  `PlanImportResult` types. `JsonPropertyName` attributes pin the
+  field mapping so the read side doesn't depend on serializer
+  policy.
+- **`Configuration.JobPlanData`** extended with `ImportedPlanJson`,
+  `ImportedAt`, and `MeldCompletion` fields for the imported-plan
+  storage. New `PlanMode.Imported` enum value alongside `Casual`
+  and `Raider`.
+- **Feedback tab in `/goblin` window.** Drafted during v0.4.6, held
+  back to v0.4.7. Category radio (Bug / Idea / Confusion / Hi),
+  multiline message, "Include diagnostic info" checkbox (on by
+  default). Two submit buttons: "Open GitHub issue (pre-filled)"
+  builds a `https://github.com/.../issues/new?title=...&body=...&labels=...`
+  URL and opens the default browser; "Copy to clipboard for
+  Discord / DM" puts the same markdown payload on the clipboard.
+  No webhooks, no analytics, no auto-submit — explicit click only.
+
+### Changed
+
+- Quick Start tab — `/goblinimport` row drops its "(v0.4.7+)" caveat
+  and gains a scaffold-state note; future-tense ("will read") becomes
+  present-tense ("reads") in the IMPORT step description, with the
+  Plan-tab persistence work explicitly flagged as the next-build TODO.
+- About-tab About entry — adds Feedback tab and `/goblinimport`
+  bullets to the v0.4.7 changelog block.
+
+### Roadmap reminder
+
+v0.5.0 will refactor shared materia/derivation logic into a
+`GearGoblin.Core.dll` consumable by both the plugin and Tonberry
+Tactics' web build, so wire-format changes only have to be made in
+one place. After v0.5.0, the v0.5.x backlog includes Plan library
+(multiple named BiS per job for healers with GCD A/B), "Open in
+XIVGear" deep-link export, and (if feedback volume justifies it) a
+Cloudflare Worker proxy that mirrors anonymized feedback submissions
+to a Discord webhook server-side with rate-limiting.
+
+---
+
+## [0.4.6] — 2026-05-13
+
+**Headline:** "Coexistence." GearGoblin runs alongside CharacterPanelRefined
+out of the box. CPR provides substat derivations, GG contributes the
+Materia Advisor, real GCD when CPR isn't job-aware, the Tonberry Tactics
+export pipeline, and a Diagnostics surface for verifying what actually
+injected.
+
+The v0.4.5 framing was "GG replaces CPR." Field testing showed otherwise:
+both plugins running cleanly, with GG detecting CPR and stepping aside on
+derivations as designed — but the Materia Advisor that v0.4.5 promised
+would "still inject normally" was nowhere to be seen on the Character
+panel. v0.4.6 finds and fixes the bug, then makes coexistence first-class
+instead of a fallback path.
+
+### Fixed
+
+- **Materia Advisor now visible when CPR is active.** Root cause:
+  `AddStatRow` grew the parent component's height by 20px per added row,
+  but never grew the *outer* addon's RootNode height. With CPR coexisting,
+  CPR adds ~12 rows above us (Offensive Properties + Speed + Recast),
+  pushing GG's 4 advisor rows in the gear section past the addon's clip
+  boundary. The rows were being injected — they just rendered below the
+  visible window. Fix: track total injected height across every
+  `AddStatRow` call, then bump `characterStatusPtr->RootNode->Height` by
+  that amount once `InjectAllRows` completes. Also bumps full-width child
+  nodes (background, window frame) so the visible bordered area grows in
+  step. ([symptom: 13:43 /xllog 2026-05-12](#))
+- **Empty-advisor empty state confirmed visible.** Near-BiS gearsets like
+  Refia's SAM iLvl 771 produce zero recommendations. The v0.4.2 design
+  for an "All guaranteed slots filled · no upgrades suggested" row was
+  intact in v0.4.5 but invisible because of the same clip-boundary bug.
+  With v0.4.6's height-grow fix, the empty-state row now renders.
+
+### Added
+
+- **Instrumented advisor logging.** Replaces the v0.4.5 aspirational
+  `"Materia Advisor will still inject normally"` line with concrete
+  status output:
+  ```
+  StatusPanelInjector v0.4.6: Materia Advisor inject attempt. Rows OK:
+    header=True rec1=True rec2=True rec3=True. Height added: 80px.
+    Section present: True.
+  StatusPanelInjector v0.4.6: outer addon grown 720px → 800px (+80px)
+    to fit injected rows.
+  StatusPanelInjector v0.4.6: Materia Advisor updated. Pieces: 13.
+    Audits: crit=0 warn=0. PlanRecs: 0. Rendered: 0 candidate(s) —
+    empty-state row shown.
+  ```
+  The verbose per-update line is gated by the new
+  `EnableVerboseInjectorLogging` Configuration toggle (default true for
+  v0.4.6 to make field verification easy).
+- **Settings tab in `/goblin` window.** All eight derivation toggles
+  from v0.4.5 surfaced as ImGui checkboxes — `EnableNativeStatPanel`,
+  `EnableDerivedStatInjection`, `ShowCritDerivations`,
+  `ShowDetDerivations`, `ShowDhDerivations`, `ShowSpeedDerivations`,
+  `ShowTenacityRow`, `ShowPietyRow`, `ForceDerivationsOverCpr`,
+  `CompactDerivationLayout`, plus the new
+  `EnableVerboseInjectorLogging`. Previously config-file-only at
+  `%appdata%\XIVLauncher\pluginConfigs\GearGoblin.json`. The per-stat
+  toggles are greyed out with explanatory text when CPR is detected
+  and the force-override is off, so users can see exactly what's
+  injecting.
+- **Quick Start tab in `/goblin` window.** Added as the FIRST tab so
+  new users opening `/goblin` for the first time land on a workflow
+  guide instead of a gear table they don't yet know how to interpret.
+  Covers the export–optimize–import loop in plain English, the
+  GG-EXPORT-as-portable-save-file mental model, the four slash
+  commands with descriptions, what to expect in the Character window
+  with and without CPR, the bug-report flow via `/goblininfo`, and
+  tips pointing at the other tabs. Direct response to field testing
+  where multiple users got confused by the GG-EXPORT base64 string
+  and asked "what is this scary thing." Content lives in code rather
+  than an external help file so it ships with the plugin and stays
+  in sync with whatever version is actually loaded.
+- **Diagnostics tab in `/goblin` window.** Live read of the
+  `StatusPanelInjector.DiagnosticSnapshot` — panel attached, CPR
+  detected, derivations enabled, advisor section present, advisor rec
+  count, advisor empty-state flag, advisor errored flag, outer-addon
+  height growth, last inject result string, last inject timestamp, last
+  update timestamp. Plus two buttons:
+  - **"Force Reinject"** — re-runs `UpdateAllValues` without requiring
+    the user to close and reopen the Character window. Useful when
+    debugging meld changes.
+  - **"Copy /goblininfo to clipboard"** — copies the same diagnostic
+    block that `/goblininfo` prints, formatted for pasting into a
+    GitHub issue.
+- **`/goblininfo` slash command.** Prints the diagnostic snapshot to
+  chat in a copy-paste-friendly fenced block. Bug reports go from
+  "send a screenshot + your /xllog" to "paste your /goblininfo."
+- **`Plugin.BuildGoblinInfoString()`** public method. Single source of
+  truth for the diagnostic block — used by both `/goblininfo` and the
+  Diagnostics tab's clipboard button. ~15 lines covering plugin
+  version, player/job/level, full DiagnosticSnapshot, and a closing
+  instruction to attach `/xllog` lines for bug reports.
+- **`StatusPanelInjector.ForceReinject()`** public method. Re-runs
+  the value-update pass against the existing injected nodes. Does not
+  re-run `AddStatRow` (that would duplicate cloned nodes).
+- **`StatusPanelInjector.GetDiagnostics()`** public method returning a
+  `DiagnosticSnapshot` record struct. Used by both the UI tab and the
+  slash command.
+
+### Changed
+
+- **About tab** rewritten with v0.4.6 entry at top describing the
+  bug fix, instrumentation work, and new tabs. Refia / Aisling /
+  Last Onion Knight byline preserved.
+- **`Configuration.EnableVerboseInjectorLogging`** — new bool, defaults
+  to `true`. Existing configs upgrading from v0.4.5 will pick this up
+  via the property initializer (the field is absent from their
+  persisted JSON, so the default applies).
+- **`StatusPanelInjector.AddStatRow`** changed from `static` to
+  instance method so it can track `totalInjectedHeight` across calls.
+  Behavior identical otherwise. All call sites in the injector remain
+  valid since they were already inside the class.
+- **`Plugin.cs`** version-bump comments and a new lineage section
+  marking v0.4.6's `/goblininfo` addition.
+- **Description in `GearGoblin.csproj`** rewritten to lead with the
+  coexistence framing and the v0.4.5 → v0.4.6 bug-fix narrative.
+  Discoverability for new users hitting Dalamud's plugin browser.
+
+### Build / tooling
+
+- **`release.ps1`: dotnet build gate.** Inserted between git-state
+  check and commit-message generation. Runs
+  `dotnet build --configuration Release --nologo` and bails on
+  non-zero exit. Catches the unclosed-`</div>` class of bugs locally
+  instead of letting them reach origin/main and only fail in CI or
+  Cloudflare's build queue. New `-SkipBuild` flag bypasses for fast
+  iteration when the user has already verified the build manually.
+- **`release.ps1`: BOM fix on commit-message file.** Replaced
+  `Set-Content -Path $msgFile -Value $Message -Encoding UTF8` (which
+  emits a UTF-8 BOM under PowerShell 5.1) with
+  `[System.IO.File]::WriteAllText($msgFile, $Message,
+  [System.Text.UTF8Encoding]::new($false))`. Eliminates the
+  `﻿GearGoblin 0.4.5`-style invisible-BOM prefix that was showing
+  up in `git log` and on GitHub's web UI.
+- **`README-DROPIN.md`: Unblock-File step.** New section 0 covers
+  the NTFS Zone.Identifier ADS that Windows attaches to downloaded
+  zips, which PowerShell's ExecutionPolicy treats as a script-run
+  block. Running `Get-ChildItem -Recurse | Unblock-File` once after
+  extracting the zip strips the mark and unblocks `release.ps1`. The
+  /xllog evidence didn't surface this but the friction was real
+  during the v0.4.5 release attempt.
+- **`README-DROPIN.md`** also gets a fresh file list, verification
+  flow, rollback instructions, and a section walking through the new
+  `/goblininfo` slash command.
+
+### Known carry-forward (not blocking)
+
+- Stray `_redirects` and `build.sh` at the GearGoblin repo root
+  (residue from a Tonberry Tactics deploy mishap weeks back).
+  Cosmetic; ignore or delete in a follow-up commit.
+- Bibo+ texture warnings in `/xllog`. Penumbra-side mod metadata,
+  not a GearGoblin concern.
+
+### Roadmap teaser
+
+v0.4.7 "Round Trip" will add `/goblinimport` to consume the
+`GG-PLAN:v1:` strings Tonberry Tactics emits — completing the
+export-optimize-import loop with an actionable meld checklist on
+the Plan tab. The Diagnostics tab in v0.4.6 lays groundwork for
+surfacing import status the same way it surfaces injection status
+now. v0.4.7 will also ship a **Feedback tab** in the `/goblin`
+window — pre-filled GitHub issue URL plus clipboard-fallback for
+Discord/DM, with the `/goblininfo` block auto-attached. (Drafted
+during v0.4.6 but held back to keep this ship focused on the bug
+fix.)
+
+v0.5.0 will refactor shared logic into a `GearGoblin.Core.dll`
+consumable by both the plugin and the Tonberry Tactics web build,
+so wire-format changes only have to be made in one place.
+
+---
+
 ## [0.4.5] — 2026-05-12
 
 **Headline:** GearGoblin replaces CharacterPanelRefined. Same data CPR

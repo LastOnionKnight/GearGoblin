@@ -5,8 +5,13 @@
 #   1. Finds the .csproj file in the current directory.
 #   2. Reads <Version>X.Y.Z</Version> from it.
 #   3. Stages all currently-modified tracked files.
+#   3.5 v0.4.6 BUILD GATE (carried forward in v0.4.7): runs `dotnet build --configuration Release` and
+#       bails on failure. Catches typos, unclosed tags, broken imports
+#       locally instead of letting them reach origin/main.
 #   4. Pulls the CHANGELOG entry for this version (if CHANGELOG.md exists).
-#   5. Commits with that message.
+#   5. Commits with that message (now BOM-free under v0.4.6 + v0.4.7 — uses
+#      [System.IO.File]::WriteAllText with UTF8Encoding(false) instead of
+#      Set-Content -Encoding UTF8 which emits a BOM under PS 5.1).
 #   6. Tags vX.Y.Z.
 #   7. Pushes commits and tag to origin/main with --follow-tags.
 #
@@ -19,11 +24,14 @@
 #   -DryRun       Show what would happen, do not commit/tag/push.
 #   -Message msg  Override the auto-generated commit message.
 #   -SkipPush     Commit and tag locally, do not push.
+#   -SkipBuild    Skip the dotnet build gate (rare; only for fast iteration
+#                 when you've just verified the build manually).
 
 param(
     [switch]$DryRun,
     [string]$Message = "",
-    [switch]$SkipPush
+    [switch]$SkipPush,
+    [switch]$SkipBuild   # v0.4.6+: bypass the dotnet build gate (rare; fast-iterate only)
 )
 
 $ErrorActionPreference = "Stop"
@@ -107,6 +115,36 @@ Write-Host "Changes to be committed:" -ForegroundColor Yellow
 git status --short
 Write-Host ""
 
+# ---- 3.5. Build gate (v0.4.6+, carried forward) -----------------------------------------------
+#
+# Run `dotnet build` against the project before we commit/tag/push, so that
+# a typo, unclosed </div>, or import-resolution issue is caught locally
+# instead of reaching origin/main and only failing in CI / Cloudflare's
+# build queue (which is how the v0.4.5 era TT hotfix friction happened).
+#
+# Configuration is Release by default — same build flavor that ships to
+# users. Output goes through Out-Host so the build log is visible in the
+# console; we capture the exit code to decide whether to bail.
+
+if (-not $SkipBuild) {
+    Write-Host "Running build gate: dotnet build --configuration Release..." -ForegroundColor Cyan
+    Write-Host "----------------------------------------" -ForegroundColor DarkGray
+    dotnet build --configuration Release --nologo
+    $buildExit = $LASTEXITCODE
+    Write-Host "----------------------------------------" -ForegroundColor DarkGray
+    if ($buildExit -ne 0) {
+        Write-Host ""
+        Write-Host "ERROR: dotnet build failed (exit code $buildExit)." -ForegroundColor Red
+        Write-Host "Fix the build before releasing. To bypass (NOT recommended), pass -SkipBuild." -ForegroundColor Yellow
+        exit 1
+    }
+    Write-Host "Build gate: OK." -ForegroundColor Green
+    Write-Host ""
+} else {
+    Write-Host "Build gate skipped (-SkipBuild)." -ForegroundColor Yellow
+    Write-Host ""
+}
+
 # ---- 4. Generate commit message from CHANGELOG (if it exists) ----------------
 
 if (-not $Message) {
@@ -165,10 +203,13 @@ git add -A
 if ($LASTEXITCODE -ne 0) { Write-Host "git add failed" -ForegroundColor Red; exit 1 }
 
 Write-Host "Committing..." -ForegroundColor Cyan
-# Write commit message to a temp file so newlines survive PowerShell's
-# argument-parsing layer.
+# v0.4.6+: write the commit message with NO BOM. PS 5.1's `Set-Content -Encoding UTF8`
+# emits a UTF-8 BOM, which git then preserves verbatim — the result is commit
+# subjects that look like '﻿GearGoblin 0.4.5' (invisible BOM prefix). The
+# explicit [System.Text.UTF8Encoding]::new($false) constructor disables BOM
+# emission and gives us clean ASCII/UTF-8 messages.
 $msgFile = [System.IO.Path]::GetTempFileName()
-Set-Content -Path $msgFile -Value $Message -Encoding UTF8
+[System.IO.File]::WriteAllText($msgFile, $Message, [System.Text.UTF8Encoding]::new($false))
 git commit -F $msgFile
 $commitExit = $LASTEXITCODE
 Remove-Item $msgFile -Force

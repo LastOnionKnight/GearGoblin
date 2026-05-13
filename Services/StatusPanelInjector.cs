@@ -1,37 +1,46 @@
 // Services/StatusPanelInjector.cs
 //
-// v0.4.5 — full CPR-replacement release.
+// v0.4.6 — "Coexistence" release.
 // ============================================================================
 //
 // Inject GearGoblin's derived stat data and Materia Advisor directly into
-// FFXIV's native CharacterStatus addon. As of v0.4.5 we replace
-// CharacterPanelRefined entirely: each substat gets a single compact derived
-// row containing the chance / damage multiplier / damage-increase
-// contribution AND the breakpoint hint, all on one line. Tenacity and Piety
-// get role-gated rows. Materia Advisor section remains four rows.
+// FFXIV's native CharacterStatus addon. v0.4.6 reframes the v0.4.5 model:
+// instead of treating CPR detection as a fallback path, we treat coexistence
+// as the deployment. GG runs alongside CPR — CPR brings the substat
+// derivations, GG brings the Materia Advisor, real GCD (when CPR doesn't
+// supply a job-aware variant), breakpoint hints, and the /goblininfo
+// diagnostic surface. The override toggle for users who want GG-only is
+// still here, but the default mode is friendly cohabitation.
 //
 // Lineage:
 //   v0.4.0  first injection — breakpoint hints + GCD + Materia Advisor
 //   v0.4.1  /goblinexport + Dalamud SDK compat (AddonEventData signature)
 //   v0.4.2  4 bug fixes: footer off-panel, missing Crit hint, row overlap,
 //           empty-advisor blank rows; advisor consolidated 6→4 rows
-//   v0.4.5  THIS RELEASE
-//           - Replace separate "next tier:" rows with combined compact
-//             derived rows (chance · damage · DI · next +N)
-//           - Add Tenacity row (tank role only)
-//           - Add Piety row (healer role only)
-//           - Speed section consolidated to (GCD real) + (next + dmg)
-//           - CPR detection: if CharacterPanelRefined is active, skip
-//             derivation injection unless ForceDerivationsOverCpr is set
-//           - Per-section toggles via Configuration
-//           - Visible v0.4.5 chat-log signature on first inject so users
-//             can verify which version is actually running
+//   v0.4.5  Full CPR-equivalent derivations, CPR coexistence detect-and-defer,
+//           role-gated Tenacity/Piety rows, per-section toggles
+//   v0.4.6  THIS RELEASE
+//           - FIX: Materia Advisor now visible when CPR coexists. AddStatRow
+//             grows parent component height but never grew the outer addon's
+//             RootNode height, so the advisor rows (in the gear section, last
+//             in the panel) were rendered past the addon's visible clip. Now
+//             we track totalInjectedHeight across every AddStatRow call and
+//             grow characterStatusPtr->RootNode->Height by that amount after
+//             InjectAllRows completes.
+//           - Instrumented advisor logging — log lines now confirm what
+//             injected (header / rec1-3 / total height) and what updated
+//             (recommendation count / empty-state / errored). No more
+//             aspirational "will inject normally" messages.
+//           - DiagnosticState exposure via public properties for the new
+//             Diagnostics tab and /goblininfo slash command.
+//           - ForceReinject() public method for the diagnostics-tab button.
 //
 // Injection patterns (AddStatRow, node walks, hardcoded section IDs) are
 // adapted from CharacterPanelRefined (MIT). See LICENSES/CharacterPanelRefined-MIT.txt.
 //
 // Lifecycle:
 //   PostSetup            → InjectAllRows (every time the addon opens)
+//                          then GrowAddonHeight(totalInjectedHeight)
 //   PostRequestedUpdate  → UpdateAllValues (every game tick while open)
 //   PreFinalize          → cleanup pointers; addon teardown frees memory
 
@@ -95,6 +104,77 @@ public sealed unsafe class StatusPanelInjector : IDisposable
     private IAddonEventHandle? footerClickHandle;
     private bool cprDetectedActive;
 
+    // ── v0.4.6 instrumentation state ────────────────────────────────────
+    // Total height (in pixels) added across this addon's lifetime by
+    // AddStatRow. Used to grow the addon's outer RootNode after injection
+    // so trailing rows (advisor section) don't fall past the visible clip.
+    // Reset to 0 on every PostSetup since the addon is rebuilt fresh.
+    private ushort totalInjectedHeight;
+
+    // Snapshot data exposed to the Diagnostics tab and /goblininfo command.
+    private DateTime lastInjectTime;
+    private DateTime lastUpdateTime;
+    private string   lastInjectResult     = "(not yet injected)";
+    private int      lastAdvisorRecCount;
+    private bool     lastAdvisorEmptyState;
+    private bool     lastAdvisorErrored;
+    private bool     advisorSectionPresent;
+
+    /// <summary>
+    /// v0.4.6 diagnostic snapshot for the UI tab and /goblininfo command.
+    /// Plain immutable record — read at draw time, no locking needed since
+    /// the injector only mutates from the game thread.
+    /// </summary>
+    public readonly record struct DiagnosticSnapshot(
+        bool     PanelAttached,
+        bool     CprDetected,
+        bool     DerivationsEnabled,
+        bool     AdvisorSectionPresent,
+        int      AdvisorRecCount,
+        bool     AdvisorEmptyState,
+        bool     AdvisorErrored,
+        ushort   InjectedHeightPx,
+        DateTime LastInjectTime,
+        DateTime LastUpdateTime,
+        string   LastInjectResult);
+
+    public DiagnosticSnapshot GetDiagnostics() => new(
+        PanelAttached:         characterStatusPtr != null,
+        CprDetected:           cprDetectedActive,
+        DerivationsEnabled:    WillInjectDerivations(),
+        AdvisorSectionPresent: advisorSectionPresent,
+        AdvisorRecCount:       lastAdvisorRecCount,
+        AdvisorEmptyState:     lastAdvisorEmptyState,
+        AdvisorErrored:        lastAdvisorErrored,
+        InjectedHeightPx:      totalInjectedHeight,
+        LastInjectTime:        lastInjectTime,
+        LastUpdateTime:        lastUpdateTime,
+        LastInjectResult:      lastInjectResult);
+
+    /// <summary>
+    /// v0.4.6: force the advisor + derived rows to recompute their text
+    /// without reopening the Character window. Used by the Diagnostics tab
+    /// "Force Reinject" button. We deliberately do NOT re-run AddStatRow —
+    /// that would duplicate the cloned nodes — only the value-update pass.
+    /// </summary>
+    public void ForceReinject()
+    {
+        if (characterStatusPtr == null)
+        {
+            DalamudServices.Log.Info("ForceReinject: Character panel not attached; nothing to do.");
+            return;
+        }
+        try
+        {
+            UpdateAllValues();
+            DalamudServices.Log.Info("ForceReinject: UpdateAllValues completed.");
+        }
+        catch (Exception ex)
+        {
+            DalamudServices.Log.Error(ex, "ForceReinject: UpdateAllValues threw.");
+        }
+    }
+
     // ── Construction / disposal ─────────────────────────────────────────
 
     public StatusPanelInjector(Plugin plugin)
@@ -117,7 +197,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         registered = true;
 
         DalamudServices.Log.Info(
-            "StatusPanelInjector v0.4.5: registered AddonLifecycle listeners for CharacterStatus.");
+            "StatusPanelInjector v0.4.6: registered AddonLifecycle listeners for CharacterStatus.");
     }
 
     public void Dispose()
@@ -147,30 +227,55 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         {
             characterStatusPtr = (AtkUnitBase*)args.Addon.Address;
 
+            // v0.4.6: reset per-open instrumentation state. The addon is
+            // torn down (PreFinalize) and rebuilt between opens, so any
+            // height we grew last time is gone with the old node tree.
+            totalInjectedHeight   = 0;
+            advisorSectionPresent = false;
+            lastAdvisorErrored    = false;
+
             cprDetectedActive = CprDetection.IsCprActive();
             if (cprDetectedActive && !plugin.Configuration.ForceDerivationsOverCpr)
             {
                 DalamudServices.Log.Info(
-                    "StatusPanelInjector v0.4.5: CharacterPanelRefined detected as active; " +
+                    "StatusPanelInjector v0.4.6: CharacterPanelRefined detected as active; " +
                     "skipping derived-stat injection (set ForceDerivationsOverCpr=true to override). " +
-                    "Breakpoint hints, real GCD, and Materia Advisor will still inject normally.");
+                    "Materia Advisor, breakpoint hints, and real GCD will still inject.");
             }
 
             InjectAllRows();
+
+            // v0.4.6 critical fix: grow the addon's outer RootNode by the
+            // total height we added inside parent components. Without this
+            // step, rows we appended to the gear section (the last section
+            // in the panel) fall past the addon's visible clip and look
+            // like they never injected. See header doc for full rationale.
+            if (totalInjectedHeight > 0)
+            {
+                GrowAddonHeight(totalInjectedHeight);
+            }
+
             UpdateAllValues();
+
+            lastInjectTime   = DateTime.UtcNow;
+            lastInjectResult = $"OK · CPR={cprDetectedActive} · derivations={WillInjectDerivations()} · " +
+                               $"advisor={advisorSectionPresent} · grewBy={totalInjectedHeight}px";
 
             if (!firstInjectLogged)
             {
                 firstInjectLogged = true;
                 DalamudServices.Log.Info(
-                    "StatusPanelInjector v0.4.5: first inject complete. " +
+                    "StatusPanelInjector v0.4.6: first inject complete. " +
                     $"CPR active: {cprDetectedActive}. " +
-                    $"Derivations enabled: {WillInjectDerivations()}.");
+                    $"Derivations enabled: {WillInjectDerivations()}. " +
+                    $"Advisor section injected: {advisorSectionPresent}. " +
+                    $"Outer addon grew by {totalInjectedHeight}px.");
             }
         }
         catch (Exception ex)
         {
             DalamudServices.Log.Error(ex, "StatusPanelInjector: PostSetup injection failed.");
+            lastInjectResult = $"FAILED · {ex.GetType().Name}: {ex.Message}";
             ClearPointers();
         }
     }
@@ -189,7 +294,11 @@ public sealed unsafe class StatusPanelInjector : IDisposable
     private void OnRequestedUpdate(AddonEvent type, AddonArgs args)
     {
         if (characterStatusPtr == null) return;
-        try { UpdateAllValues(); }
+        try
+        {
+            UpdateAllValues();
+            lastUpdateTime = DateTime.UtcNow;
+        }
         catch (Exception ex)
         {
             DalamudServices.Log.Error(ex, "StatusPanelInjector: RequestedUpdate failed.");
@@ -229,7 +338,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         if (offensive == null)
         {
             DalamudServices.Log.Warning(
-                "StatusPanelInjector v0.4.5: OffensiveProperties node not found; derivations skipped.");
+                "StatusPanelInjector v0.4.6: OffensiveProperties node not found; derivations skipped.");
             return;
         }
 
@@ -258,7 +367,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         if (critComponent == null || detComponent == null || dhComponent == null)
         {
             DalamudServices.Log.Warning(
-                "StatusPanelInjector v0.4.5: could not identify all three offensive substat rows " +
+                "StatusPanelInjector v0.4.6: could not identify all three offensive substat rows " +
                 $"by label (crit={(critComponent != null)} det={(detComponent != null)} dh={(dhComponent != null)}). " +
                 "Some derivation rows will be missing.");
         }
@@ -287,7 +396,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         if (section == null || section->ChildNode == null)
         {
             DalamudServices.Log.Warning(
-                $"StatusPanelInjector v0.4.5: speed section ({sectionId}) not found; speed rows skipped.");
+                $"StatusPanelInjector v0.4.6: speed section ({sectionId}) not found; speed rows skipped.");
             return;
         }
 
@@ -313,7 +422,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         if (speedComponent == null)
         {
             DalamudServices.Log.Warning(
-                $"StatusPanelInjector v0.4.5: '{wantedLabel}' component not found; speed rows skipped.");
+                $"StatusPanelInjector v0.4.6: '{wantedLabel}' component not found; speed rows skipped.");
             return;
         }
 
@@ -336,7 +445,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         if (roleSection == null || roleSection->ChildNode == null)
         {
             DalamudServices.Log.Warning(
-                "StatusPanelInjector v0.4.5: Role Properties section not found; role rows skipped.");
+                "StatusPanelInjector v0.4.6: Role Properties section not found; role rows skipped.");
             return;
         }
 
@@ -363,7 +472,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         if (targetComponent == null)
         {
             DalamudServices.Log.Warning(
-                $"StatusPanelInjector v0.4.5: '{wantedLabel}' component not found in Role Properties.");
+                $"StatusPanelInjector v0.4.6: '{wantedLabel}' component not found in Role Properties.");
             return;
         }
 
@@ -379,16 +488,33 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         if (gear == null || gear->ChildNode == null)
         {
             DalamudServices.Log.Warning(
-                "StatusPanelInjector v0.4.5: Gear node not found; Materia Advisor skipped.");
+                "StatusPanelInjector v0.4.6: Gear node not found; Materia Advisor skipped.");
+            advisorSectionPresent = false;
             return;
         }
 
         var avgIlvlComponent = (AtkComponentNode*)gear->ChildNode;
+        var heightBeforeAdvisor = totalInjectedHeight;
 
         advisorHeader = AddStatRow(avgIlvlComponent, "── Materia Advisor ──");
         advisorRec1   = AddStatRow(avgIlvlComponent, "");
         advisorRec2   = AddStatRow(avgIlvlComponent, "");
         advisorRec3   = AddStatRow(avgIlvlComponent, "");
+
+        var advisorHeightAdded = totalInjectedHeight - heightBeforeAdvisor;
+        advisorSectionPresent =
+            advisorHeader != null && advisorRec1 != null
+            && advisorRec2 != null && advisorRec3 != null;
+
+        // v0.4.6: replace the v0.4.5 aspirational log with a real status line
+        // that records exactly what happened. This is the line that should
+        // have existed in v0.4.5 — its absence is why we missed the bug.
+        DalamudServices.Log.Info(
+            $"StatusPanelInjector v0.4.6: Materia Advisor inject attempt. " +
+            $"Rows OK: header={(advisorHeader != null)} rec1={(advisorRec1 != null)} " +
+            $"rec2={(advisorRec2 != null)} rec3={(advisorRec3 != null)}. " +
+            $"Height added: {advisorHeightAdded}px. " +
+            $"Section present: {advisorSectionPresent}.");
 
         if (advisorHeader != null) advisorHeader->TextColor = AdvisorAccentColor;
 
@@ -406,7 +532,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
 
             if (footerClickHandle == null)
                 DalamudServices.Log.Warning(
-                    "StatusPanelInjector v0.4.5: AddEvent returned null; advisor header will be non-interactive.");
+                    "StatusPanelInjector v0.4.6: AddEvent returned null; advisor header will be non-interactive.");
         }
     }
 
@@ -521,6 +647,9 @@ public sealed unsafe class StatusPanelInjector : IDisposable
             if (pieces.Count == 0)
             {
                 ClearAdvisorRows("(no gear)");
+                lastAdvisorRecCount   = 0;
+                lastAdvisorEmptyState = true;
+                lastAdvisorErrored    = false;
                 return;
             }
 
@@ -557,10 +686,18 @@ public sealed unsafe class StatusPanelInjector : IDisposable
             var warn  = result.Audits.Count(a => a.Severity == AuditSeverity.Warning);
             var empty = result.PlanRecommendations.Count;
 
-            DalamudServices.Log.Debug(
-                $"Advisor: pieces={pieces.Count} audits={result.Audits.Count} " +
-                $"crit={crit} warn={warn} planRecs={result.PlanRecommendations.Count} " +
-                $"candidates={candidates.Count}");
+            // v0.4.6 instrumentation: track recommendation count + empty-state
+            // for the Diagnostics tab and /goblininfo command. Verbose log
+            // line confirms what got rendered to the panel.
+            lastAdvisorRecCount   = candidates.Count;
+            lastAdvisorEmptyState = candidates.Count == 0;
+            lastAdvisorErrored    = false;
+            DalamudServices.Log.Verbose(
+                $"StatusPanelInjector v0.4.6: Materia Advisor updated. " +
+                $"Pieces: {pieces.Count}. Audits: crit={crit} warn={warn}. " +
+                $"PlanRecs: {result.PlanRecommendations.Count}. " +
+                $"Rendered: {candidates.Count} candidate(s)" +
+                (candidates.Count == 0 ? " — empty-state row shown." : "."));
 
             if (candidates.Count == 0)
             {
@@ -582,8 +719,9 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         }
         catch (Exception ex)
         {
-            DalamudServices.Log.Error(ex, "StatusPanelInjector v0.4.5: UpdateAdvisor threw.");
+            DalamudServices.Log.Error(ex, "StatusPanelInjector v0.4.6: UpdateAdvisor threw.");
             ClearAdvisorRows("(advisor error)");
+            lastAdvisorErrored = true;
         }
     }
 
@@ -611,7 +749,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         }
         catch (Exception ex)
         {
-            DalamudServices.Log.Error(ex, "StatusPanelInjector v0.4.5: /goblin invoke failed.");
+            DalamudServices.Log.Error(ex, "StatusPanelInjector v0.4.6: /goblin invoke failed.");
         }
     }
 
@@ -628,8 +766,16 @@ public sealed unsafe class StatusPanelInjector : IDisposable
     /// (NOT -24). With the +20 height bump done first, this places the new
     /// row's top exactly at the old content bottom, no overlap.
     /// </para>
+    ///
+    /// <para>
+    /// v0.4.6: was static in v0.4.5. Now instance-bound so it can track
+    /// <see cref="totalInjectedHeight"/> across calls. The outer addon's
+    /// RootNode is grown by that total after <see cref="InjectAllRows"/>
+    /// completes — without that step the trailing rows we inject into the
+    /// gear section fall past the addon's visible clip and look invisible.
+    /// </para>
     /// </summary>
-    private static AtkTextNode* AddStatRow(AtkComponentNode* parentNode, string label)
+    private AtkTextNode* AddStatRow(AtkComponentNode* parentNode, string label)
     {
         if (parentNode == null) return null;
         if (parentNode->Component == null) return null;
@@ -643,6 +789,8 @@ public sealed unsafe class StatusPanelInjector : IDisposable
 
         parentNode->AtkResNode.Height += 20;
         collisionNode->Height          += 20;
+        // v0.4.6: accumulate so we can grow the outer addon after injection.
+        totalInjectedHeight = (ushort)(totalInjectedHeight + 20);
 
         var newNumberNode = NodeUtil.CloneNode(numberNode);
         var prevSiblingBeforeLabel = labelNode->AtkResNode.PrevSiblingNode;
@@ -669,6 +817,66 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         return newNumberNode;
     }
 
+    // ── v0.4.6 addon-height grow ────────────────────────────────────────
+
+    /// <summary>
+    /// Grow the outer addon's RootNode (and its visible window-collision /
+    /// background nodes when found) by <paramref name="pixels"/>. Called
+    /// once at the end of <see cref="OnPostSetup"/> after all AddStatRow
+    /// calls have completed.
+    ///
+    /// <para>
+    /// In FFXIV's UI system, AtkUnitBase has a root container whose Height
+    /// defines the addon's visible / hit-test clip region. Section components
+    /// inside (Offensive Properties, Gear, etc.) auto-flow when their height
+    /// changes — but the outer container does NOT auto-grow with them. With
+    /// CPR coexisting, CPR adds ~12 rows above us in Offensive Properties +
+    /// Speed; we then add 4 rows to the gear section (the LAST section). The
+    /// combined ~320px extension exceeds the original window height, so the
+    /// advisor's 4 rows fall past the bottom clip and look invisible. This
+    /// method is the fix: grow RootNode->Height to match.
+    /// </para>
+    ///
+    /// <para>
+    /// We don't restore on PreFinalize because the entire addon (and its
+    /// node tree) is torn down between opens — every PostSetup gets a
+    /// fresh AtkUnitBase. The growth is per-instance, not persistent state.
+    /// </para>
+    /// </summary>
+    private void GrowAddonHeight(ushort pixels)
+    {
+        if (characterStatusPtr == null) return;
+        if (characterStatusPtr->RootNode == null) return;
+
+        var oldHeight = characterStatusPtr->RootNode->Height;
+        characterStatusPtr->RootNode->Height = (ushort)(oldHeight + pixels);
+
+        // Some addons have a windowed background frame distinct from the
+        // root. The collision/frame nodes are typically the first few
+        // children of RootNode; bump any AtkNineGridNode/AtkResNode that
+        // sits at full root width since those are window-frame layers.
+        var rootHeight = characterStatusPtr->RootNode->Height;
+        var rootWidth  = characterStatusPtr->RootNode->Width;
+        var child = characterStatusPtr->RootNode->ChildNode;
+        int safety = 0;
+        while (child != null && safety++ < 32)
+        {
+            // Heuristic: any node whose width approximately matches the
+            // root's width is a full-window layer (background, frame,
+            // collision) and should grow with the root. Section components
+            // are narrower and handle their own internal layout.
+            if (child->Width >= rootWidth - 8 && child->Width <= rootWidth + 8)
+            {
+                child->Height = (ushort)(child->Height + pixels);
+            }
+            child = child->NextSiblingNode;
+        }
+
+        DalamudServices.Log.Info(
+            $"StatusPanelInjector v0.4.6: outer addon grown {oldHeight}px → {rootHeight}px " +
+            $"(+{pixels}px) to fit injected rows.");
+    }
+
     private void ClearPointers()
     {
         characterStatusPtr = null;
@@ -683,5 +891,6 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         advisorRec1   = null;
         advisorRec2   = null;
         advisorRec3   = null;
+        advisorSectionPresent = false;
     }
 }

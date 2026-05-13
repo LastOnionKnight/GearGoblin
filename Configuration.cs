@@ -64,6 +64,15 @@ public class Configuration : IPluginConfiguration
     /// </summary>
     public bool CompactDerivationLayout { get; set; } = false;
 
+    /// <summary>
+    /// v0.4.6: when true, the StatusPanelInjector emits Verbose-level log
+    /// lines on every Materia Advisor update tick (rec count, empty-state
+    /// flag, audit counts). Default true for v0.4.6 to give us instant
+    /// observability after the v0.4.5 advisor-visibility bug — users can
+    /// toggle off later if log volume becomes a concern.
+    /// </summary>
+    public bool EnableVerboseInjectorLogging { get; set; } = true;
+
     [NonSerialized] private IDalamudPluginInterface? pluginInterface;
 
     public void Initialize(IDalamudPluginInterface pi) => pluginInterface = pi;
@@ -82,10 +91,38 @@ public class JobPlanData
     /// <summary>Casual preset key when Mode == Casual.</summary>
     public string? CasualPresetKey { get; set; }
 
+    /// <summary>
+    /// v0.4.7: when Mode == Imported, the raw JSON body of the
+    /// <c>GG-PLAN:v1:</c> payload that was last imported via
+    /// <c>/goblinimport</c>. Stored as the decoded JSON (not the
+    /// prefix+base64 wire form) so it's inspectable in the config
+    /// file and survives wire-format schema bumps that only touch
+    /// the prefix or encoding. Null in all other modes.
+    /// </summary>
+    public string? ImportedPlanJson { get; set; }
+
+    /// <summary>
+    /// v0.4.7: timestamp the imported plan was applied. Surfaced in
+    /// the Plan tab's "Active Plan" section so users can tell whether
+    /// the plan they're looking at is fresh or weeks-stale relative
+    /// to whatever gear they have equipped right now.
+    /// </summary>
+    public DateTime? ImportedAt { get; set; }
+
+    /// <summary>
+    /// v0.4.7: per-meld completion flags for the imported plan's
+    /// checklist UI. Indices align with <c>PlanMeldV1[].Melds</c>
+    /// inside <see cref="ImportedPlanJson"/>. Persisted so tick state
+    /// survives plugin reloads. Reset to all-false on each fresh
+    /// import; left untouched on other mode changes so re-selecting
+    /// Imported restores the previous tick state.
+    /// </summary>
+    public List<bool> MeldCompletion { get; set; } = new();
+
     public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
 }
 
-public enum PlanMode { Casual, Raider }
+public enum PlanMode { Casual, Raider, Imported }
 
 [Serializable]
 public class CachedBis

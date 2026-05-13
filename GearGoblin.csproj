@@ -4,12 +4,12 @@
     <Author>LastOnionKnight</Author>
     <Name>GearGoblin</Name>
     <InternalName>GearGoblin</InternalName>
-    <AssemblyVersion>0.4.5.0</AssemblyVersion>
-    <FileVersion>0.4.5.0</FileVersion>
-    <Version>0.4.5.0</Version>
+    <AssemblyVersion>0.4.7.0</AssemblyVersion>
+    <FileVersion>0.4.7.0</FileVersion>
+    <Version>0.4.7.0</Version>
     <MinimumDalamudVersion>15.0.0</MinimumDalamudVersion>
-    <Punchline>BiS planner + native Character panel takeover. Replaces CharacterPanelRefined with compact derived stats, breakpoint hints, real GCD, Tenacity/Piety rows, and a built-in Materia Advisor.</Punchline>
-    <Description>GearGoblin is a BiS planner, gear inventory reader, and materia advisor for FFXIV that takes over the native Character window. As of v0.4.5 it ships as a full CharacterPanelRefined replacement: compact one-line derived stats per substat (Crit chance / damage multiplier / damage increase, Det damage increase, DH chance / damage increase, Tenacity damage and mitigation for tanks, Piety MP/tick for healers), breakpoint hints inline, real GCD under Skill/Spell Speed, and a Materia Advisor section under Gear that surfaces the top three meld actions. Plus the standalone /goblin window for Plan/Audit modes, Etro and XIVGear BiS comparison, /goblinexport for Tonberry Tactics handoff, and a /goblin-clickable header. Auto-detects CPR and steps aside if both are installed. Materia formulas re-derived from public datamining sources.</Description>
+    <Punchline>BiS planner, Materia Advisor, and Tonberry Tactics export pipeline. Coexists with CharacterPanelRefined, contributing the advisor + diagnostics CPR doesn't ship.</Punchline>
+    <Description>GearGoblin is a BiS planner, gear inventory reader, and materia advisor for FFXIV. v0.4.7 ("Round Trip") closes the export-optimize-import loop: `/goblinimport` consumes the `GG-PLAN:v1:` strings Tonberry Tactics emits, persists them as active plans, and surfaces a per-meld checklist on the Plan tab. v0.4.7 also ships an in-window Feedback tab (pre-filled GitHub issue URL + clipboard fallback for Discord/DM, with the /goblininfo diagnostic block auto-attached) so beta reports become triagable on arrival. v0.4.6's CPR coexistence remains: CPR handles substat derivations, GG contributes the Materia Advisor and the standalone /goblin window. The full CPR-equivalent derivation suite (Crit/Det/DH/Speed/Tenacity/Piety) is still here behind ForceDerivationsOverCpr or when CPR isn't installed. Materia formulas re-derived from public datamining sources.</Description>
     <RepoUrl>https://github.com/LastOnionKnight/GearGoblin</RepoUrl>
     <Tags>gear;bis;materia;etro;xivgear;raid;advisor;cpr;character-panel</Tags>
 

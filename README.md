@@ -1,20 +1,33 @@
 # GearGoblin
 
-**A CharacterPanelRefined replacement that also does BiS planning, materia recommendations, and gearset export.** A Dalamud plugin.
+**A Materia Advisor + BiS planner + gearset exporter for FFXIV that coexists with CharacterPanelRefined.** A Dalamud plugin.
 
-As of v0.4.5, GearGoblin takes over the native Character window: compact derived stats per substat, breakpoint hints inline, real GCD, role-gated Tenacity / Piety rows, and a Materia Advisor section below Gear. Plus the standalone `/goblin` window for BiS comparison and detailed planning.
+As of **v0.4.6 ("Coexistence")**, GearGoblin runs alongside CharacterPanelRefined out of the box. CPR brings the substat derivations; GearGoblin contributes the Materia Advisor (in-panel, click-through to /goblin), real GCD when CPR doesn't supply a job-aware variant, breakpoint hints, the Tonberry Tactics export pipeline, and a Diagnostics tab + `/goblininfo` slash command for verifying what actually injected. CPR is optional — when it's not installed, GG also provides the full derivation suite itself.
 
-Reads your equipped gear, recommends materia for empty meld slots, audits existing melds for overcap and tier issues, compares against an Etro or XIVGear BiS, and now exports your gearset to the [Tonberry Tactics](https://tonberrytactics.pages.dev) companion web app for cross-platform optimization.
+**v0.4.7 ("Round Trip") is currently in development.** Closes the export–optimize–import loop with `/goblinimport` (consumes the `GG-PLAN:v1:` strings Tonberry Tactics emits, surfaces a per-meld checklist on the Plan tab) and adds an in-window Feedback tab for triagable beta reports. Scaffolding for both is in the source tree; the persistence layer and Plan-tab checklist UI are the next-build TODOs.
+
+Reads your equipped gear, recommends materia for empty meld slots, audits existing melds for overcap and tier issues, compares against an Etro or XIVGear BiS, and exports your gearset to the [Tonberry Tactics](https://tonberrytactics.pages.dev) companion web app for cross-platform optimization.
 
 > **Beta status.** This plugin is in active development and **not yet published to the public Dalamud repository.** It is currently used personally by the author for testing. A public release is targeted for v1.0.0. Install instructions below assume self-build or self-host.
 
-## What this does (v0.4.5)
+## What this does today
 
-**Inside the native Character window** (v0.4.5 — full CPR replacement):
+> Shipped features as of v0.4.6. v0.4.7 round-trip work is in scaffold (see roadmap below).
 
-GearGoblin injects derived stat data directly into the game's Character window, so you don't need to open a second UI to see your real percentages.
+**Inside the native Character window:**
 
-Under **Offensive Properties**, each substat gets a one-line compact derived row carrying chance, damage multiplier, damage-increase contribution, AND the breakpoint hint:
+GearGoblin injects derived data and a Materia Advisor section directly into the game's Character window, so you don't need to open a second UI to see your real percentages or upgrade suggestions.
+
+When **CPR is also installed** (recommended setup), GG defers derivations to CPR and contributes only:
+
+```
+── Materia Advisor ──   0c · 0w · 0e   ▶ /goblin
+   All guaranteed slots filled · no upgrades suggested
+```
+
+(or up to three concrete recommendations if your gear has audit issues).
+
+When **CPR is not installed**, GG provides the full derivation suite itself. Under **Offensive Properties**, each substat gets a compact derived row carrying chance, damage multiplier, damage-increase contribution, AND the breakpoint hint:
 
 ```
 Critical Hit                       2618
@@ -42,39 +55,36 @@ Piety                              440   (healers)
    200 MP/tick
 ```
 
-Under **Gear** — Materia Advisor with status counts in the header and `▶ /goblin` click-through to open the full standalone window:
-
-```
-── Materia Advisor ──   0c · 0w · 0e   ▶ /goblin
-   Earrings #1 → Savage Aim Materia XII
-   Necklace #1 → Heavens' Eye Materia XII
-   All guaranteed slots filled · no upgrades suggested
-```
-
 **Inside the standalone `/goblin` window:**
 
 - Stat sheet with formula-derived breakpoints (Crit, Det, DH, Speed → real GCD, Tenacity, Piety)
 - Materia planner: empty-slot recommendations + audit of existing melds (wrong stat, overcap, outdated tier)
 - Pure-Math vs Balance preset weighting — strict formula scores or community consensus stat priorities
 - Etro and XIVGear BiS comparison: paste a URL, see slot-by-slot diff
+- **Settings tab** (new in v0.4.6) — all derivation toggles as checkboxes, per-stat toggles greyed out when CPR is active
+- **Diagnostics tab** (new in v0.4.6) — live injector state, "Force Reinject" button, copy-to-clipboard for bug reports
 - All 21 combat jobs covered
 
 **Outside the game** (v0.4.1):
 
 - `/goblinexport` slash command serializes your gearset to a Base64-encoded JSON string prefixed `GG-EXPORT:v1:` and copies it to clipboard
 - Paste into Tonberry Tactics at https://tonberrytactics.pages.dev for browser-side optimization
-- `/goblinimport` (planned for v0.5.0) will round-trip the optimizer's plan back into a native checklist
+- `/goblinimport` (v0.4.7, scaffold landed) is the consumer for `GG-PLAN:v1:` strings — full persistence + checklist UI in the next-build TODO
+
+**Diagnostics** (new in v0.4.6):
+
+- `/goblininfo` slash command prints the current injector state to chat in a copy-paste block. Same payload as the Diagnostics tab's clipboard button. Use it when reporting bugs.
 
 ## CPR coexistence
 
-GearGoblin auto-detects CharacterPanelRefined on each Character window open. When CPR is loaded:
+The default and recommended setup is **both plugins installed.** GearGoblin auto-detects CharacterPanelRefined on each Character window open. When CPR is loaded:
 
-- **Skipped** — the v0.4.5 compact derived rows (Crit chance/damage/DI, Det DI, DH chance/DI, Tenacity, Piety). These are what CPR already shows; injecting on top would double-display the same numbers.
-- **Still injected** — breakpoint hints, real GCD, and the Materia Advisor. These are GearGoblin-unique and complement CPR.
+- **Deferred to CPR** — the compact derived rows (Crit chance/damage/DI, Det DI, DH chance/DI, Tenacity, Piety). These are what CPR already shows.
+- **Still injected by GG** — breakpoint hints, real GCD when CPR doesn't supply a job-aware variant, and the Materia Advisor. These are GearGoblin-unique.
 
-To override and inject everything regardless, set `ForceDerivationsOverCpr = true` in the plugin config (Settings tab arriving in v0.4.6; for now, edit `%appdata%\XIVLauncher\pluginConfigs\GearGoblin.json`).
+To override and have GG inject derivations even when CPR is active (will double-display rows), open the new **Settings tab** in `/goblin` and check "Force GG derivations even when CPR is active." Or edit `%appdata%\XIVLauncher\pluginConfigs\GearGoblin.json` and set `"ForceDerivationsOverCpr": true`.
 
-**Recommendation:** pick one plugin. GG v0.4.5 is a strict superset of CPR — same derived stats, plus breakpoint hints, role-gated Tenacity/Piety, real GCD, and the Materia Advisor.
+If you want a CPR-free setup, uninstall CPR — GG provides the full derivation suite itself in that case.
 
 ## Feature status
 
@@ -88,18 +98,22 @@ The original roadmap was scoped as version goals. Actual development numbered ch
 | Breakpoint awareness | ✅ done | v0.4.0 — native Character window |
 | Tonberry Tactics export pipeline | ✅ done | v0.4.1 — `/goblinexport` |
 | Native-panel injection bugs (overlap, footer clip, missing Crit hint, empty advisor UX) | ✅ done | v0.4.2 |
-| **Full CPR replacement (compact derived rows, Tenacity / Piety, CPR coexistence)** | ✅ done | **v0.4.5** |
-| Settings tab UI for per-section toggles | 🟡 next | v0.4.6 target |
+| Full CPR replacement (compact derived rows, Tenacity / Piety, CPR coexistence) | ✅ done | v0.4.5 |
+| Materia Advisor visibility fix under CPR + Settings tab + Diagnostics tab + /goblininfo | ✅ done | v0.4.6 |
 | Tonberry Tactics real optimizer (GNB Pure Math) | ✅ done | Tonberry Tactics v0.5.1 |
+| **Quick Start tab — first-time-user workflow guide** | ✅ done | **v0.4.6** |
+| **`/goblinimport` round-trip from `GG-PLAN:v1:` — scaffold + validator** | 🟡 scaffold | **v0.4.7 (current)** — persist + checklist UI are next-build TODOs |
+| **Feedback tab — pre-filled GitHub issue + Discord clipboard fallback** | ✅ done | **v0.4.7 (current)** |
 | Sell-vs-meld advice | 🟡 partial | audits exist; explicit sell/keep verdict missing |
 | Acquisition pathing — "next upgrade is X, costs Y books, ETA Z weeks" | ❌ planned | — |
 | Overmeld success probability math | ❌ planned | — |
 | Multi-job tracking, weekly action summary | ❌ planned | — |
 | Tonberry Tactics multi-job profiles, stat-cap awareness, Balance preset | ❌ planned | Tonberry Tactics v0.5.2+ |
-| `/goblinimport` native checklist | ❌ planned | v0.5.0 target |
-| Shared `GearGoblin.Core.dll` for plugin + web | ❌ planned | retires the duplicated optimizer in TT |
+| Shared `GearGoblin.Core.dll` for plugin + web | ❌ planned | **v0.5.0 target** — retires the duplicated optimizer in TT |
+| Plan library: multiple named BiS per job (SCH 2.40/2.31/omni-healer) | ❌ planned | v0.5.x backlog — healer-shaped feature |
+| "Open in XIVGear" deep-link export | ❌ planned | v0.6.x backlog — reuses existing XIVGear-fetch path |
 
-Three feature areas remain from the original vision: acquisition pathing, overmeld probability math, and multi-job tracking. Two scope additions beyond the original plan have shipped: native Character window injection (v0.4.0–v0.4.5) and the Tonberry Tactics companion web app (v0.4.1 → v0.5.1).
+Three feature areas remain from the original vision: acquisition pathing, overmeld probability math, and multi-job tracking. Two scope additions beyond the original plan have shipped: native Character window injection (v0.4.0–v0.4.6) and the Tonberry Tactics companion web app (v0.4.1 → v0.5.3). v0.4.7 closes the round-trip from web back to game; v0.5.0 unifies the duplicated optimizer logic between plugin and web build.
 
 ## Companion: Tonberry Tactics
 
@@ -141,7 +155,7 @@ When v1.0.0 ships, this URL will be retired in favor of submission to the offici
 - `Configuration` — per-character, per-job plan data (mode + BiS URL or casual preset), BiS response cache, native-panel toggle. Persisted via `IPluginConfiguration`.
 - `Services/InventoryReader` — wraps `IGameInventory` to produce typed `EquippedPiece` records with materia melds resolved against the `Materia` and `BaseParam` Lumina sheets. Maps slots via `EquipSlotCategory` from the Item sheet (not inventory array index — that shifted when Waist was removed).
 - `Services/GearsetExporter` — serializes the equipped gearset to a Base64-encoded JSON string with versioned wire format (`GG-EXPORT:v1:`). Wire-format DTOs are decoupled from internal types so schema versions bump cleanly.
-- `Services/StatusPanelInjector` — unsafe AtkNode injection into FFXIV's CharacterStatus addon. Patterns adapted from [CharacterPanelRefined](https://github.com/Kouzukii/ffxiv-characterstatus-refined) (MIT). v0.4.5 rewrote this from the ground up as a CPR replacement: compact derived rows per substat (chance / damage / DI / breakpoint hint on one line), role-gated Tenacity and Piety rows, CPR coexistence via `IDalamudPluginInterface.InstalledPlugins` detection. Identifies stat rows by reading their label text rather than positional sibling order (v0.4.2). See `LICENSES/CharacterPanelRefined-MIT.txt`.
+- `Services/StatusPanelInjector` — unsafe AtkNode injection into FFXIV's CharacterStatus addon. Patterns adapted from [CharacterPanelRefined](https://github.com/Kouzukii/ffxiv-characterstatus-refined) (MIT). v0.4.5 rewrote this from the ground up as a CPR replacement: compact derived rows per substat (chance / damage / DI / breakpoint hint on one line), role-gated Tenacity and Piety rows, CPR coexistence via `IDalamudPluginInterface.InstalledPlugins` detection. Identifies stat rows by reading their label text rather than positional sibling order (v0.4.2). v0.4.6 fixed the advisor-visibility bug by tracking total injected height (`AddStatRow` is now an instance method that accumulates a counter) and growing the outer `characterStatusPtr->RootNode->Height` after `InjectAllRows` completes. v0.4.6 also exposes a public `DiagnosticSnapshot` for the Diagnostics tab and `/goblininfo` command. See `LICENSES/CharacterPanelRefined-MIT.txt`.
 - `Services/DerivationHelpers` — small static helpers introduced in v0.4.5: `CprDetection.IsCprActive()` and `DerivedStatFormatter` (string formatting for the compact derived rows, pulling raw values from `Materia/Formulas`).
 - `Materia/MeldOptimizer` — wrong-stat swaps, tier upgrades, overcap audits. Sorted by score gain descending.
 - `Materia/JobProfile` — per-job stat weightings for all 21 combat jobs, Pure Math derived and Balance preset variants.
