@@ -4,12 +4,12 @@
     <Author>LastOnionKnight</Author>
     <Name>Tonberry Tactics</Name>
     <InternalName>GearGoblin</InternalName>
-    <AssemblyVersion>0.5.5</AssemblyVersion>
-    <FileVersion>0.5.5</FileVersion>
-    <Version>0.5.5</Version>
+    <AssemblyVersion>0.6.0</AssemblyVersion>
+    <FileVersion>0.6.0</FileVersion>
+    <Version>0.6.0</Version>
     <MinimumDalamudVersion>15.0.0</MinimumDalamudVersion>
     <Punchline>BiS planner, Materia Advisor, and round-trip optimizer for FFXIV. The in-game half of Tonberry Tactics; coexists with CharacterPanelRefined.</Punchline>
-    <Description>The in-game half of Tonberry Tactics — BiS planner, gear inventory reader, materia advisor for FFXIV. Pairs with tonberrytactics.pages.dev over a copy-pasteable export/plan format. v0.5.5 ("Version Alignment") brings the plugin's version into lockstep with the web's v0.5.5 — same "Brand Convergence" milestone, now numbered to match. Going forward the plugin and web ship at the same version. /tt, /ttexport, /ttimport, /ttinfo are the primary slash commands; /goblin* remain as deprecated aliases through v0.5.x. Coexists with CharacterPanelRefined (CPR derivations + GG advisor); full CPR-equivalent derivations are still here behind ForceDerivationsOverCpr or when CPR isn't installed. Materia formulas re-derived from public datamining sources.</Description>
+    <Description>The in-game half of Tonberry Tactics — BiS planner, gear inventory reader, materia advisor for FFXIV. Pairs with tonberrytactics.pages.dev over a copy-pasteable export/plan format. v0.6.0 ("Gear Division") ships the plugin's half of the v0.6.0 design port: IFontAtlas Phase 2 brings Cinzel (display serif), EB Garamond (body serif), and Press Start 2P (pixel) into the /tt window so plugin typography matches the web; the About tab gets the new wordmark lockup; the native CharacterStatus injection picks up TLF lantern-gold and frost accent colors on derived rows and the Materia Advisor section. Native injection still rides FFXIV's bundled SE font (the game's text node system can't accept plugin atlases); the typography refresh lands on the plugin's own ImGui surfaces. /tt, /ttexport, /ttimport, /ttinfo are the primary slash commands; /goblin* remain as deprecated aliases through v0.5.x. Coexists with CharacterPanelRefined (CPR derivations + GG advisor); full CPR-equivalent derivations are still here behind ForceDerivationsOverCpr or when CPR isn't installed. Materia formulas re-derived from public datamining sources.</Description>
     <RepoUrl>https://github.com/LastOnionKnight/GearGoblin</RepoUrl>
     <Tags>gear;bis;materia;etro;xivgear;raid;advisor;cpr;character-panel;tonberry-tactics</Tags>
 
@@ -25,6 +25,17 @@
        Services/BrandResources.cs). -->
   <ItemGroup>
     <Content Include="Assets\**\*.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Pack>true</Pack>
+    </Content>
+  </ItemGroup>
+
+  <!-- v0.6.0: custom .ttf fonts for IFontAtlas Phase 2. Same copy
+       discipline as the brand artwork — runtime resolves the directory
+       via PluginInterface.AssemblyLocation.Directory + "Assets/Fonts/"
+       (see Theme/FontAtlasManager.cs). -->
+  <ItemGroup>
+    <Content Include="Assets\Fonts\*.ttf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Pack>true</Pack>
     </Content>

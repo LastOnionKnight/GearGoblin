@@ -30,6 +30,7 @@ using System.Text;
 using Dalamud.Interface.Windowing;
 using Dalamud.Bindings.ImGui;
 using GearGoblin.Services;
+using GearGoblin.Theme;          // v0.6.0 — for FontPushExtensions.PushOrNull()
 
 namespace GearGoblin.UI;
 
@@ -109,16 +110,29 @@ public sealed class MainWindow : Window, IDisposable
     {
         var job = player.ClassJob.Value.Abbreviation.ExtractText();
         var lvl = player.Level;
-        ImGui.Text($"{player.Name} — {job} Lv {lvl}");
+
+        // v0.6.0 — Player name line in Cinzel @ 22px to match the web
+        // app's `.adv-name` header style. Falls back to default font if
+        // FontAtlasManager flagged a load failure.
+        using (plugin.Fonts.CinzelHeader.PushOrNull())
+        {
+            ImGui.Text($"{player.Name} — {job} Lv {lvl}");
+        }
         ImGui.SameLine();
         if (ImGui.SmallButton("Refresh")) { /* placeholder for future cache invalidation */ }
 
-        // Version badge — right-aligned in the header, TLF gold.
+        // Version badge — right-aligned in the header, TLF gold. v0.6.0:
+        // wrapped in Press Start 2P @ 10px to match the web's
+        // .version-pill micro-label treatment.
         var avail = ImGui.GetContentRegionAvail();
         var badgeText = $"v{s_versionString}";
-        var badgeWidth = ImGui.CalcTextSize(badgeText).X + 12;
-        ImGui.SameLine(ImGui.GetCursorPosX() + avail.X - badgeWidth);
-        ImGui.TextColored(Theme.TlfTheme.GoldBright, badgeText);
+        float badgeWidth;
+        using (plugin.Fonts.Pixel.PushOrNull())
+        {
+            badgeWidth = ImGui.CalcTextSize(badgeText).X + 12;
+            ImGui.SameLine(ImGui.GetCursorPosX() + avail.X - badgeWidth);
+            ImGui.TextColored(Theme.TlfTheme.GoldBright, badgeText);
+        }
 
         ImGui.Separator();
 
@@ -715,11 +729,18 @@ public sealed class MainWindow : Window, IDisposable
 
     private void DrawAbout()
     {
-        Theme.TlfTheme.Eyebrow("TLF GEAR DIVISION · OPERATIONS BRIEF");
+        // v0.6.0 — eyebrow in Press Start 2P @ 10px to match the web's
+        // .brand-eyebrow micro-label treatment.
+        using (plugin.Fonts.Pixel.PushOrNull())
+        {
+            Theme.TlfTheme.Eyebrow("TLF GEAR DIVISION · OPERATIONS BRIEF");
+        }
         ImGui.Spacing();
 
         // v0.4.7.1: brand header — circle-logo + wordmark side by side,
         // gracefully falling back to text-only if the asset didn't load.
+        // v0.6.0: wordmark renders in Cinzel @ 32px (display serif),
+        // version line in Press Start 2P @ 10px (pixel micro-label).
         var logo = plugin.Brand.CircleLogo;
         if (logo != null)
         {
@@ -730,37 +751,72 @@ public sealed class MainWindow : Window, IDisposable
             var cursorY = ImGui.GetCursorPosY();
             ImGui.SetCursorPosY(cursorY + (logoSize - ImGui.GetTextLineHeight() * 2f) * 0.5f);
             ImGui.BeginGroup();
-            ImGui.TextColored(Theme.TlfTheme.GoldBright, "Tonberry Tactics");
-            ImGui.TextDisabled($"in-game plugin · v{s_versionString}");
+            using (plugin.Fonts.CinzelDisplay.PushOrNull())
+            {
+                ImGui.TextColored(Theme.TlfTheme.GoldBright, "TONBERRY TACTICS");
+            }
+            using (plugin.Fonts.Pixel.PushOrNull())
+            {
+                ImGui.TextDisabled($"in-game plugin · v{s_versionString}");
+            }
             ImGui.EndGroup();
         }
         else
         {
-            ImGui.TextColored(Theme.TlfTheme.GoldBright, "Tonberry Tactics");
+            using (plugin.Fonts.CinzelDisplay.PushOrNull())
+            {
+                ImGui.TextColored(Theme.TlfTheme.GoldBright, "TONBERRY TACTICS");
+            }
             ImGui.SameLine();
-            ImGui.TextDisabled($"v{s_versionString}");
+            using (plugin.Fonts.Pixel.PushOrNull())
+            {
+                ImGui.TextDisabled($"v{s_versionString}");
+            }
         }
 
         ImGui.Spacing();
-        ImGui.TextWrapped(
-            "BiS planner, gear inventory reader, and materia advisor for FFXIV. " +
-            "The in-game half of Tonberry Tactics. Pairs with the companion website " +
-            "(tonberrytactics.pages.dev) over a copy-pasteable export/plan string format. " +
-            "Coexists comfortably with CharacterPanelRefined — CPR provides the substat " +
-            "derivations, Tonberry Tactics contributes the Materia Advisor, real GCD when " +
-            "CPR isn't job-aware, the export pipeline, and a diagnostic surface for " +
-            "verifying what actually injected.");
+        // v0.6.0 — description in EB Garamond @ 15px (body serif),
+        // matching the web's `.brand-sub` / Manifesto prose treatment.
+        using (plugin.Fonts.GaramondBody.PushOrNull())
+        {
+            ImGui.TextWrapped(
+                "BiS planner, gear inventory reader, and materia advisor for FFXIV. " +
+                "The in-game half of Tonberry Tactics. Pairs with the companion website " +
+                "(tonberrytactics.pages.dev) over a copy-pasteable export/plan string format. " +
+                "Coexists comfortably with CharacterPanelRefined — CPR provides the substat " +
+                "derivations, Tonberry Tactics contributes the Materia Advisor, real GCD when " +
+                "CPR isn't job-aware, the export pipeline, and a diagnostic surface for " +
+                "verifying what actually injected.");
+        }
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
 
         ImGui.TextUnformatted("By LastOnionKnight");
-        ImGui.TextDisabled("Refia Rakkiri — the Last Onion Knight (Aisling O'Callaghan, Cork)");
+        using (plugin.Fonts.GaramondItalic.PushOrNull())
+        {
+            ImGui.TextDisabled("Refia Rakkiri — the Last Onion Knight (Aisling O'Callaghan, Cork)");
+        }
+
+        // ── v0.6.0 ────────────────────────────────────────────────────────
+        ImGui.Spacing();
+        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.0 — \"Gear Division\":");
+        ImGui.BulletText("Plugin half of the v0.6.0 design port, in lockstep with the web's v0.6.0 ship");
+        ImGui.BulletText("IFontAtlas Phase 2 — Cinzel, EB Garamond, Press Start 2P load into the /tt window");
+        ImGui.Indent();
+        ImGui.BulletText("Player name + section headers render in Cinzel (matches web's .adv-name)");
+        ImGui.BulletText("About-tab description renders in EB Garamond (matches web's Manifesto)");
+        ImGui.BulletText("Version pills + eyebrow labels render in Press Start 2P (matches web's pixel-pill)");
+        ImGui.BulletText("Native CharacterStatus injection stays on FFXIV's SE font — game text-nodes can't accept plugin atlases");
+        ImGui.Unindent();
+        ImGui.BulletText("Native injection picks up TLF lantern-gold accent on advisor rows + frost accent on derived rows");
+        ImGui.BulletText("Compact derivation toggle (v0.4.5) remains the in-game compact/multi-row switch");
+        ImGui.BulletText("Web's v0.6.0 \"Gear Division\" ships in parallel — three-column layout, gear grid, advisor with circled-number ranks");
 
         // ── v0.5.5 ────────────────────────────────────────────────────────
         ImGui.Spacing();
         ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.5.5 — \"Version Alignment\":");
-        ImGui.BulletText("Plugin version jumps from 0.4.7.1 to 0.5.5 to match the web app");
+        ImGui.BulletText("Plugin version jumped from 0.4.7.1 to 0.5.5 to match the web app");
         ImGui.Indent();
         ImGui.BulletText("From this release onward, plugin and web ship at the same version");
         ImGui.BulletText("No functional changes — same content as v0.4.7.1, renumbered for alignment");

@@ -58,6 +58,9 @@ public sealed class Plugin : IDalamudPlugin
     // v0.4.7.1: brand artwork loaded from Assets/ at startup.
     public BrandResources Brand { get; }
 
+    // v0.6.0: custom font handles via IFontAtlas Phase 2.
+    public Theme.FontAtlasManager Fonts { get; }
+
     private readonly MainWindow mainWindow;
 
     public Plugin(IDalamudPluginInterface pluginInterface)
@@ -75,6 +78,7 @@ public sealed class Plugin : IDalamudPlugin
         Importer    = new GearsetImporter(this);                            // v0.4.7 (scaffold)
         StatusPanel = new StatusPanelInjector(this);
         Brand       = new BrandResources();                                 // v0.4.7.1
+        Fonts       = new Theme.FontAtlasManager(pluginInterface);          // v0.6.0
 
         // UI.
         mainWindow = new MainWindow(this);
@@ -127,8 +131,10 @@ public sealed class Plugin : IDalamudPlugin
     {
         // Tear down in reverse construction order. StatusPanel must dispose
         // before the WindowSystem so its click-handler unregistration runs
-        // while Dalamud's services are still alive.
+        // while Dalamud's services are still alive. Fonts disposes before
+        // the WindowSystem too so MainWindow can't draw stale handles.
         StatusPanel?.Dispose();
+        Fonts?.Dispose();                                                   // v0.6.0
         Brand?.Dispose();                                                   // v0.4.7.1
 
         DalamudServices.PluginInterface.UiBuilder.Draw         -= DrawUI;

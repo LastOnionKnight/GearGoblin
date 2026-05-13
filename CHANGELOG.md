@@ -11,6 +11,145 @@ the product bump together at every release going forward. Versions prior
 to v0.5.5 used independent semver tracks — the plugin's v0.4.x line and
 the web's v0.5.x line. v0.5.5 is the moment they re-align.
 
+## [0.6.0] — 2026-05-13  "Gear Division"
+
+**Headline:** The plugin's half of the v0.6.0 design port. Web's v0.6.0
+"Gear Division" shipped earlier today with the full TLF Gear Division
+landing page; this is the in-game side. Three workstreams in one ship:
+version sync, IFontAtlas Phase 2 (custom Google Fonts in the /tt
+window), and a palette refresh on the native CharacterStatus injection.
+
+The native injection's typography stayed where it was — FFXIV's bundled
+SE font system. AtkTextNodes in the game's UI don't accept plugin font
+atlases; that limitation isn't going away. What v0.6.0 brings in-game
+is colour: the derived stat rows now render in TLF FrostSoft (close to
+the web's body-text tone), and the Materia Advisor section accent
+shifts from TLF Gold to LanternHot, which reads brighter against the
+native panel's blue background.
+
+The custom typography landed where it could — in the plugin's own
+ImGui surfaces. Open `/tt` after the v0.6.0 install and the player name
+header renders in Cinzel @ 22px, the About-tab description in EB
+Garamond @ 15px, version pills in Press Start 2P @ 10px. Same fonts
+the web uses, same fallback hierarchy if a `.ttf` fails to load.
+
+### Added
+
+- **`Theme/FontAtlasManager.cs`** (new) — IFontAtlas Phase 2 loader.
+  Exposes six `IFontHandle` properties (CinzelDisplay/Header/Emphasis,
+  GaramondBody/Italic, Pixel) each backed by a `.ttf` in
+  `Assets/Fonts/`. Defensive load: missing or malformed font files
+  yield a null handle plus a warning in `/xllog`, and consuming code
+  falls back to the default ImGui font. The plugin loads either way.
+
+- **`Theme/FontPushExtensions.cs`** (new) — `PushOrNull()` extension
+  method on `IFontHandle?` that returns a no-op `IDisposable` for null
+  handles. Lets call sites wrap a section in a custom font with a
+  plain `using` block, no null-check ceremony:
+
+  ```csharp
+  using (plugin.Fonts.CinzelDisplay.PushOrNull())
+      ImGui.TextColored(TlfTheme.GoldBright, "TONBERRY TACTICS");
+  ```
+
+- **Five `.ttf` files in `Assets/Fonts/`:**
+  - `Cinzel-Regular.ttf` (32 KB) — display serif, used at 22px and 32px
+  - `Cinzel-SemiBold.ttf` (32 KB) — display serif emphasis weight
+  - `EBGaramond-Regular.ttf` (49 KB) — body serif
+  - `EBGaramond-Italic.ttf` (47 KB) — italic emphasis inside Garamond
+  - `PressStart2P-Regular.ttf` (41 KB) — pixel display
+
+  All sourced from Google Fonts via `@fontsource/*` v4 npm packages,
+  converted from `.woff` to `.ttf` with `fontTools.ttLib`. csproj's
+  `<Content Include="Assets\Fonts\*.ttf">` glob copies them to the
+  deployed plugin directory next to the DLL with
+  `CopyToOutputDirectory=PreserveNewest`.
+
+### Changed
+
+- **`Plugin.cs`** — instantiates `FontAtlasManager` between `Brand` and
+  `MainWindow` so `MainWindow.Draw()` can reference the font handles
+  immediately. Disposes between `StatusPanel` and `Brand` in teardown
+  to keep the order Dalamud-services-still-alive when font handles
+  release their atlas refcounts.
+
+- **`UI/MainWindow.cs`** — `using GearGoblin.Theme;` added for the
+  extension method. `DrawBody()` player-name line wrapped in
+  `CinzelHeader.PushOrNull()`; right-aligned version badge wrapped in
+  `Pixel.PushOrNull()`. `DrawAbout()` brand-header wordmark wrapped in
+  `CinzelDisplay.PushOrNull()`, version line in `Pixel`, eyebrow label
+  in `Pixel`, description prose in `GaramondBody`, the "Refia Rakkiri
+  — the Last Onion Knight" credit line in `GaramondItalic`.
+
+- **`Theme/TlfTheme.cs`** — `StandingReadyFooter()` fixes a leftover
+  `GEARGOBLIN · v…` brand string to `TONBERRY TACTICS · v…`. The
+  rename had landed in v0.4.7.1 but missed this one rendering path.
+  Caught while reviewing fonts wiring.
+
+- **`Services/StatusPanelInjector.cs`** — `InjectedRowColor` shifts
+  from `#A0A0A0` neutral gray to `#C2C5D8` (TlfTheme.FrostSoft) so
+  derived stat rows pick up the body-text tone used on the web.
+  `AdvisorAccentColor` shifts from `#C9B27E` (TlfTheme.Gold) to
+  `#FFCE5E` (TlfTheme.LanternHot) — same gold-family but brighter,
+  reads better against FFXIV's native blue panel background. No
+  behavioural change; both colours are pre-existing static fields.
+
+- **`GearGoblin.csproj`** — version 0.5.5 → 0.6.0, Description refresh
+  reflecting the IFontAtlas Phase 2 + visual overhaul work, new
+  `<Content Include="Assets\Fonts\*.ttf">` glob.
+
+### Deliberately deferred
+
+- **Fonts on the native CharacterStatus injection.** The game's
+  AtkTextNode system uses FFXIV's bundled SE font and can't accept a
+  `.ttf` from a plugin atlas. This is a hard engine constraint, not a
+  todo. The native injection picks up colour parity (above) but its
+  typography continues to render in the game's own font. Users see
+  consistent typography in `/tt`; the native panel reads as native.
+
+- **Per-job optimizer priorities on derivation rows.** The injection
+  still uses the GNB priority order for "next breakpoint" hints when
+  the active job isn't GNB — same fallback as the web. Per-job tables
+  land with the v0.5.0 Core refactor (`GearGoblin.Core` netstandard
+  library that both halves project-reference).
+
+- **Plan-tab "Active Plan" UI.** Still the v0.4.7 scaffold —
+  `/ttimport` validates and parses but doesn't yet wire to a per-job
+  persisted plan with meld-completion checkboxes. Queued for v0.6.1.
+
+- **Tab icons.** Polish item from the design handoff. Queued.
+
+### Bootstrap recipe (for repro / future font additions)
+
+The five `.ttf` files were derived from Google Fonts as follows. Capture
+here so we can repeat the recipe if Google Fonts changes upstream:
+
+```
+# 1. Pull fontsource v4 tarballs from npm (they ship .woff, not .ttf):
+npm pack @fontsource/press-start-2p@4.5.11
+npm pack @fontsource/cinzel@4.5.10
+npm pack @fontsource/eb-garamond@4.5.11
+
+# 2. Extract just the latin-400 .woff files:
+tar -xzf fontsource-press-start-2p-4.5.11.tgz \
+    package/files/press-start-2p-latin-400-normal.woff
+# (and similar for cinzel 400 + 600, eb-garamond 400 + italic)
+
+# 3. Convert .woff → .ttf via fontTools.ttLib:
+python3 -c "
+from fontTools.ttLib import TTFont
+f = TTFont('press-start-2p-latin-400-normal.woff')
+f.flavor = None
+f.save('PressStart2P-Regular.ttf')"
+```
+
+`raw.githubusercontent.com` is blocked from the dev environment, so
+pulling .ttf directly from `github.com/google/fonts` doesn't work —
+fontsource via npm + fontTools conversion is the path that survives the
+allowlist constraints.
+
+---
+
 ## [0.5.5] — 2026-05-13  "Version Alignment"
 
 **Headline:** The plugin's version jumps from 0.4.7.1 to 0.5.5 to match

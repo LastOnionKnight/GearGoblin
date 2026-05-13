@@ -161,6 +161,8 @@ public static class TlfTheme
     /// `Footer` block ("The Onion Knight stands ready"). Renders
     /// centered-feeling with the ◆ glyph on either side. Used in
     /// the About tab and at the bottom of the Quick Start tab.
+    /// v0.6.0: corrected leftover "GEARGOBLIN" → "TONBERRY TACTICS"
+    /// brand string (regression from v0.4.7.1).
     /// </summary>
     public static void StandingReadyFooter(string version)
     {
@@ -173,7 +175,7 @@ public static class TlfTheme
         ImGui.PopStyleColor();
         ImGui.PushStyleColor(ImGuiCol.Text, FrostFaint);
         ImGui.TextUnformatted(
-            $"  GEARGOBLIN · v{version} · NO GEAR · NO HOPE · NO PANTS · JUST ONIONS");
+            $"  TONBERRY TACTICS · v{version} · NO GEAR · NO HOPE · NO PANTS · JUST ONIONS");
         ImGui.PopStyleColor();
     }
 

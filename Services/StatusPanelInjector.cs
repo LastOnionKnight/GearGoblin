@@ -71,11 +71,24 @@ public sealed unsafe class StatusPanelInjector : IDisposable
 
     private const string AddonName = "CharacterStatus";
 
+    // v0.6.0 — Palette refresh on the native CharacterStatus injection.
+    // The plugin's own ImGui window gets custom Cinzel/Garamond/Pixel fonts
+    // via IFontAtlas Phase 2, but the in-game text nodes are stuck on
+    // FFXIV's bundled SE font (AtkTextNode can't accept plugin atlases).
+    // What we CAN tune is byte color — so derived rows pick up TLF's
+    // FrostSoft body tone and the Materia Advisor accent shifts from
+    // TLF Gold (matched the v0.4.7 chrome) to LanternHot, which reads
+    // brighter against the native panel's blue background.
+    //
+    // ByteColor RGB values are mirrored from Theme/TlfTheme.cs:
+    //   FrostSoft  = #C2C5D8  (was #A0A0A0 neutral gray)
+    //   LanternHot = #FFCE5E  (was #C9B27E TLF Gold)
+
     private static readonly ByteColor InjectedRowColor =
-        new() { A = 0xFF, R = 0xA0, G = 0xA0, B = 0xA0 };
+        new() { A = 0xFF, R = 0xC2, G = 0xC5, B = 0xD8 };
 
     private static readonly ByteColor AdvisorAccentColor =
-        new() { A = 0xFF, R = 0xC9, G = 0xB2, B = 0x7E };
+        new() { A = 0xFF, R = 0xFF, G = 0xCE, B = 0x5E };
 
     private readonly Plugin plugin;
     private AtkUnitBase* characterStatusPtr;
