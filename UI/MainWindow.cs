@@ -63,8 +63,13 @@ public sealed class MainWindow : Window, IDisposable
     private void ClearFeedbackBuffer() =>
         Array.Clear(feedbackBuf, 0, feedbackBuf.Length);
 
-    public MainWindow(Plugin plugin) : base("GearGoblin###GearGoblinMain")
+    public MainWindow(Plugin plugin) : base("Tonberry Tactics###GearGoblinMain")
     {
+        // v0.4.7.1 "Brand Convergence": title text changes to the new product
+        // name but the ImGui ID suffix (###GearGoblinMain) deliberately stays
+        // the same. ImGui keys window state (size, position, docking) by the
+        // string after ###; preserving it means users keep their saved layout
+        // when they update from v0.4.7.
         this.plugin = plugin;
         SizeConstraints = new WindowSizeConstraints
         {
@@ -174,8 +179,8 @@ public sealed class MainWindow : Window, IDisposable
 
     private void DrawQuickStart()
     {
-        ImGui.TextColored(Theme.TlfTheme.GoldBright, "GearGoblin → Tonberry Tactics → GearGoblin");
-        ImGui.TextDisabled("The export–optimize–import loop, in plain English.");
+        ImGui.TextColored(Theme.TlfTheme.GoldBright, "The export–optimize–import loop, in plain English.");
+        ImGui.TextDisabled("In-game plugin · web app · same product, two halves.");
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
@@ -195,11 +200,12 @@ public sealed class MainWindow : Window, IDisposable
 
         Theme.TlfTheme.Eyebrow("WHAT THIS PLUGIN DOES");
         ImGui.TextWrapped(
-            "GearGoblin reads your equipped gear, gives you derived stats and breakpoint hints in the " +
-            "Character window, and exports your gearset to a copy-pasteable string. The companion website " +
-            "Tonberry Tactics consumes that string, runs an optimizer over your gear, and produces a plan " +
-            "string going the other direction. The plan string gets pasted back into the game " +
-            "as an actionable meld checklist.");
+            "The Tonberry Tactics in-game plugin reads your equipped gear, gives you derived stats and " +
+            "breakpoint hints in the Character window, and exports your gearset to a copy-pasteable string. " +
+            "The companion website (tonberrytactics.pages.dev) consumes that string, runs an optimizer " +
+            "in your browser, and produces a plan string going the other direction. The plan string gets " +
+            "pasted back into the game as an actionable meld checklist. Two halves, one product, " +
+            "round-trip in roughly thirty seconds.");
         ImGui.Spacing();
         ImGui.Spacing();
 
@@ -711,23 +717,66 @@ public sealed class MainWindow : Window, IDisposable
     {
         Theme.TlfTheme.Eyebrow("TLF GEAR DIVISION · OPERATIONS BRIEF");
         ImGui.Spacing();
-        ImGui.TextUnformatted("GearGoblin");
-        ImGui.SameLine();
-        ImGui.TextColored(Theme.TlfTheme.GoldBright, $"v{s_versionString}");
+
+        // v0.4.7.1: brand header — circle-logo + wordmark side by side,
+        // gracefully falling back to text-only if the asset didn't load.
+        var logo = plugin.Brand.CircleLogo;
+        if (logo != null)
+        {
+            const float logoSize = 64f;
+            ImGui.Image(logo.Handle, new Vector2(logoSize, logoSize));
+            ImGui.SameLine();
+            // Vertical-center the wordmark next to the logo.
+            var cursorY = ImGui.GetCursorPosY();
+            ImGui.SetCursorPosY(cursorY + (logoSize - ImGui.GetTextLineHeight() * 2f) * 0.5f);
+            ImGui.BeginGroup();
+            ImGui.TextColored(Theme.TlfTheme.GoldBright, "Tonberry Tactics");
+            ImGui.TextDisabled($"in-game plugin · v{s_versionString}");
+            ImGui.EndGroup();
+        }
+        else
+        {
+            ImGui.TextColored(Theme.TlfTheme.GoldBright, "Tonberry Tactics");
+            ImGui.SameLine();
+            ImGui.TextDisabled($"v{s_versionString}");
+        }
 
         ImGui.Spacing();
         ImGui.TextWrapped(
             "BiS planner, gear inventory reader, and materia advisor for FFXIV. " +
-            "As of v0.4.6 GearGoblin sits comfortably alongside CharacterPanelRefined — " +
-            "CPR provides the substat derivations, GearGoblin contributes the Materia Advisor, " +
-            "real GCD when CPR isn't job-aware, the Tonberry Tactics export pipeline, and a " +
-            "diagnostic surface for verifying what actually injected.");
+            "The in-game half of Tonberry Tactics. Pairs with the companion website " +
+            "(tonberrytactics.pages.dev) over a copy-pasteable export/plan string format. " +
+            "Coexists comfortably with CharacterPanelRefined — CPR provides the substat " +
+            "derivations, Tonberry Tactics contributes the Materia Advisor, real GCD when " +
+            "CPR isn't job-aware, the export pipeline, and a diagnostic surface for " +
+            "verifying what actually injected.");
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
 
         ImGui.TextUnformatted("By LastOnionKnight");
         ImGui.TextDisabled("Refia Rakkiri — the Last Onion Knight (Aisling O'Callaghan, Cork)");
+
+        // ── v0.4.7.1 ──────────────────────────────────────────────────────
+        ImGui.Spacing();
+        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.4.7.1 — \"Brand Convergence\":");
+        ImGui.BulletText("Plugin renamed: GearGoblin → Tonberry Tactics (matches the website)");
+        ImGui.Indent();
+        ImGui.BulletText("Internal identifiers preserved — your existing config and saved layout carry over");
+        ImGui.BulletText("Code namespace + DLL name stay 'GearGoblin' for now; full rename bundled with v0.5.0 Core refactor");
+        ImGui.Unindent();
+        ImGui.BulletText("New brand artwork from Claude Design — circle-logo wordmark, Refia portraits");
+        ImGui.BulletText("/tt, /ttexport, /ttimport, /ttinfo are now the primary slash commands");
+        ImGui.BulletText("/goblin* aliases still work (deprecated; removed at v1.0)");
+
+        // ── v0.4.7 ────────────────────────────────────────────────────────
+        ImGui.Spacing();
+        ImGui.TextUnformatted("v0.4.7 — \"Round Trip\" scaffold:");
+        ImGui.BulletText("/ttimport (formerly /goblinimport) consumes GG-PLAN:v1: strings from clipboard");
+        ImGui.BulletText("Per-job plan persistence (one active plan per job per character)");
+        ImGui.BulletText("Plan tab surfaces an Active Plan with per-meld checkboxes (next build)");
+        ImGui.BulletText("Feedback tab: pre-filled GitHub issue + clipboard fallback for Discord/DM");
+        ImGui.BulletText("TLF Lite theme Phase 1: palette, glyphs, manifesto, standing-ready footer");
 
         // ── v0.4.6 ────────────────────────────────────────────────────────
         ImGui.Spacing();
@@ -741,7 +790,7 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.BulletText("Quick Start tab: first-time-user workflow guide for the export-optimize-import loop");
         ImGui.BulletText("Settings tab: every v0.4.5 toggle surfaced as a checkbox (was config-file-only)");
         ImGui.BulletText("Diagnostics tab: live injector state, force-reinject button, copyable status block");
-        ImGui.BulletText("/goblininfo slash command: dumps diagnostics to chat for bug reports");
+        ImGui.BulletText("/ttinfo slash command: dumps diagnostics to chat for bug reports");
         ImGui.BulletText("release.ps1: dotnet-build gate + commit-message BOM fix");
 
         // ── v0.4.5 ────────────────────────────────────────────────────────
@@ -766,7 +815,7 @@ public sealed class MainWindow : Window, IDisposable
         // ── v0.4.1 ────────────────────────────────────────────────────────
         ImGui.Spacing();
         ImGui.TextUnformatted("v0.4.1 — Tonberry Tactics handoff:");
-        ImGui.BulletText("/goblinexport command writes a clipboard-ready JSON of your equipped gear");
+        ImGui.BulletText("/ttexport (formerly /goblinexport) writes a clipboard-ready JSON of your equipped gear");
         ImGui.BulletText("Compatible with the Tonberry Tactics web optimizer (TLF Gear Division)");
         ImGui.BulletText("Dalamud SDK 15 compat (AddonEventData signature update)");
 
@@ -776,7 +825,7 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.BulletText("Breakpoint hints injected under each substat row");
         ImGui.BulletText("Real GCD derivation injected under Skill/Spell Speed");
         ImGui.BulletText("Materia Advisor section injected under Gear");
-        ImGui.BulletText("Click the advisor header to open the standalone /goblin window");
+        ImGui.BulletText("Click the advisor header to open the standalone /tt window");
 
         // ── v0.3.x ────────────────────────────────────────────────────────
         ImGui.Spacing();

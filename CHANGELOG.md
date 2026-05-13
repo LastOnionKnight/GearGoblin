@@ -1,10 +1,104 @@
 # Changelog
 
-All notable changes to GearGoblin are documented here. Format based on
+All notable changes to Tonberry Tactics (the in-game plugin, formerly
+"GearGoblin") are documented here. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning loosely
 follows [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] — v0.4.7 "Round Trip"
+## [0.4.7.1] — 2026-05-13  "Brand Convergence"
+
+**Headline:** The in-game plugin is renamed from **GearGoblin** to
+**Tonberry Tactics**, matching the companion website. Two halves, one
+product, one name on both. Internal identifiers (csproj `InternalName`,
+WindowSystem name, code namespace, DLL filename) intentionally stay as
+`GearGoblin` for this release — existing configs and saved window
+layouts continue to load without migration. Full code-namespace rename
+is scoped to v0.5.0 and will land bundled with the Core refactor.
+
+This is a brand-only point release, parallel to Tonberry Tactics web
+v0.5.5 which landed earlier today. No functional behavior changes; the
+optimizer, audit, derivation, advisor, and round-trip surfaces all do
+exactly what they did in v0.4.7. The intent is to make the rename
+user-visible immediately so the brand-fragmentation question stops
+recurring while the bigger v0.4.8 bug-fix and v0.5.0 architecture work
+proceeds on their own timelines.
+
+### Added
+
+- **Brand artwork** in `Assets/` (shipped alongside the DLL):
+  - `circle-logo.png` — wordmark logo, rendered in the About tab header
+  - `rags-portrait.png` — full Refia hero portrait (reserved for v0.6.x
+    About-tab body and future hero slots)
+  - `rags-mini.png` — compact avatar (reserved for v0.6.x tab decorations)
+- **`Services/BrandResources.cs`** — manages `IDalamudTextureWrap`
+  loading via `ITextureProvider.GetFromFile(...).GetWrapOrEmpty()`.
+  Defensive: missing-file and load-failure cases return null wraps and
+  let the UI fall back to text. Logs at info level when assets load,
+  warning level when they don't.
+- **`/tt`** as the new primary slash command set: `/tt`, `/ttexport`,
+  `/ttimport`, `/ttinfo`. Help text in `/xlhelp` matches.
+- **About tab brand block** — circle-logo image (64×64) paired with the
+  "Tonberry Tactics" wordmark + version, gracefully falling back to
+  text-only if `BrandResources.CircleLogo` is null.
+
+### Changed
+
+- **Plugin display name** (`csproj.Name` → "Tonberry Tactics"). This is
+  the name Dalamud's `/xlplugins` UI shows.
+- **Window title bar** — `GearGoblin###GearGoblinMain` →
+  `Tonberry Tactics###GearGoblinMain`. The `###GearGoblinMain` ImGui ID
+  suffix is preserved, so saved window position, size, and docking
+  state survive the rename without manual migration.
+- **Quick Start tab opener** — dropped the
+  `GearGoblin → Tonberry Tactics → GearGoblin` loop framing (no longer
+  meaningful now that both halves carry the same name). Replaced with
+  "The export–optimize–import loop, in plain English."
+- **About tab body copy** — `"GearGoblin sits comfortably alongside CPR..."`
+  → `"The in-game half of Tonberry Tactics ... Coexists comfortably with
+  CharacterPanelRefined..."`.
+- **Slash commands in help text** — every reference to `/goblininfo`,
+  `/goblinexport`, etc. updated to the `/tt*` equivalents.
+
+### Deprecated
+
+- **`/goblin`**, **`/goblinexport`**, **`/goblininfo`**, **`/goblinimport`**
+  still work but are marked `(deprecated alias of /tt...)` in `/xlhelp`.
+  Migration policy: aliases stay through the entire v0.5.x line, removed
+  at v1.0. Existing muscle memory keeps working through the public
+  release without surprises.
+
+### Not changed
+
+- **Internal identifiers** — `csproj.InternalName`, code namespace
+  `GearGoblin`, DLL filename `GearGoblin.dll`, WindowSystem name
+  `"GearGoblin"`. Renaming any of these would break existing user
+  configs (plugin config keys by `InternalName`) and saved window state.
+  Full rename bundled with the v0.5.0 Core refactor.
+- **Wire-format prefixes** — `GG-EXPORT:v1:`, `GG-PLAN:v1:`. Versioned
+  identifiers, not brand names. Breaking them would break round-trip
+  with v0.4.7 plugins in the wild.
+
+### Known limitation
+
+- `circle-logo.png` ships at 704KB — fine functionally, larger than
+  necessary. Run through `pngquant -q 65-85` to drop ~70% before v1.0.
+
+### Files touched
+
+- `Plugin.cs` — `Name` property, slash command registration, BrandResources
+  wiring, dispose order
+- `UI/MainWindow.cs` — constructor window title, Quick Start opener,
+  About tab brand header + body copy + slash-command references in
+  changelog bullets
+- `GearGoblin.csproj` — `<Version>0.4.7.1</Version>`, `<Name>Tonberry
+  Tactics</Name>`, Description rewrite, `<Content Include="Assets\**\*.png">`
+- `Services/BrandResources.cs` — NEW file
+- `Assets/circle-logo.png`, `Assets/rags-portrait.png`,
+  `Assets/rags-mini.png` — NEW files
+
+---
+
+## [0.4.7] — 2026-05-13  "Round Trip"
 
 **Headline:** Closing the export–optimize–import loop. `/goblinexport`
 shipped in v0.4.1; v0.4.7 adds `/goblinimport`, the consumer for the

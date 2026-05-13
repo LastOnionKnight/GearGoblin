@@ -2,20 +2,32 @@
 
   <PropertyGroup>
     <Author>LastOnionKnight</Author>
-    <Name>GearGoblin</Name>
+    <Name>Tonberry Tactics</Name>
     <InternalName>GearGoblin</InternalName>
-    <AssemblyVersion>0.4.7.0</AssemblyVersion>
-    <FileVersion>0.4.7.0</FileVersion>
-    <Version>0.4.7.0</Version>
+    <AssemblyVersion>0.4.7.1</AssemblyVersion>
+    <FileVersion>0.4.7.1</FileVersion>
+    <Version>0.4.7.1</Version>
     <MinimumDalamudVersion>15.0.0</MinimumDalamudVersion>
-    <Punchline>BiS planner, Materia Advisor, and Tonberry Tactics export pipeline. Coexists with CharacterPanelRefined, contributing the advisor + diagnostics CPR doesn't ship.</Punchline>
-    <Description>GearGoblin is a BiS planner, gear inventory reader, and materia advisor for FFXIV. v0.4.7 ("Round Trip") closes the export-optimize-import loop: `/goblinimport` consumes the `GG-PLAN:v1:` strings Tonberry Tactics emits, persists them as active plans, and surfaces a per-meld checklist on the Plan tab. v0.4.7 also ships an in-window Feedback tab (pre-filled GitHub issue URL + clipboard fallback for Discord/DM, with the /goblininfo diagnostic block auto-attached) so beta reports become triagable on arrival. v0.4.6's CPR coexistence remains: CPR handles substat derivations, GG contributes the Materia Advisor and the standalone /goblin window. The full CPR-equivalent derivation suite (Crit/Det/DH/Speed/Tenacity/Piety) is still here behind ForceDerivationsOverCpr or when CPR isn't installed. Materia formulas re-derived from public datamining sources.</Description>
+    <Punchline>BiS planner, Materia Advisor, and round-trip optimizer for FFXIV. The in-game half of Tonberry Tactics; coexists with CharacterPanelRefined.</Punchline>
+    <Description>The in-game half of Tonberry Tactics — BiS planner, gear inventory reader, materia advisor for FFXIV. Pairs with tonberrytactics.pages.dev over a copy-pasteable export/plan format. v0.4.7.1 ("Brand Convergence") renames the user-facing product from GearGoblin to Tonberry Tactics to match the website; internal identifiers preserved so existing configs and layouts survive. /tt, /ttexport, /ttimport, /ttinfo are the new primary slash commands; /goblin* remain as deprecated aliases through v0.5.x. Coexists with CharacterPanelRefined (CPR derivations + GG advisor); full CPR-equivalent derivations are still here behind ForceDerivationsOverCpr or when CPR isn't installed. Materia formulas re-derived from public datamining sources.</Description>
     <RepoUrl>https://github.com/LastOnionKnight/GearGoblin</RepoUrl>
-    <Tags>gear;bis;materia;etro;xivgear;raid;advisor;cpr;character-panel</Tags>
+    <Tags>gear;bis;materia;etro;xivgear;raid;advisor;cpr;character-panel;tonberry-tactics</Tags>
 
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+
+  <!-- v0.4.7.1: brand artwork shipped alongside the DLL. Dalamud's SDK
+       picks these up automatically via the Content glob and includes them
+       in the plugin's install directory; runtime resolves via
+       PluginInterface.AssemblyLocation.Directory + "Assets/" (see
+       Services/BrandResources.cs). -->
+  <ItemGroup>
+    <Content Include="Assets\**\*.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Pack>true</Pack>
+    </Content>
+  </ItemGroup>
 
 </Project>

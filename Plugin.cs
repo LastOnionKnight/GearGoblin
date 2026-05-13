@@ -23,12 +23,27 @@ namespace GearGoblin;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public string Name => "GearGoblin";
+    // v0.4.7.1 "Brand Convergence": the user-facing name is now "Tonberry Tactics",
+    // matching the website. We deliberately keep the *internal* identifiers
+    // (csproj InternalName, namespace, WindowSystem name) as "GearGoblin" so
+    // existing user configs and saved window state survive. Full code-namespace
+    // rename is scoped to v0.5.0 with the Core refactor.
+    public string Name => "Tonberry Tactics";
 
-    private const string CommandName       = "/goblin";
-    private const string ExportCommandName = "/goblinexport";   // v0.4.1
-    private const string InfoCommandName   = "/goblininfo";     // v0.4.6
-    private const string ImportCommandName = "/goblinimport";   // v0.4.7
+    // v0.4.7.1: /tt* are the new primary commands. /goblin* remain as
+    // deprecated aliases through v0.5.x and will be removed at v1.0 (migration
+    // strategy C from the v0.4.8 product Q&A: graceful staged transition).
+    private const string CommandName       = "/tt";
+    private const string ExportCommandName = "/ttexport";
+    private const string InfoCommandName   = "/ttinfo";
+    private const string ImportCommandName = "/ttimport";
+
+    // Deprecated aliases. Still work, still print to /xlhelp, but the help
+    // text flags them as legacy so users migrate organically.
+    private const string LegacyCommandName       = "/goblin";
+    private const string LegacyExportCommandName = "/goblinexport";
+    private const string LegacyInfoCommandName   = "/goblininfo";
+    private const string LegacyImportCommandName = "/goblinimport";
 
     public Configuration Configuration { get; }
     public WindowSystem  WindowSystem  { get; } = new("GearGoblin");
@@ -39,6 +54,9 @@ public sealed class Plugin : IDalamudPlugin
 
     // v0.4.0: native injection into the CharacterStatus addon.
     public StatusPanelInjector StatusPanel { get; }
+
+    // v0.4.7.1: brand artwork loaded from Assets/ at startup.
+    public BrandResources Brand { get; }
 
     private readonly MainWindow mainWindow;
 
@@ -56,6 +74,7 @@ public sealed class Plugin : IDalamudPlugin
         Exporter    = new GearsetExporter(Inventory);                       // v0.4.1
         Importer    = new GearsetImporter(this);                            // v0.4.7 (scaffold)
         StatusPanel = new StatusPanelInjector(this);
+        Brand       = new BrandResources();                                 // v0.4.7.1
 
         // UI.
         mainWindow = new MainWindow(this);
@@ -65,25 +84,43 @@ public sealed class Plugin : IDalamudPlugin
         DalamudServices.PluginInterface.UiBuilder.OpenConfigUi += ToggleMain;
         DalamudServices.PluginInterface.UiBuilder.OpenMainUi   += ToggleMain;
 
-        // Commands.
+        // Commands — primary set (/tt*).
         DalamudServices.CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Open GearGoblin. Usage: /goblin"
+            HelpMessage = "Open Tonberry Tactics. Usage: /tt"
         });
         DalamudServices.CommandManager.AddHandler(ExportCommandName, new CommandInfo(OnExportCommand)
         {
-            HelpMessage = "Export your equipped gearset to clipboard for use in Tonberry Tactics."
+            HelpMessage = "Export your equipped gearset to clipboard for use in the Tonberry Tactics website."
         });
-        DalamudServices.CommandManager.AddHandler(InfoCommandName, new CommandInfo(OnInfoCommand)    // v0.4.6
+        DalamudServices.CommandManager.AddHandler(InfoCommandName, new CommandInfo(OnInfoCommand)
         {
-            HelpMessage = "Print GearGoblin diagnostics to chat. Useful for bug reports."
+            HelpMessage = "Print Tonberry Tactics diagnostics to chat. Useful for bug reports."
         });
-        DalamudServices.CommandManager.AddHandler(ImportCommandName, new CommandInfo(OnImportCommand)  // v0.4.7
+        DalamudServices.CommandManager.AddHandler(ImportCommandName, new CommandInfo(OnImportCommand)
         {
-            HelpMessage = "Import a GG-PLAN:v1: plan string from clipboard. Pair with /goblinexport and Tonberry Tactics."
+            HelpMessage = "Import a GG-PLAN:v1: plan string from clipboard. Pair with /ttexport."
         });
 
-        DalamudServices.Log.Info($"GearGoblin v{GetType().Assembly.GetName().Version} loaded.");
+        // Commands — legacy /goblin* aliases (deprecated; removed at v1.0).
+        DalamudServices.CommandManager.AddHandler(LegacyCommandName, new CommandInfo(OnCommand)
+        {
+            HelpMessage = "(deprecated alias of /tt) Open Tonberry Tactics."
+        });
+        DalamudServices.CommandManager.AddHandler(LegacyExportCommandName, new CommandInfo(OnExportCommand)
+        {
+            HelpMessage = "(deprecated alias of /ttexport) Export your gearset."
+        });
+        DalamudServices.CommandManager.AddHandler(LegacyInfoCommandName, new CommandInfo(OnInfoCommand)
+        {
+            HelpMessage = "(deprecated alias of /ttinfo) Print diagnostics."
+        });
+        DalamudServices.CommandManager.AddHandler(LegacyImportCommandName, new CommandInfo(OnImportCommand)
+        {
+            HelpMessage = "(deprecated alias of /ttimport) Import a plan string."
+        });
+
+        DalamudServices.Log.Info($"Tonberry Tactics (formerly GearGoblin) v{GetType().Assembly.GetName().Version} loaded.");
     }
 
     public void Dispose()
@@ -92,15 +129,23 @@ public sealed class Plugin : IDalamudPlugin
         // before the WindowSystem so its click-handler unregistration runs
         // while Dalamud's services are still alive.
         StatusPanel?.Dispose();
+        Brand?.Dispose();                                                   // v0.4.7.1
 
         DalamudServices.PluginInterface.UiBuilder.Draw         -= DrawUI;
         DalamudServices.PluginInterface.UiBuilder.OpenConfigUi -= ToggleMain;
         DalamudServices.PluginInterface.UiBuilder.OpenMainUi   -= ToggleMain;
 
+        // Primary commands.
         DalamudServices.CommandManager.RemoveHandler(CommandName);
-        DalamudServices.CommandManager.RemoveHandler(ExportCommandName);    // v0.4.1
-        DalamudServices.CommandManager.RemoveHandler(InfoCommandName);      // v0.4.6
-        DalamudServices.CommandManager.RemoveHandler(ImportCommandName);    // v0.4.7
+        DalamudServices.CommandManager.RemoveHandler(ExportCommandName);
+        DalamudServices.CommandManager.RemoveHandler(InfoCommandName);
+        DalamudServices.CommandManager.RemoveHandler(ImportCommandName);
+
+        // Legacy aliases.
+        DalamudServices.CommandManager.RemoveHandler(LegacyCommandName);
+        DalamudServices.CommandManager.RemoveHandler(LegacyExportCommandName);
+        DalamudServices.CommandManager.RemoveHandler(LegacyInfoCommandName);
+        DalamudServices.CommandManager.RemoveHandler(LegacyImportCommandName);
 
         WindowSystem.RemoveAllWindows();
         mainWindow.Dispose();
