@@ -5,6 +5,75 @@ All notable changes to Tonberry Tactics (the in-game plugin, formerly
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning loosely
 follows [Semantic Versioning](https://semver.org/).
 
+**Versioning note (from v0.5.5 onward):** the plugin and the web app
+(`tonberrytactics.pages.dev`) ship at the same version. Both halves of
+the product bump together at every release going forward. Versions prior
+to v0.5.5 used independent semver tracks — the plugin's v0.4.x line and
+the web's v0.5.x line. v0.5.5 is the moment they re-align.
+
+## [0.5.5] — 2026-05-13  "Version Alignment"
+
+**Headline:** The plugin's version jumps from 0.4.7.1 to 0.5.5 to match
+the web app, which shipped its v0.5.5 "Brand Convergence" release
+today. Same content milestone — the brand convergence work landed in
+both halves yesterday — now numbered to match. No more "plugin v0.4.7.1
+pairs with web v0.5.4" cross-reference math; from this release forward,
+both halves of Tonberry Tactics carry the same version number.
+
+The web's v0.5.x track is older (v0.5.1 through v0.5.4 shipped over the
+past weeks before today's brand convergence). The plugin had been on a
+separate v0.4.x track from when it was originally branded as
+"GearGoblin." With the rename complete and both halves now serving one
+product identity, separate version trajectories were creating real
+operational drag — release notes had to explain version pairings, users
+had to remember which combination they had installed, every
+cross-reference burned cycles.
+
+This release does that alignment. From v0.5.5 onward:
+
+- Plugin and web bump together at every release
+- One CHANGELOG entry per release, mirrored on both repos
+- "Tonberry Tactics v0.5.6" means both halves at v0.5.6
+- v0.6.0 will be the next major (design port on web, native-injection
+  visual overhaul on plugin)
+- v1.0 will be the unified public Dalamud repository submission +
+  custom domain web ship, with both halves at v1.0 together
+
+### Functional changes
+
+- **None.** This is purely a version-alignment release. Every feature
+  and behavior is identical to v0.4.7.1. The DLL produces the same
+  output, the windows render the same way, the slash commands resolve
+  to the same handlers.
+
+### Changed
+
+- `<Version>` in `GearGoblin.csproj` bumped from `0.4.7.1` to `0.5.5`.
+  AssemblyVersion and FileVersion bumped to match.
+- `<Description>` rewritten to lead with the alignment story instead of
+  the "Brand Convergence" framing (which is now retroactively part of
+  this release's history).
+- About tab displays version `0.5.5` automatically via reflection on
+  the assembly version — no code change needed in `MainWindow.cs`.
+
+### Not changed
+
+- All v0.4.7.1 work (circle-logo in About tab, `/tt*` primary slash
+  commands, `/goblin*` deprecated aliases, BrandResources, Quick Start
+  reframing) ships through unchanged. v0.4.7.1's tag stays in history.
+- Internal identifiers (`InternalName=GearGoblin`, code namespace,
+  DLL filename, WindowSystem name, ImGui window ID `###GearGoblinMain`).
+  Same reasoning as v0.4.7.1: renaming these would break existing user
+  configs and saved window layouts. Full rename bundled with v0.6.0.
+- Wire-format prefixes (`GG-EXPORT:v1:`, `GG-PLAN:v1:`).
+
+### Files touched
+
+- `GearGoblin.csproj` — version bump
+- `CHANGELOG.md` — this entry
+
+---
+
 ## [0.4.7.1] — 2026-05-13  "Brand Convergence"
 
 **Headline:** The in-game plugin is renamed from **GearGoblin** to

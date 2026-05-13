@@ -757,6 +757,15 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.TextUnformatted("By LastOnionKnight");
         ImGui.TextDisabled("Refia Rakkiri — the Last Onion Knight (Aisling O'Callaghan, Cork)");
 
+        // ── v0.5.5 ────────────────────────────────────────────────────────
+        ImGui.Spacing();
+        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.5.5 — \"Version Alignment\":");
+        ImGui.BulletText("Plugin version jumps from 0.4.7.1 to 0.5.5 to match the web app");
+        ImGui.Indent();
+        ImGui.BulletText("From this release onward, plugin and web ship at the same version");
+        ImGui.BulletText("No functional changes — same content as v0.4.7.1, renumbered for alignment");
+        ImGui.Unindent();
+
         // ── v0.4.7.1 ──────────────────────────────────────────────────────
         ImGui.Spacing();
         ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.4.7.1 — \"Brand Convergence\":");

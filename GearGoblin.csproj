@@ -4,12 +4,12 @@
     <Author>LastOnionKnight</Author>
     <Name>Tonberry Tactics</Name>
     <InternalName>GearGoblin</InternalName>
-    <AssemblyVersion>0.4.7.1</AssemblyVersion>
-    <FileVersion>0.4.7.1</FileVersion>
-    <Version>0.4.7.1</Version>
+    <AssemblyVersion>0.5.5</AssemblyVersion>
+    <FileVersion>0.5.5</FileVersion>
+    <Version>0.5.5</Version>
     <MinimumDalamudVersion>15.0.0</MinimumDalamudVersion>
     <Punchline>BiS planner, Materia Advisor, and round-trip optimizer for FFXIV. The in-game half of Tonberry Tactics; coexists with CharacterPanelRefined.</Punchline>
-    <Description>The in-game half of Tonberry Tactics — BiS planner, gear inventory reader, materia advisor for FFXIV. Pairs with tonberrytactics.pages.dev over a copy-pasteable export/plan format. v0.4.7.1 ("Brand Convergence") renames the user-facing product from GearGoblin to Tonberry Tactics to match the website; internal identifiers preserved so existing configs and layouts survive. /tt, /ttexport, /ttimport, /ttinfo are the new primary slash commands; /goblin* remain as deprecated aliases through v0.5.x. Coexists with CharacterPanelRefined (CPR derivations + GG advisor); full CPR-equivalent derivations are still here behind ForceDerivationsOverCpr or when CPR isn't installed. Materia formulas re-derived from public datamining sources.</Description>
+    <Description>The in-game half of Tonberry Tactics — BiS planner, gear inventory reader, materia advisor for FFXIV. Pairs with tonberrytactics.pages.dev over a copy-pasteable export/plan format. v0.5.5 ("Version Alignment") brings the plugin's version into lockstep with the web's v0.5.5 — same "Brand Convergence" milestone, now numbered to match. Going forward the plugin and web ship at the same version. /tt, /ttexport, /ttimport, /ttinfo are the primary slash commands; /goblin* remain as deprecated aliases through v0.5.x. Coexists with CharacterPanelRefined (CPR derivations + GG advisor); full CPR-equivalent derivations are still here behind ForceDerivationsOverCpr or when CPR isn't installed. Materia formulas re-derived from public datamining sources.</Description>
     <RepoUrl>https://github.com/LastOnionKnight/GearGoblin</RepoUrl>
     <Tags>gear;bis;materia;etro;xivgear;raid;advisor;cpr;character-panel;tonberry-tactics</Tags>
 
