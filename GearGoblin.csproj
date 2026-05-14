@@ -4,12 +4,12 @@
     <Author>LastOnionKnight</Author>
     <Name>Tonberry Tactics</Name>
     <InternalName>GearGoblin</InternalName>
-    <AssemblyVersion>0.6.4</AssemblyVersion>
-    <FileVersion>0.6.4</FileVersion>
-    <Version>0.6.4</Version>
+    <AssemblyVersion>0.6.5</AssemblyVersion>
+    <FileVersion>0.6.5</FileVersion>
+    <Version>0.6.5</Version>
     <MinimumDalamudVersion>15.0.0</MinimumDalamudVersion>
     <Punchline>BiS planner, Materia Advisor, and round-trip optimizer for FFXIV. The in-game half of Tonberry Tactics; coexists with CharacterPanelRefined.</Punchline>
-    <Description>The in-game half of Tonberry Tactics — BiS planner, gear inventory reader, materia advisor for FFXIV. v0.6.4 ("Header Convergence") fixes the /goblin → /tt regression in the in-game advisor header (a v0.4.7.1 brand-convergence miss that left the user-facing header text and header-click handler dispatching the legacy command name), picks up the corrected Skill Speed materia prefix from Core v0.6.4 via ProjectReference, and adds persistent error-log transcript to release.ps1. Plugin's existing MeldOptimizer (already job-aware via JobProfile) continues to function unchanged — full plugin-side Core consumption is an incremental migration tracked for v0.7.x alongside CPR replacement and the off-panel positioning fix.</Description>
+    <Description>The in-game half of Tonberry Tactics — BiS planner, gear inventory reader, materia advisor for FFXIV. v0.6.5 ("Crafted Visible") fixes the critical HQ-offset bug in InventoryReader that silently filtered HQ-crafted gear out of every export (the cause of "3 pieces of 13" exports for any player wearing real raid gear). Also cleans up legacy /goblin* references in user-facing chat messages and the About-tab UI, and refreshes the import scaffold notice to point at v0.6.6 for the round-trip apply UI. Plugin's existing MeldOptimizer + JobProfile continues unchanged; Core consumption migration remains queued for v0.7.x.</Description>
     <RepoUrl>https://github.com/LastOnionKnight/GearGoblin</RepoUrl>
     <Tags>gear;bis;materia;etro;xivgear;raid;advisor;cpr;character-panel;tonberry-tactics</Tags>
 

@@ -229,7 +229,7 @@ public sealed class MainWindow : Window, IDisposable
         // Step 1: EXPORT
         Theme.TlfTheme.Advisor("1. EXPORT");
         ImGui.Indent();
-        ImGui.TextUnformatted("In-game:  /goblinexport");
+        ImGui.TextUnformatted("In-game:  /ttexport");
         ImGui.TextWrapped(
             "Copies your current gear to your clipboard as GG-EXPORT:v1:<base64>. The scary-looking " +
             "string is just your gear list in a portable format — every piece, every materia, every stat. " +
@@ -251,13 +251,13 @@ public sealed class MainWindow : Window, IDisposable
         // Step 3: IMPORT
         Theme.TlfTheme.Advisor("3. IMPORT");
         ImGui.Indent();
-        ImGui.TextUnformatted("In-game:  /goblinimport");
+        ImGui.TextUnformatted("In-game:  /ttimport");
         ImGui.TextWrapped(
             "Reads the GG-PLAN:v1: string from your clipboard and turns it into an active plan with a " +
             "meld checklist (\"Diamond Earring slot 1 ← Savage Aim XII\"). Tick boxes as you meld.");
         ImGui.Spacing();
         ImGui.TextColored(Theme.TlfTheme.Warning,
-            "v0.4.7 scaffold: command is registered and validates plan strings, but persistence + checklist UI land in the next build.");
+            "v0.6.5: command parses + validates plan strings successfully. In-game persistence + checklist UI ship in v0.6.6.");
         ImGui.Unindent();
         ImGui.Spacing();
         ImGui.Spacing();
@@ -271,10 +271,12 @@ public sealed class MainWindow : Window, IDisposable
             ImGui.TableSetupColumn("Command", ImGuiTableColumnFlags.WidthFixed, 180);
             ImGui.TableSetupColumn("What it does", ImGuiTableColumnFlags.WidthStretch);
 
-            CmdRow("/goblin",       "Open this window.");
-            CmdRow("/goblinexport", "Export equipped gear to clipboard as GG-EXPORT:v1:...");
-            CmdRow("/goblinimport", "Import a plan from clipboard. Pair with /goblinexport + Tonberry Tactics.");
-            CmdRow("/goblininfo",   "Print diagnostic state to chat. Use this when reporting bugs.");
+            CmdRow("/tt",        "Open this window.");
+            CmdRow("/ttexport",  "Export equipped gear to clipboard as GG-EXPORT:v1:...");
+            CmdRow("/ttimport",  "Import a plan from clipboard. Pair with /ttexport + Tonberry Tactics.");
+            CmdRow("/ttinfo",    "Print diagnostic state to chat. Use this when reporting bugs.");
+            ImGui.Spacing();
+            CmdRow("/goblin*",   "(deprecated aliases — /goblin, /goblinexport, /goblinimport, /goblininfo still work, removed at v1.0)");
 
             ImGui.EndTable();
         }
@@ -285,14 +287,14 @@ public sealed class MainWindow : Window, IDisposable
         Theme.TlfTheme.Eyebrow("WHAT YOU'LL SEE IN THE CHARACTER WINDOW");
         ImGui.Separator();
         ImGui.TextWrapped(
-            "Below \"Average Item Level\" in the Gear section, GearGoblin injects a Materia Advisor: " +
-            "the header line shows status counts (e.g. \"0c · 0w · 0e · ▶ /goblin\"), and up to three " +
+            "Below \"Average Item Level\" in the Gear section, Tonberry Tactics injects a Materia Advisor: " +
+            "the header line shows status counts (e.g. \"0c · 0w · 0e · ▶ /tt\"), and up to three " +
             "recommendation rows below it. If your gear is already optimal, you'll see " +
             "\"All guaranteed slots filled · no upgrades suggested.\" Click the header to open this window.");
         ImGui.Spacing();
         ImGui.TextWrapped(
             "If CharacterPanelRefined is also installed (recommended), CPR provides the substat " +
-            "derivations and GearGoblin contributes only the Materia Advisor. Both plugins together is " +
+            "derivations and Tonberry Tactics contributes only the Materia Advisor. Both plugins together is " +
             "the default deployment as of v0.4.6.");
         ImGui.Spacing();
         ImGui.Spacing();
@@ -301,7 +303,7 @@ public sealed class MainWindow : Window, IDisposable
         Theme.TlfTheme.Eyebrow("WHEN SOMETHING LOOKS WRONG");
         ImGui.Separator();
         ImGui.BulletText("Open the Diagnostics tab. Confirm \"Materia Advisor injected: Yes\".");
-        ImGui.BulletText("Run /goblininfo in-game. Copy the chat block (or use the button on Diagnostics).");
+        ImGui.BulletText("Run /ttinfo in-game. Copy the chat block (or use the button on Diagnostics).");
         ImGui.BulletText("File an issue at github.com/LastOnionKnight/GearGoblin with the block attached.");
         ImGui.Spacing();
         ImGui.Spacing();
@@ -387,7 +389,7 @@ public sealed class MainWindow : Window, IDisposable
             cfg.EnableNativeStatPanel = nativeOn;
             dirty = true;
         }
-        ImGui.TextDisabled("Off = /goblin window is the only UI surface. Reopen the Character window for changes.");
+        ImGui.TextDisabled("Off = /tt window is the only UI surface. Reopen the Character window for changes.");
         ImGui.Spacing();
 
         // CPR coexistence section.
@@ -549,7 +551,7 @@ public sealed class MainWindow : Window, IDisposable
             plugin.StatusPanel.ForceReinject();
         }
         ImGui.SameLine();
-        if (ImGui.Button("Copy /goblininfo block to clipboard"))
+        if (ImGui.Button("Copy /ttinfo block to clipboard"))
         {
             ImGui.SetClipboardText(plugin.BuildGoblinInfoString());
         }
@@ -619,7 +621,7 @@ public sealed class MainWindow : Window, IDisposable
             "Include diagnostic info (recommended for bugs)",
             ref feedbackIncludeDiag);
         ImGui.TextDisabled(
-            "Attaches the same block /goblininfo prints — plugin version, " +
+            "Attaches the same block /ttinfo prints — plugin version, " +
             "job, advisor state, etc. No personal info.");
         ImGui.Spacing();
 

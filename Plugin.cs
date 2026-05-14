@@ -190,7 +190,7 @@ public sealed class Plugin : IDalamudPlugin
         catch (Exception ex)
         {
             DalamudServices.Log.Error(ex, "OnInfoCommand: BuildGoblinInfoString threw.");
-            DalamudServices.ChatGui.PrintError($"[GearGoblin] /goblininfo failed: {ex.Message}");
+            DalamudServices.ChatGui.PrintError($"[Tonberry Tactics] /ttinfo failed: {ex.Message}");
         }
     }
 
@@ -214,7 +214,7 @@ public sealed class Plugin : IDalamudPlugin
     {
         try
         {
-            // If the user passed the wire string inline (e.g. /goblinimport GG-PLAN:v1:abc),
+            // If the user passed the wire string inline (e.g. /ttimport GG-PLAN:v1:abc),
             // route to ImportFromString; otherwise pull from clipboard.
             var result = !string.IsNullOrWhiteSpace(args)
                 ? Importer.ImportFromString(args)
@@ -223,26 +223,31 @@ public sealed class Plugin : IDalamudPlugin
             if (!result.Success)
             {
                 DalamudServices.ChatGui.PrintError(
-                    $"[GearGoblin] Import failed: {result.ErrorMessage}");
+                    $"[Tonberry Tactics] Import failed: {result.ErrorMessage}");
                 return;
             }
 
-            // Scaffold notice — replace once Configuration persist is wired.
+            // v0.6.5 — Scaffold notice updated to reflect actual state.
+            // The previous "next build" promise rode through v0.4.7 → v0.6.4
+            // (seven releases) without bodies being filled in. The honest
+            // version below ships in v0.6.5; the real persistence + Plan-tab
+            // checklist workflow lands in v0.6.6 ("Round-trip closed").
             DalamudServices.ChatGui.Print(
-                "[GearGoblin] Plan parsed successfully. " +
-                $"({result.Payload?.Melds.Count ?? 0} meld(s) recommended.) " +
-                "Persisting to active plan: not yet wired in v0.4.7 scaffold. " +
-                "Full /goblinimport implementation lands in the next build.");
+                "[Tonberry Tactics] Plan parsed successfully. " +
+                $"({result.Payload?.Melds.Count ?? 0} meld(s) recommended for " +
+                $"{result.Payload?.SourceCharacter.JobAbbreviation ?? "?"}.) " +
+                "In-game apply checklist + plan persistence ships in v0.6.6. " +
+                "For now: visit tonberrytactics.pages.dev to view the plan.");
 
             foreach (var warning in result.Warnings)
             {
-                DalamudServices.ChatGui.Print($"[GearGoblin] Warning: {warning}");
+                DalamudServices.ChatGui.Print($"[Tonberry Tactics] Warning: {warning}");
             }
         }
         catch (Exception ex)
         {
             DalamudServices.Log.Error(ex, "OnImportCommand: importer threw.");
-            DalamudServices.ChatGui.PrintError($"[GearGoblin] /goblinimport failed: {ex.Message}");
+            DalamudServices.ChatGui.PrintError($"[Tonberry Tactics] /ttimport failed: {ex.Message}");
         }
     }
 
