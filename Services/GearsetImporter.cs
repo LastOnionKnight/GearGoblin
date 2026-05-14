@@ -20,6 +20,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Text.Json;
+using Dalamud.Bindings.ImGui;
 using GearGoblin.Planning;
 
 namespace GearGoblin.Services;
@@ -38,23 +39,58 @@ public sealed class GearsetImporter
     }
 
     /// <summary>
-    /// Top-level entry point invoked by the <c>/goblinimport</c>
-    /// slash command and the (future) Plan-tab "Import from clipboard"
-    /// button. Reads the system clipboard, parses, validates, and
-    /// persists.
+    /// Top-level entry point invoked by the <c>/ttimport</c> slash command
+    /// and the (future) Plan-tab "Import from clipboard" button. Reads
+    /// the system clipboard via Dalamud's ImGui binding (which proxies
+    /// the Windows clipboard), then routes to <see cref="ImportFromString"/>.
+    ///
+    /// <para>
+    /// v0.6.1: the v0.4.7 scaffold had this method hardcoded to read an
+    /// empty string and then immediately fail with "Clipboard is empty",
+    /// regardless of what was actually on the system clipboard. That
+    /// TODO was carried through v0.5.x and v0.6.0 unchanged. v0.6.1
+    /// finally wires <c>ImGui.GetClipboardText()</c> in — Dalamud's
+    /// ImGui clipboard backend syncs with the Windows clipboard so
+    /// a normal Ctrl+C from the website populates this read correctly.
+    /// </para>
+    ///
+    /// <para>
+    /// Workaround for affected v0.6.0 users: <c>/ttimport &lt;paste the
+    /// GG-PLAN:v1: string inline&gt;</c> still works because
+    /// <see cref="Plugin.OnImportCommand"/> routes non-empty args to
+    /// <see cref="ImportFromString"/> directly, bypassing the clipboard
+    /// path entirely.
+    /// </para>
     /// </summary>
     public PlanImportResult ImportFromClipboard()
     {
-        // TODO(v0.4.7 build): read clipboard via Dalamud's
-        // IClipboardProvider or System.Windows.Forms.Clipboard
-        // depending on which surface Dalamud exposes. Fall back
-        // gracefully if clipboard is empty or non-text.
-        var clipboard = string.Empty;
+        string clipboard;
+        try
+        {
+            // ImGui.GetClipboardText returns null if the clipboard contains
+            // non-text data (image, file path list) or if access is blocked.
+            // Coalesce to empty string so the IsNullOrWhiteSpace gate below
+            // surfaces a clean error message either way.
+            clipboard = ImGui.GetClipboardText() ?? string.Empty;
+        }
+        catch (Exception ex)
+        {
+            // Defensive — Dalamud's clipboard backend is reliable in
+            // practice, but a transient lock on the Windows clipboard
+            // (some other app is holding it) can theoretically surface
+            // here as an exception. Don't crash the slash command; give
+            // the user the inline-arg workaround instead.
+            return Failure(
+                $"Couldn't read clipboard ({ex.GetType().Name}: {ex.Message}). " +
+                "Workaround: paste the string after the command — " +
+                "/ttimport GG-PLAN:v1:....");
+        }
 
         if (string.IsNullOrWhiteSpace(clipboard))
         {
             return Failure("Clipboard is empty. Copy a GG-PLAN:v1: string from " +
-                           "Tonberry Tactics and try again.");
+                           "Tonberry Tactics and try again. (Or paste it inline: " +
+                           "/ttimport GG-PLAN:v1:....)");
         }
 
         return ImportFromString(clipboard);

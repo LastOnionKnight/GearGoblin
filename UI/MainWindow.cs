@@ -798,6 +798,29 @@ public sealed class MainWindow : Window, IDisposable
             ImGui.TextDisabled("Refia Rakkiri — the Last Onion Knight (Aisling O'Callaghan, Cork)");
         }
 
+        // ── v0.6.3 ────────────────────────────────────────────────────────
+        ImGui.Spacing();
+        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.3 — \"Lockstep\":");
+        ImGui.BulletText("Joins the new shared library GearGoblin.Core");
+        ImGui.Indent();
+        ImGui.BulletText("ProjectReference added to GearGoblin.csproj — Core lives in a sibling-of-grandparent directory");
+        ImGui.BulletText("Plugin's existing job-aware MeldOptimizer unchanged this release — Core consumption is incremental, v0.7.x");
+        ImGui.BulletText("Web (TonberryTactics v0.6.3) is where the user-visible Core consumption lands: real per-job priorities for all 21 jobs");
+        ImGui.Unindent();
+        ImGui.BulletText("v0.5.5 lockstep convention restored — Core, web, plugin all at v0.6.3 same release night");
+        ImGui.BulletText("v0.6.2 was a web-only patch; v0.6.3 catches the plugin up structurally");
+
+        // ── v0.6.1 ────────────────────────────────────────────────────────
+        ImGui.Spacing();
+        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.1 — \"Gear Division, hotfix\":");
+        ImGui.BulletText("/ttimport now actually reads the clipboard");
+        ImGui.Indent();
+        ImGui.BulletText("v0.4.7 scaffold had hardcoded the clipboard local to string.Empty");
+        ImGui.BulletText("/ttimport always reported 'Clipboard is empty' even when it wasn't");
+        ImGui.BulletText("v0.6.1 wires ImGui.GetClipboardText() with a defensive try/catch");
+        ImGui.Unindent();
+        ImGui.BulletText("Workaround for v0.4.7–v0.6.0 users: /ttimport &lt;paste-string-inline&gt; still works (always did)");
+
         // ── v0.6.0 ────────────────────────────────────────────────────────
         ImGui.Spacing();
         ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.0 — \"Gear Division\":");

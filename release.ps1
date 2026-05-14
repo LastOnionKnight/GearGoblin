@@ -36,6 +36,12 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# v0.6.4 — persistent error log. Appends every run (success or failure)
+# to release-error.log alongside the script. Captures stdout and stderr
+# through the full transcript including any failure path.
+$logPath = Join-Path $PSScriptRoot "release-error.log"
+Start-Transcript -Path $logPath -Append -Force -ErrorAction SilentlyContinue | Out-Null
+
 # ---- 1. Find the csproj ------------------------------------------------------
 
 $csprojFiles = Get-ChildItem -Path . -Filter "*.csproj" -File
@@ -241,3 +247,5 @@ Write-Host ""
 Write-Host "==================================================" -ForegroundColor Green
 Write-Host "  Release complete: $projectName $tag" -ForegroundColor Green
 Write-Host "==================================================" -ForegroundColor Green
+
+Stop-Transcript -ErrorAction SilentlyContinue | Out-Null

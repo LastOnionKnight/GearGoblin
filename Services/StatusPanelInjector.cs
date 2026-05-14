@@ -727,7 +727,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
 
             if (advisorHeader != null)
             {
-                advisorHeader->SetText($"{crit}c · {warn}w · {empty}e   ▶ /goblin");
+                advisorHeader->SetText($"{crit}c · {warn}w · {empty}e   ▶ /tt");
             }
         }
         catch (Exception ex)
@@ -749,20 +749,27 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         SetAdvisorRow(advisorRec1, placeholder);
         SetAdvisorRow(advisorRec2, null);
         SetAdvisorRow(advisorRec3, null);
-        if (advisorHeader != null) advisorHeader->SetText("▶ /goblin");
+        if (advisorHeader != null) advisorHeader->SetText("▶ /tt");
     }
 
-    // ── Header click → invoke /goblin ───────────────────────────────────
+    // ── Header click → invoke /tt ───────────────────────────────────
+    //
+    // v0.6.4 — invokes the canonical /tt command rather than the legacy
+    // /goblin alias. Both are registered in Plugin.cs so either works;
+    // using the canonical form keeps the user-visible header text and
+    // the dispatched command in sync. (v0.4.7.1's brand convergence
+    // missed this render path and the click handler below — fixed
+    // here as part of the v0.6.4 lockstep bump.)
 
     private void OnAdvisorHeaderClick(AddonEventType type, AddonEventData data)
     {
         try
         {
-            DalamudServices.CommandManager.ProcessCommand("/goblin");
+            DalamudServices.CommandManager.ProcessCommand("/tt");
         }
         catch (Exception ex)
         {
-            DalamudServices.Log.Error(ex, "StatusPanelInjector v0.4.6: /goblin invoke failed.");
+            DalamudServices.Log.Error(ex, "StatusPanelInjector v0.6.4: /tt invoke failed.");
         }
     }
 

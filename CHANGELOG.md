@@ -11,6 +11,249 @@ the product bump together at every release going forward. Versions prior
 to v0.5.5 used independent semver tracks — the plugin's v0.4.x line and
 the web's v0.5.x line. v0.5.5 is the moment they re-align.
 
+## [0.6.4] — 2026-05-14  "Header Convergence"
+
+**Headline:** Fixes the `/goblin → /tt` regression in the in-game
+advisor header — a v0.4.7.1 brand-convergence miss that left the
+user-facing header text and the header-click handler still
+dispatching the legacy command name. Picks up Core v0.6.4's
+corrected Skill Speed materia prefix (`"Quickarm"` rather than the
+v0.6.3 placeholder `"Piety"`) automatically via ProjectReference.
+Adds persistent error-log transcript to `release.ps1` matching the
+pattern in Core's release script.
+
+Lockstep version bump completes three-way alignment at v0.6.4:
+Core / web / plugin. Plugin's existing `MeldOptimizer` (job-aware
+via `JobProfile`) continues to function unchanged; plugin-side
+consumption of `Core.JobPriorities` remains queued for v0.7.x.
+
+### Fixed
+
+- **`Services/StatusPanelInjector.cs`** — three user-facing render
+  paths updated:
+  - Line 730: advisor header text shown when there's data to render.
+    `▶ /goblin` → `▶ /tt`.
+  - Line 752: advisor header text shown in the cleared / placeholder
+    state. `▶ /goblin` → `▶ /tt`.
+  - Line 761: header-click handler now dispatches `/tt` rather than
+    `/goblin`. Both work (legacy alias still registered in
+    `Plugin.cs`), but the canonical form keeps the displayed command
+    name and the dispatched command name in sync.
+  Error-log message on click failure also reframed from
+  `"StatusPanelInjector v0.4.6: /goblin invoke failed"` to
+  `"StatusPanelInjector v0.6.4: /tt invoke failed"` for clarity in
+  future diagnostic dumps.
+
+### Changed
+
+- **`release.ps1`** — adds persistent error log via `Start-Transcript`
+  / `Stop-Transcript`. Output appends to `release-error.log` alongside
+  the script, capturing both stdout and stderr through the full run
+  including any failure path. Mirrors the pattern in
+  `GearGoblin.Core/release.ps1` v0.6.4.
+- **`.gitignore`** — `*-dropin.zip` added so future dropin extractions
+  alongside the project don't get swept into `git add -A` in the
+  release script.
+- **`GearGoblin.csproj`** — version `0.6.3 → 0.6.4`, Description
+  refreshed for "Header Convergence".
+
+### Pairing
+
+- **GearGoblin.Core v0.6.4** — ProjectReference resolves automatically
+  to the local Core checkout at
+  `..\..\GearGoblin-Core-v0.1\GearGoblin.Core\GearGoblin.Core.csproj`.
+  Plugin picks up Core's Skill Speed prefix fix on next build with no
+  plugin code changes required.
+- **TonberryTactics web v0.6.4** — already shipped via vendored Core
+  source. Web carries the v0.6.3 vendored copy of `MateriaTiers.cs`;
+  the Skill Speed prefix fix syncs into web on web's next release.
+
+### v0.7.0 work (signed off, not in this release)
+
+For tracking — none of this lands in v0.6.4:
+
+- Drop CharacterPanelRefined coexistence; plugin always injects.
+- About-tab "Tonberry Tactics replaces CPR" notice when CPR detected.
+- Off-panel positioning rewrite — dedicated `AddAdvisorRow` method
+  to replace the avgIlvl-row clone, which overflows on long advisor
+  text.
+- Plugin-side `MeldOptimizer` migration to `Core.JobPriorities` so
+  plugin and web share priority tables explicitly rather than via
+  parallel implementations.
+- Code-namespace rename (`GearGoblin → TonberryTactics`) with
+  config-migration shim for one release before removal in v0.7.1.
+
+---
+
+
+## [0.6.3] — 2026-05-14  "Lockstep"
+
+**Headline:** Plugin joins the new shared library **GearGoblin.Core**.
+The plugin's existing job-aware `MeldOptimizer` (driven by `JobProfile`)
+continues to function unchanged — the web is where today's actual
+per-job priority fix lands for users. The plugin's contribution to
+this release is structural: a `<ProjectReference>` to Core in
+`GearGoblin.csproj`, restoring the v0.5.5 lockstep convention that
+v0.6.2 broke when the web shipped a hotfix without a matching plugin
+release.
+
+### Why this release exists
+
+When the web's v0.6.2 fix went out, the plugin stayed at v0.6.1 because
+the actual bug (Stat Profile hardcoding to Skill Speed for healers) was
+display-only on the web side. That was technically honest but broke the
+"same version on both halves" convention. The new ground rule: when one
+half ships, all halves bump together. v0.6.3 catches the plugin up and
+brings Core into the same lockstep so the version-skip in v0.6.2 doesn't
+happen again.
+
+### Added
+
+- **ProjectReference to `GearGoblin.Core`** in `GearGoblin.csproj`.
+  Path: `..\..\GearGoblin-Core-v0.1\GearGoblin.Core\GearGoblin.Core.csproj`.
+  Adjust if your local Core clone uses a different layout. See Core's
+  README for the canonical directory structure (Core lives as a
+  sibling-of-grandparent next to both the plugin repo and the web repo).
+
+### Changed
+
+- **`GearGoblin.csproj`** — version 0.6.1 → 0.6.3 (skipping 0.6.2 since
+  no v0.6.2 plugin release shipped). Description refresh reflecting Core
+  integration. New ItemGroup with the ProjectReference, sitting alongside
+  the existing brand-artwork + IFontAtlas-fonts content globs.
+
+### Not changed (carries through unchanged)
+
+- **`Services/StatusPanelInjector.cs`** — all v0.6.0 IFontAtlas Phase 2
+  palette work + v0.4.6 outer-addon-grow logic unchanged. The off-panel
+  positioning bug surfaced in screenshots earlier today is still
+  present and is the v0.7.0 CPR-replacement workstream.
+- **`Services/MeldOptimizer.cs`** (and its `JobProfile` consumer) —
+  the plugin's existing job-aware logic stays. v0.7.x will migrate it
+  to consume `Core.JobPriorities` so the plugin and web optimizers
+  share their priority tables explicitly rather than implicitly.
+- **`Services/GearsetImporter.cs`** — v0.6.1's `ImGui.GetClipboardText()`
+  wiring carries through unchanged.
+- **All v0.6.0 IFontAtlas typography** (Cinzel / EB Garamond /
+  Press Start 2P) — unchanged. The plugin's `/tt` window keeps the
+  custom fonts.
+- **Wire format** — `GG-EXPORT:v1:` and `GG-PLAN:v1:` schemas
+  unchanged. The wire still emits `"plugin": "GearGoblin"` (the
+  InternalName); the brand display name "Tonberry Tactics" is a UI
+  concern. The plugin namespace and DLL filename also stay
+  `GearGoblin` — full code-namespace rename ships with v0.7.x Core
+  refactor alongside config migration.
+
+### Deferred (still tracked for v0.7.0)
+
+- **CPR replacement** — drop the coexistence layer; plugin's
+  derivations always inject; About-tab notice when CPR is detected
+  suggesting uninstall. Signed off on earlier today.
+- **Off-panel positioning fix** — `StatusPanelInjector.AddStatRow`
+  clones the avgIlvl row's right-aligned number cell, which is sized
+  for short stat values; long advisor recs overflow the panel's left
+  edge. Fix: separate full-width advisor row method.
+- **`/goblin` → `/tt` regression** in the advisor header (line 730 of
+  StatusPanelInjector). The brand convergence missed this one
+  rendering path; v0.7.0 picks it up.
+- **Core-consuming `MeldOptimizer`** — incremental migration to
+  `GearGoblin.Core.JobPriorities` so plugin and web optimizers share
+  their priority tables explicitly rather than implicitly converging.
+
+### Pairing
+
+Ships in lockstep with:
+
+- **GearGoblin.Core v0.6.3** — new repo, must be cloned to the
+  expected path before the plugin can build.
+- **TonberryTactics web v0.6.3** — adds the same ProjectReference,
+  also refactors `PureMathOptimizer` to actually consume Core's
+  `JobPriorities`. This is where today's user-visible improvement
+  (Materia Advisor now produces real per-job recs for all 21 jobs)
+  shows up.
+
+All three (Core, web, plugin) ship same date, same version, same
+release night.
+
+---
+
+## [0.6.1] — 2026-05-13  "Gear Division, hotfix"
+
+**Headline:** Wires the `/ttimport` clipboard read. The v0.4.7 scaffold
+had stubbed `ImportFromClipboard()` to a hardcoded empty string with a
+"TODO(v0.4.7 build): read clipboard via Dalamud's IClipboardProvider"
+comment that survived through v0.5.x and v0.6.0 unchanged. Result:
+`/ttimport` always reported "Clipboard is empty" regardless of what
+was actually on the clipboard, even immediately after a successful
+Ctrl+C of a `GG-PLAN:v1:` string from the website.
+
+### The bug
+
+`Services/GearsetImporter.cs::ImportFromClipboard` opened with:
+
+```csharp
+// TODO(v0.4.7 build): read clipboard via Dalamud's
+// IClipboardProvider or System.Windows.Forms.Clipboard...
+var clipboard = string.Empty;
+```
+
+The local was literally `string.Empty`. Every call hit the next-line
+`IsNullOrWhiteSpace` gate and bailed out with the user-facing message
+"Clipboard is empty. Copy a GG-PLAN:v1: string from Tonberry Tactics
+and try again." The error suggested the system clipboard was the
+problem; the actual problem was that the method never *looked* at
+the system clipboard.
+
+The slash command's inline-arg path (`/ttimport <paste-string>`)
+worked fine all along — `Plugin.OnImportCommand` routes non-empty
+args through `ImportFromString()` directly, bypassing this method.
+Affected v0.4.7–v0.6.0 users with this issue can keep using the
+inline form until they update.
+
+### The fix
+
+```csharp
+clipboard = ImGui.GetClipboardText() ?? string.Empty;
+```
+
+Dalamud's `Dalamud.Bindings.ImGui` clipboard backend proxies the
+Windows clipboard, so a Ctrl+C from anywhere (the website's COPY PLAN
+button, Notepad, in-game chat) populates this read. The null-coalesce
+handles the case where the clipboard contains non-text data (image,
+file paths) — falls through to the same "Clipboard is empty" message
+which is now actually accurate.
+
+Wrapped in `try`/`catch` so a transient Windows clipboard lock (some
+other app holding it) gives the user the inline-arg workaround in
+the error message instead of an unhandled exception.
+
+### Pairing
+
+Pairs with **web v0.6.1** which separately fixes the Stat Profile
+"+0 materia" / blank-materia-dot bug — the v0.6.0 web only matched
+stat-name abbreviations (`CRT`, `DH`, etc.) but the plugin's
+`GearsetExporter` writes BaseParam display names verbatim
+(`Critical Hit`, `Direct Hit Rate`, etc.). Same release night, same
+version number on both halves, two complementary hotfixes on opposite
+sides of the round-trip.
+
+### Files touched
+
+- `Services/GearsetImporter.cs` — `ImportFromClipboard()` wires
+  `ImGui.GetClipboardText()` + try/catch + workaround hint in the
+  error path. `using Dalamud.Bindings.ImGui;` added to the file imports.
+- `GearGoblin.csproj` — version 0.6.0 → 0.6.1, hotfix description
+
+### Not changed
+
+- All v0.6.0 IFontAtlas Phase 2 typography (Cinzel / EB Garamond /
+  Press Start 2P) carries through unchanged.
+- Native CharacterStatus injection palette refresh (LanternHot
+  advisor accent, FrostSoft derived rows) carries through unchanged.
+- Wire format (`GG-EXPORT:v1:`, `GG-PLAN:v1:`) untouched.
+
+---
+
 ## [0.6.0] — 2026-05-13  "Gear Division"
 
 **Headline:** The plugin's half of the v0.6.0 design port. Web's v0.6.0
