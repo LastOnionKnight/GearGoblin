@@ -11,77 +11,93 @@ the product bump together at every release going forward. Versions prior
 to v0.5.5 used independent semver tracks — the plugin's v0.4.x line and
 the web's v0.5.x line. v0.5.5 is the moment they re-align.
 
-## [0.6.4] — 2026-05-14  "Header Convergence"
+## [0.6.5] — 2026-05-14  "Crafted Visible"
 
-**Headline:** Fixes the `/goblin → /tt` regression in the in-game
-advisor header — a v0.4.7.1 brand-convergence miss that left the
-user-facing header text and the header-click handler still
-dispatching the legacy command name. Picks up Core v0.6.4's
-corrected Skill Speed materia prefix (`"Quickarm"` rather than the
-v0.6.3 placeholder `"Piety"`) automatically via ProjectReference.
-Adds persistent error-log transcript to `release.ps1` matching the
-pattern in Core's release script.
+**Headline:** Fixes the critical HQ-offset bug in `InventoryReader`
+that silently dropped every high-quality crafted gear piece from the
+gearset export. Pre-v0.6.5 users wearing realistic raid gear saw
+"3 of 13 pieces" or "7 of 13 pieces" exports — the missing pieces
+were the HQ-crafted body / legs / etc. that the Item sheet lookup
+returned `null` for because Dalamud's `GameInventoryItem.ItemId`
+carries a `+1,000,000` offset for HQ items. The fix strips the
+offset before the sheet lookup; `IsHighQuality` continues to carry
+the quality flag separately on the wire format.
 
-Lockstep version bump completes three-way alignment at v0.6.4:
-Core / web / plugin. Plugin's existing `MeldOptimizer` (job-aware
-via `JobProfile`) continues to function unchanged; plugin-side
-consumption of `Core.JobPriorities` remains queued for v0.7.x.
+Also cleans up the legacy `/goblin*` references that survived the
+v0.4.7.1 brand convergence in user-facing About-tab text, chat
+messages, and Settings/Diagnostics/Feedback button labels — these
+were missed because the convergence-era sweep focused on slash-
+command registration and didn't scan static UI strings.
+
+This release does NOT include the `/ttimport` persistence /
+checklist UI work. That ships in v0.6.6 ("Round-trip closed").
+The scaffold-era "lands in the next build" message in chat and the
+About tab has been honestly updated to reference v0.6.6 instead.
 
 ### Fixed
 
-- **`Services/StatusPanelInjector.cs`** — three user-facing render
-  paths updated:
-  - Line 730: advisor header text shown when there's data to render.
-    `▶ /goblin` → `▶ /tt`.
-  - Line 752: advisor header text shown in the cleared / placeholder
-    state. `▶ /goblin` → `▶ /tt`.
-  - Line 761: header-click handler now dispatches `/tt` rather than
-    `/goblin`. Both work (legacy alias still registered in
-    `Plugin.cs`), but the canonical form keeps the displayed command
-    name and the dispatched command name in sync.
-  Error-log message on click failure also reframed from
-  `"StatusPanelInjector v0.4.6: /goblin invoke failed"` to
-  `"StatusPanelInjector v0.6.4: /tt invoke failed"` for clarity in
-  future diagnostic dumps.
+- **🔴 `Services/InventoryReader.cs` — HQ-offset filter** — sheet
+  lookup now strips the `+1,000,000` offset before
+  `GetExcelSheet<Item>().GetRowOrDefault(...)`. Crafted gear
+  (almost always HQ) is no longer silently filtered out. The
+  piece's `ItemId` field on the wire is now the base ID;
+  `IsHighQuality` flags the HQ state. Existing GG-EXPORT:v1:
+  schema unchanged.
+- **`Plugin.cs` `OnImportCommand`** — chat-message branding:
+  `[GearGoblin]` → `[Tonberry Tactics]`, `/goblinimport` references
+  → `/ttimport`, "v0.4.7 scaffold" / "next build" notice rewritten
+  to honestly say in-game checklist ships in v0.6.6.
+- **`Plugin.cs` `OnInfoCommand`** — error path branding updated
+  similarly.
+- **`UI/MainWindow.cs` About tab — Quick Start steps** — Step 1
+  references `/ttexport`, Step 3 references `/ttimport`, scaffold
+  warning rewritten for v0.6.5 / v0.6.6 reality.
+- **`UI/MainWindow.cs` About tab — Slash commands cheatsheet** —
+  primary list shows `/tt`, `/ttexport`, `/ttimport`, `/ttinfo`;
+  legacy `/goblin*` aliases listed as a single deprecation row
+  (removed at v1.0).
+- **`UI/MainWindow.cs` About tab — "What you'll see in the
+  Character window"** — example header text `▶ /goblin` → `▶ /tt`
+  (matching the v0.6.4 `StatusPanelInjector` fix); narration
+  rebranded "GearGoblin injects" → "Tonberry Tactics injects".
+- **`UI/MainWindow.cs` About tab — bug-report flow** —
+  `Run /goblininfo` → `Run /ttinfo`.
+- **`UI/MainWindow.cs` Settings tab** — disabled-state caption
+  "Off = /goblin window..." → "Off = /tt window...".
+- **`UI/MainWindow.cs` Diagnostics tab** — clipboard-copy button
+  label `Copy /goblininfo block` → `Copy /ttinfo block`.
+- **`UI/MainWindow.cs` Feedback tab** — diagnostic-attachment
+  caption "/goblininfo prints" → "/ttinfo prints".
 
 ### Changed
 
-- **`release.ps1`** — adds persistent error log via `Start-Transcript`
-  / `Stop-Transcript`. Output appends to `release-error.log` alongside
-  the script, capturing both stdout and stderr through the full run
-  including any failure path. Mirrors the pattern in
-  `GearGoblin.Core/release.ps1` v0.6.4.
-- **`.gitignore`** — `*-dropin.zip` added so future dropin extractions
-  alongside the project don't get swept into `git add -A` in the
-  release script.
-- **`GearGoblin.csproj`** — version `0.6.3 → 0.6.4`, Description
-  refreshed for "Header Convergence".
+- **`GearGoblin.csproj`** — version `0.6.4 → 0.6.5`, Description
+  refreshed for "Crafted Visible".
 
 ### Pairing
 
-- **GearGoblin.Core v0.6.4** — ProjectReference resolves automatically
-  to the local Core checkout at
-  `..\..\GearGoblin-Core-v0.1\GearGoblin.Core\GearGoblin.Core.csproj`.
-  Plugin picks up Core's Skill Speed prefix fix on next build with no
-  plugin code changes required.
-- **TonberryTactics web v0.6.4** — already shipped via vendored Core
-  source. Web carries the v0.6.3 vendored copy of `MateriaTiers.cs`;
-  the Skill Speed prefix fix syncs into web on web's next release.
+- **GearGoblin.Core v0.6.5** — no source changes; lockstep version
+  bump only.
+- **TonberryTactics web v0.6.5** — Materia Tier vendored copy
+  synced to Core v0.6.4 content (Skill Speed prefix fix), Meld
+  Audit panel rows for Wrong stat / Under-tier / Overcap wired to
+  real logic, sell-vs-meld verdict row added. Output format shaped
+  to match plugin's `MeldAudit` records so v0.7.x consolidation
+  doesn't churn the web UI.
 
-### v0.7.0 work (signed off, not in this release)
+### What still doesn't work (v0.6.6 scope)
 
-For tracking — none of this lands in v0.6.4:
-
-- Drop CharacterPanelRefined coexistence; plugin always injects.
-- About-tab "Tonberry Tactics replaces CPR" notice when CPR detected.
-- Off-panel positioning rewrite — dedicated `AddAdvisorRow` method
-  to replace the avgIlvl-row clone, which overflows on long advisor
-  text.
-- Plugin-side `MeldOptimizer` migration to `Core.JobPriorities` so
-  plugin and web share priority tables explicitly rather than via
-  parallel implementations.
-- Code-namespace rename (`GearGoblin → TonberryTactics`) with
-  config-migration shim for one release before removal in v0.7.1.
+- **In-game Plan tab has no `GG-PLAN:v1:` paste box.** Plan tab
+  currently accepts Etro/XIVGear URLs only. Round-trip from the
+  web has no in-game UI surface.
+- **`/ttimport` doesn't persist or apply.** Parses + validates,
+  prints success message, but writes nothing to
+  `Configuration.JobPlans` and there's no checklist UI to walk
+  the imported melds.
+- **Plugin still shows `/goblin` in advisor header for users on
+  v0.6.4 and earlier.** This release's About-tab fixes don't
+  affect already-installed running instances until users reload
+  the plugin via `/xlplugins`.
 
 ---
 

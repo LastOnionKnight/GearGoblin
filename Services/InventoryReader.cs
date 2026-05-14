@@ -48,7 +48,21 @@ public class InventoryReader
         {
             if (item.ItemId == 0) continue;
 
-            var sheetItem = DalamudServices.DataManager.GetExcelSheet<Item>().GetRowOrDefault(item.ItemId);
+            // v0.6.5 — Strip HQ offset before sheet lookup. Dalamud's
+            // GameInventoryItem.ItemId carries the HQ offset (+1_000_000)
+            // for high-quality items; the Item Excel sheet only has rows
+            // for base IDs. Crafted gear that real players use is almost
+            // always HQ — without this strip, every HQ piece returned
+            // null from GetRowOrDefault and was silently dropped via the
+            // sheetItem null-check below, which is why pre-v0.6.5 users
+            // saw 3-7 piece exports (vendor-only gear) instead of the
+            // full 13-piece set. IsHighQuality continues to carry the
+            // HQ flag on the wire so the web knows the quality state.
+            var baseItemId = item.ItemId >= 1_000_000
+                ? item.ItemId - 1_000_000
+                : item.ItemId;
+
+            var sheetItem = DalamudServices.DataManager.GetExcelSheet<Item>().GetRowOrDefault(baseItemId);
             if (sheetItem is null) continue;
 
             var slotCategory = sheetItem.Value.EquipSlotCategory.RowId;
@@ -61,7 +75,7 @@ public class InventoryReader
             var piece = new EquippedPiece
             {
                 Slot              = slot,
-                ItemId            = item.ItemId,
+                ItemId            = baseItemId,
                 Name              = sheetItem.Value.Name.ExtractText(),
                 ItemLevel         = sheetItem.Value.LevelItem.RowId,
                 IsHighQuality     = item.IsHq,
