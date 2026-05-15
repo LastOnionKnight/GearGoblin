@@ -1,26 +1,27 @@
-# GearGoblin v0.6.5 dropin — "Crafted Visible"
+# GearGoblin v0.6.5.1 dropin — "Quiet Info"
 
-**Headline:** Fixes the critical HQ-offset bug that silently dropped
-all crafted gear from gearset exports. Also sweeps `/goblin*` legacy
-references out of user-facing About-tab text, chat messages, and
-button labels.
+**Hotfix.** Fixes the `/ttinfo` hard-crash that surfaced after v0.6.5
+shipped. Also trims About-tab "What's New" bloat to the latest three
+releases per Brian's ask.
 
 ## What's in this dropin
 
 ```
-Services/InventoryReader.cs       overwrite — HQ offset strip + base-ID storage
-Plugin.cs                          overwrite — chat-message branding + scaffold notice
-UI/MainWindow.cs                   overwrite — About tab + Settings/Diagnostics/Feedback strings
-GearGoblin.csproj                  overwrite — version 0.6.4 → 0.6.5
-CHANGELOG.md                       overwrite — v0.6.5 entry on top
+Plugin.cs                          overwrite — OnInfoCommand crash fix
+UI/MainWindow.cs                    overwrite — About-tab What's New trim (3 latest only)
+GearGoblin.csproj                   overwrite — version 0.6.5 → 0.6.5.1
+CHANGELOG.md                        overwrite — v0.6.5.1 entry on top
 ```
+
+Note: this dropin does NOT include `Services/InventoryReader.cs` —
+the HQ-offset fix from v0.6.5 is unchanged and already present.
 
 ## Build & deploy
 
 ```
 cd D:\GearGoblin-v0.1\GearGoblin
-Move-Item $env:USERPROFILE\Downloads\GearGoblin-v0.6.5-dropin.zip . -Force
-Expand-Archive -Path .\GearGoblin-v0.6.5-dropin.zip -DestinationPath . -Force
+Move-Item $env:USERPROFILE\Downloads\GearGoblin-v0.6.5.1-dropin.zip . -Force
+Expand-Archive -Path .\GearGoblin-v0.6.5.1-dropin.zip -DestinationPath . -Force
 Unblock-File .\release.ps1
 git status
 dotnet build -c Release
@@ -30,30 +31,30 @@ dotnet build -c Release
 
 ## Verify after push
 
-1. Reload the plugin in-game: `/xlplugins` → Tonberry Tactics →
-   Disable then Enable.
-2. Open the About tab. Confirm slash command list reads
-   `/tt`, `/ttexport`, `/ttimport`, `/ttinfo`, with a deprecated
-   `/goblin*` row below.
-3. `/ttexport` and paste into tonberrytactics.pages.dev. **The
-   gear count should now show 13/13 (or 12/13 if you have a
-   two-handed weapon).** Pre-v0.6.5 your AST/PCT/MNK characters
-   were showing 3–7 pieces because the crafted gear was being
-   silently dropped.
-4. Stat Profile on the web should now show real materia totals
-   instead of `+0 materia` everywhere — pieces with melded
-   materia are finally in the payload.
+1. **Reload plugin** via `/xlplugins` → Tonberry Tactics → Disable → Enable.
+2. **Run `/ttinfo`.** Expected behavior:
+   - Tonberry Tactics window opens automatically.
+   - **One** short line in chat: "Diagnostics copied to clipboard. Opening
+     the Tonberry Tactics window — see the Diagnostics tab for live state."
+   - The 15-line block is now in your clipboard (paste anywhere to verify).
+   - **No crash.**
+3. **Click the Diagnostics tab.** Verify it has the live state you'd
+   expect (PanelAttached, CPR detected, Advisor section, etc.). The "Copy
+   /ttinfo block to clipboard" button on Diagnostics still works the
+   same as it did before.
+4. **About tab → scroll to bottom.** What's New section should show
+   exactly three version blocks (v0.6.5.1, v0.6.5, v0.6.4) and a
+   pointer line: "Full history: github.com/LastOnionKnight/GearGoblin/blob/main/CHANGELOG.md".
 
 ## Pairing
 
-- **GearGoblin.Core v0.6.5** — lockstep version bump, no source
-  changes. Ships separately.
-- **TonberryTactics web v0.6.5** — Skill Speed materia prefix fix
-  (vendored Core sync), real Meld Audit logic, sell-vs-meld verdict
-  row. Ships separately.
+- **GearGoblin.Core v0.6.5.1** — lockstep version bump only.
+- **TonberryTactics web v0.6.5.1** — off-by-one Tier XII display fix.
 
 ## Out of scope (v0.6.6)
 
-- In-game Plan tab paste box for `GG-PLAN:v1:` strings.
-- `/ttimport` persistence into `Configuration.JobPlans`.
-- Plan-tab meld-checklist UI.
+- Character-panel advisor row mangle (off-panel positioning rewrite).
+- Plan tab `GG-PLAN:v1:` paste UI + persistence + checklist.
+- `BrandResources.TryLoad` thread-affinity bug at plugin load (three
+  "Not on main thread!" warnings during startup — handled, falls back
+  to text-only branding, but should be fixed).

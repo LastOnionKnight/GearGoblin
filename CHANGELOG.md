@@ -10,6 +10,72 @@ follows [Semantic Versioning](https://semver.org/).
 the product bump together at every release going forward. Versions prior
 to v0.5.5 used independent semver tracks — the plugin's v0.4.x line and
 the web's v0.5.x line. v0.5.5 is the moment they re-align.
+## [0.6.5.1] — 2026-05-14  "Quiet Info"
+
+**Hotfix.** Fixes a hard crash in `/ttinfo` that was latent in every
+release from v0.4.6 onward and finally surfaced during v0.6.5 testing.
+
+**Root cause.** `OnInfoCommand` printed the diagnostic block to chat by
+splitting the StringBuilder output on `'\n'` and looping `ChatGui.Print`
+over each line. `BuildGoblinInfoString` used `AppendLine` (Windows CRLF
+terminator), so `Split('\n')` produced a trailing empty entry. On some
+framework ticks, Dalamud's `ChatGui.UpdateQueue` flushed that empty
+entry through FFXIV's native `Client::System::String::Utf8String::SetString`
+with a null source pointer in `RDX` — instant `C0000005` access
+violation, hard process death, no managed catch.
+
+The bug was not introduced by v0.6.5; the foreach pattern is unchanged
+since v0.4.6. v0.6.5 just got unlucky during a routine `/ttinfo` call.
+
+### Fixed
+
+- **`Plugin.cs` `OnInfoCommand`** — `foreach` chat-dump pattern removed
+  entirely. New flow:
+  1. Build the diagnostic string (unchanged `BuildGoblinInfoString`).
+  2. Schedule `ImGui.SetClipboardText(info)` on the framework thread via
+     `Framework.RunOnFrameworkThread` (ImGui requires the render-thread
+     context).
+  3. Open the main window via `mainWindow.IsOpen = true` (safe from any
+     thread; next render tick consumes the flag).
+  4. Print one short ASCII confirmation line to chat:
+     "Diagnostics copied to clipboard. Opening the Tonberry Tactics window
+     — see the Diagnostics tab for live state."
+  Every chat write is now wrapped in defensive try/catch; clipboard
+  failure is logged as a warning, not propagated.
+
+### Changed
+
+- **`UI/MainWindow.cs` About-tab "What's New" section** — trimmed to
+  the three most recent releases (v0.6.5.1, v0.6.5, v0.6.4). Backfills
+  the missing v0.6.5 and v0.6.4 blocks that were never added when those
+  releases shipped. Older entries (v0.6.1 → v0.3.x) collapsed into a
+  single pointer:
+  `Full history: github.com/LastOnionKnight/GearGoblin/blob/main/CHANGELOG.md`
+- **`GearGoblin.csproj`** — version `0.6.5 → 0.6.5.1`, Description
+  refreshed for "Quiet Info".
+
+### Pairing
+
+- **GearGoblin.Core v0.6.5.1** — lockstep version bump only, no source
+  changes.
+- **TonberryTactics web v0.6.5.1** — off-by-one Tier XII display fix.
+  Wire format's `Grade` is 0-indexed (Tier XII materia has Grade=11
+  on the wire), but the web's audit was comparing `Grade < CurrentCapTier`
+  (12) and rendering `RomanGrade(11) = "XI"`. Every Tier XII meld was
+  being flagged as under-tier with a phantom upgrade recommendation.
+  Web now adds 1 to Grade before comparison and display.
+
+### Out of scope (v0.6.6)
+
+- Character-panel advisor row mangle (off-panel positioning rewrite).
+- Plan tab `GG-PLAN:v1:` paste UI + `Configuration.JobPlans` persistence
+  + in-game meld checklist.
+- `BrandResources` thread-affinity bug at plugin load (three "Not on
+  main thread!" warnings during startup; falls back to text-only
+  branding harmlessly, but should be fixed).
+
+---
+
 
 ## [0.6.5] — 2026-05-14  "Crafted Visible"
 

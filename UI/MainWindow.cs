@@ -800,131 +800,52 @@ public sealed class MainWindow : Window, IDisposable
             ImGui.TextDisabled("Refia Rakkiri — the Last Onion Knight (Aisling O'Callaghan, Cork)");
         }
 
-        // ── v0.6.3 ────────────────────────────────────────────────────────
+        // What's New — trimmed to the three most recent releases in v0.6.5.1.
+        // Older history collapsed to a CHANGELOG.md pointer below; full per-
+        // version detail lives in the repo's CHANGELOG, which is the source
+        // of truth anyway.
+
+        // ── v0.6.5.1 ──────────────────────────────────────────────────────
         ImGui.Spacing();
-        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.3 — \"Lockstep\":");
-        ImGui.BulletText("Joins the new shared library GearGoblin.Core");
+        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.5.1 — \"Quiet Info\":");
+        ImGui.BulletText("Hotfix: /ttinfo no longer hard-crashes the game");
         ImGui.Indent();
-        ImGui.BulletText("ProjectReference added to GearGoblin.csproj — Core lives in a sibling-of-grandparent directory");
-        ImGui.BulletText("Plugin's existing job-aware MeldOptimizer unchanged this release — Core consumption is incremental, v0.7.x");
-        ImGui.BulletText("Web (TonberryTactics v0.6.3) is where the user-visible Core consumption lands: real per-job priorities for all 21 jobs");
+        ImGui.BulletText("v0.6.5 (and every release back to v0.4.6) printed the diagnostic block to chat line-by-line via foreach");
+        ImGui.BulletText("Latent bug: empty-line entries in the loop could marshal to a null native string, crashing FFXIV's Utf8String.SetString");
+        ImGui.BulletText("/ttinfo now copies the block to clipboard and opens the Diagnostics tab — one short confirmation line in chat instead of 15");
         ImGui.Unindent();
-        ImGui.BulletText("v0.5.5 lockstep convention restored — Core, web, plugin all at v0.6.3 same release night");
-        ImGui.BulletText("v0.6.2 was a web-only patch; v0.6.3 catches the plugin up structurally");
+        ImGui.BulletText("About-tab What's New trimmed to last 3 versions");
+        ImGui.BulletText("Web companion v0.6.5.1: off-by-one Tier XII fix (was reporting Tier XII melds as XI and flagging them under-tier)");
 
-        // ── v0.6.1 ────────────────────────────────────────────────────────
+        // ── v0.6.5 ────────────────────────────────────────────────────────
         ImGui.Spacing();
-        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.1 — \"Gear Division, hotfix\":");
-        ImGui.BulletText("/ttimport now actually reads the clipboard");
+        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.5 — \"Crafted Visible\":");
+        ImGui.BulletText("Critical: HQ-crafted gear no longer silently filtered from exports");
         ImGui.Indent();
-        ImGui.BulletText("v0.4.7 scaffold had hardcoded the clipboard local to string.Empty");
-        ImGui.BulletText("/ttimport always reported 'Clipboard is empty' even when it wasn't");
-        ImGui.BulletText("v0.6.1 wires ImGui.GetClipboardText() with a defensive try/catch");
+        ImGui.BulletText("Dalamud's GameInventoryItem.ItemId carries a +1,000,000 offset for HQ items");
+        ImGui.BulletText("Pre-v0.6.5 the Item-sheet lookup returned null for HQ pieces and silently skipped them");
+        ImGui.BulletText("Players wearing realistic raid gear saw 3-of-13 or 7-of-13 piece exports; the missing ones were always the HQ crafted gear");
+        ImGui.BulletText("v0.6.5 strips the offset before the sheet lookup; IsHighQuality still carries the quality state on the wire");
         ImGui.Unindent();
-        ImGui.BulletText("Workaround for v0.4.7–v0.6.0 users: /ttimport &lt;paste-string-inline&gt; still works (always did)");
+        ImGui.BulletText("Chat-message branding sweep: [GearGoblin] → [Tonberry Tactics], legacy /goblin* refs → /tt*");
+        ImGui.BulletText("About tab: Quick Start / slash commands / Diagnostics / Feedback labels updated to /tt* primary");
+        ImGui.BulletText("Web companion v0.6.5: Meld Audit panel lit up (real Wrong-stat / Under-tier / Overcap counts + Sell/replace verdict row)");
 
-        // ── v0.6.0 ────────────────────────────────────────────────────────
+        // ── v0.6.4 ────────────────────────────────────────────────────────
         ImGui.Spacing();
-        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.0 — \"Gear Division\":");
-        ImGui.BulletText("Plugin half of the v0.6.0 design port, in lockstep with the web's v0.6.0 ship");
-        ImGui.BulletText("IFontAtlas Phase 2 — Cinzel, EB Garamond, Press Start 2P load into the /tt window");
+        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.4 — \"Header Convergence\":");
+        ImGui.BulletText("Fix: in-game advisor header reads ▶ /tt instead of ▶ /goblin");
         ImGui.Indent();
-        ImGui.BulletText("Player name + section headers render in Cinzel (matches web's .adv-name)");
-        ImGui.BulletText("About-tab description renders in EB Garamond (matches web's Manifesto)");
-        ImGui.BulletText("Version pills + eyebrow labels render in Press Start 2P (matches web's pixel-pill)");
-        ImGui.BulletText("Native CharacterStatus injection stays on FFXIV's SE font — game text-nodes can't accept plugin atlases");
+        ImGui.BulletText("A v0.4.7.1 brand-convergence miss left the header text and header-click handler still dispatching the legacy command name");
+        ImGui.BulletText("v0.6.4 fixes the three remaining string sites in StatusPanelInjector");
         ImGui.Unindent();
-        ImGui.BulletText("Native injection picks up TLF lantern-gold accent on advisor rows + frost accent on derived rows");
-        ImGui.BulletText("Compact derivation toggle (v0.4.5) remains the in-game compact/multi-row switch");
-        ImGui.BulletText("Web's v0.6.0 \"Gear Division\" ships in parallel — three-column layout, gear grid, advisor with circled-number ranks");
+        ImGui.BulletText("Skill Speed materia prefix corrected via Core: \"Piety\" → \"Quickarm\"");
+        ImGui.BulletText("release.ps1 gains persistent error-log transcript via Start/Stop-Transcript");
 
-        // ── v0.5.5 ────────────────────────────────────────────────────────
+        // ── Older history ────────────────────────────────────────────────
         ImGui.Spacing();
-        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.5.5 — \"Version Alignment\":");
-        ImGui.BulletText("Plugin version jumped from 0.4.7.1 to 0.5.5 to match the web app");
-        ImGui.Indent();
-        ImGui.BulletText("From this release onward, plugin and web ship at the same version");
-        ImGui.BulletText("No functional changes — same content as v0.4.7.1, renumbered for alignment");
-        ImGui.Unindent();
-
-        // ── v0.4.7.1 ──────────────────────────────────────────────────────
-        ImGui.Spacing();
-        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.4.7.1 — \"Brand Convergence\":");
-        ImGui.BulletText("Plugin renamed: GearGoblin → Tonberry Tactics (matches the website)");
-        ImGui.Indent();
-        ImGui.BulletText("Internal identifiers preserved — your existing config and saved layout carry over");
-        ImGui.BulletText("Code namespace + DLL name stay 'GearGoblin' for now; full rename bundled with v0.5.0 Core refactor");
-        ImGui.Unindent();
-        ImGui.BulletText("New brand artwork from Claude Design — circle-logo wordmark, Refia portraits");
-        ImGui.BulletText("/tt, /ttexport, /ttimport, /ttinfo are now the primary slash commands");
-        ImGui.BulletText("/goblin* aliases still work (deprecated; removed at v1.0)");
-
-        // ── v0.4.7 ────────────────────────────────────────────────────────
-        ImGui.Spacing();
-        ImGui.TextUnformatted("v0.4.7 — \"Round Trip\" scaffold:");
-        ImGui.BulletText("/ttimport (formerly /goblinimport) consumes GG-PLAN:v1: strings from clipboard");
-        ImGui.BulletText("Per-job plan persistence (one active plan per job per character)");
-        ImGui.BulletText("Plan tab surfaces an Active Plan with per-meld checkboxes (next build)");
-        ImGui.BulletText("Feedback tab: pre-filled GitHub issue + clipboard fallback for Discord/DM");
-        ImGui.BulletText("TLF Lite theme Phase 1: palette, glyphs, manifesto, standing-ready footer");
-
-        // ── v0.4.6 ────────────────────────────────────────────────────────
-        ImGui.Spacing();
-        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.4.6 — \"Coexistence\":");
-        ImGui.BulletText("FIX: Materia Advisor now visible when CPR is active");
-        ImGui.Indent();
-        ImGui.BulletText("Advisor rows were being injected but rendered past the addon's clip boundary;");
-        ImGui.BulletText("v0.4.6 tracks total injected height and grows the outer addon's RootNode to match");
-        ImGui.Unindent();
-        ImGui.BulletText("Instrumented advisor logging — replaces the v0.4.5 aspirational \"will inject normally\"");
-        ImGui.BulletText("Quick Start tab: first-time-user workflow guide for the export-optimize-import loop");
-        ImGui.BulletText("Settings tab: every v0.4.5 toggle surfaced as a checkbox (was config-file-only)");
-        ImGui.BulletText("Diagnostics tab: live injector state, force-reinject button, copyable status block");
-        ImGui.BulletText("/ttinfo slash command: dumps diagnostics to chat for bug reports");
-        ImGui.BulletText("release.ps1: dotnet-build gate + commit-message BOM fix");
-
-        // ── v0.4.5 ────────────────────────────────────────────────────────
-        ImGui.Spacing();
-        ImGui.TextUnformatted("v0.4.5 — full derivation suite + CPR coexistence:");
-        ImGui.BulletText("Compact derived rows per substat (Crit / Det / DH)");
-        ImGui.BulletText("Tenacity row (tank role): damage out · damage taken");
-        ImGui.BulletText("Piety row (healer role): MP/tick");
-        ImGui.BulletText("Speed section: real GCD + breakpoint + speed damage (consolidated)");
-        ImGui.BulletText("CPR coexistence: auto-detects CharacterPanelRefined and steps aside");
-        ImGui.BulletText("Per-section toggles for every derivation group");
-
-        // ── v0.4.2 ────────────────────────────────────────────────────────
-        ImGui.Spacing();
-        ImGui.TextUnformatted("v0.4.2 fixes:");
-        ImGui.BulletText("Materia Advisor footer no longer scrolls off the panel");
-        ImGui.BulletText("Critical Hit breakpoint hint now renders reliably (label-walk, not positional)");
-        ImGui.BulletText("Det/DH injected rows no longer overlap vanilla stat values");
-        ImGui.BulletText("Empty advisor shows clear status text instead of dashes");
-        ImGui.BulletText("Advisor section consolidated from 6 rows to 4 (header carries status counts)");
-
-        // ── v0.4.1 ────────────────────────────────────────────────────────
-        ImGui.Spacing();
-        ImGui.TextUnformatted("v0.4.1 — Tonberry Tactics handoff:");
-        ImGui.BulletText("/ttexport (formerly /goblinexport) writes a clipboard-ready JSON of your equipped gear");
-        ImGui.BulletText("Compatible with the Tonberry Tactics web optimizer (TLF Gear Division)");
-        ImGui.BulletText("Dalamud SDK 15 compat (AddonEventData signature update)");
-
-        // ── v0.4.0 ────────────────────────────────────────────────────────
-        ImGui.Spacing();
-        ImGui.TextUnformatted("v0.4.0 — native Character window integration:");
-        ImGui.BulletText("Breakpoint hints injected under each substat row");
-        ImGui.BulletText("Real GCD derivation injected under Skill/Spell Speed");
-        ImGui.BulletText("Materia Advisor section injected under Gear");
-        ImGui.BulletText("Click the advisor header to open the standalone /tt window");
-
-        // ── v0.3.x ────────────────────────────────────────────────────────
-        ImGui.Spacing();
-        ImGui.TextUnformatted("Earlier (v0.3.x) — standalone window:");
-        ImGui.BulletText("Stat sheet with breakpoint analysis");
-        ImGui.BulletText("Plan mode: recommended materia for empty meld slots");
-        ImGui.BulletText("Audit mode: review existing melds for overcap and tier issues");
-        ImGui.BulletText("Pure-math vs Balance-preset weighting");
-        ImGui.BulletText("Etro / XIVGear BiS comparison");
+        ImGui.TextDisabled("Earlier versions (v0.3.x → v0.6.3) trimmed for brevity.");
+        ImGui.TextDisabled("Full history: github.com/LastOnionKnight/GearGoblin/blob/main/CHANGELOG.md");
 
         ImGui.Spacing();
         ImGui.Separator();

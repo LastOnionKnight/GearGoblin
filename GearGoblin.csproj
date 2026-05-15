@@ -4,12 +4,12 @@
     <Author>LastOnionKnight</Author>
     <Name>Tonberry Tactics</Name>
     <InternalName>GearGoblin</InternalName>
-    <AssemblyVersion>0.6.5</AssemblyVersion>
-    <FileVersion>0.6.5</FileVersion>
-    <Version>0.6.5</Version>
+    <AssemblyVersion>0.6.5.1</AssemblyVersion>
+    <FileVersion>0.6.5.1</FileVersion>
+    <Version>0.6.5.1</Version>
     <MinimumDalamudVersion>15.0.0</MinimumDalamudVersion>
     <Punchline>BiS planner, Materia Advisor, and round-trip optimizer for FFXIV. The in-game half of Tonberry Tactics; coexists with CharacterPanelRefined.</Punchline>
-    <Description>The in-game half of Tonberry Tactics — BiS planner, gear inventory reader, materia advisor for FFXIV. v0.6.5 ("Crafted Visible") fixes the critical HQ-offset bug in InventoryReader that silently filtered HQ-crafted gear out of every export (the cause of "3 pieces of 13" exports for any player wearing real raid gear). Also cleans up legacy /goblin* references in user-facing chat messages and the About-tab UI, and refreshes the import scaffold notice to point at v0.6.6 for the round-trip apply UI. Plugin's existing MeldOptimizer + JobProfile continues unchanged; Core consumption migration remains queued for v0.7.x.</Description>
+    <Description>The in-game half of Tonberry Tactics — BiS planner, gear inventory reader, materia advisor for FFXIV. v0.6.5.1 ("Quiet Info") is a hotfix for the /ttinfo hard-crash latent in every release back to v0.4.6: the multi-line chat-dump pattern (foreach over info.Split('\n')) could marshal an empty-line entry into a null source pointer for FFXIV's native Utf8String.SetString, crashing the game inside Dalamud's ChatGui.UpdateQueue. /ttinfo now copies the diagnostic block to clipboard and opens the Diagnostics tab instead of dumping line-by-line to chat. Also trims the About-tab "What's New" section to the three most recent releases (older history → CHANGELOG.md on GitHub). Pairs with web v0.6.5.1 which fixes an off-by-one in the audit Tier display (was rendering Tier XII melds as XI and flagging them as under-tier).</Description>
     <RepoUrl>https://github.com/LastOnionKnight/GearGoblin</RepoUrl>
     <Tags>gear;bis;materia;etro;xivgear;raid;advisor;cpr;character-panel;tonberry-tactics</Tags>
 

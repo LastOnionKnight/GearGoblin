@@ -18,6 +18,7 @@ using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using GearGoblin.Services;
 using GearGoblin.UI;
+using Dalamud.Bindings.ImGui;
 
 namespace GearGoblin;
 
@@ -169,28 +170,86 @@ public sealed class Plugin : IDalamudPlugin
     private void OnExportCommand(string command, string args) => Exporter.ExportToClipboard();
 
     /// <summary>
-    /// v0.4.6: /goblininfo command. Prints the StatusPanelInjector's current
-    /// DiagnosticSnapshot to chat in a fenced block so users can paste it
-    /// into a bug report. Same payload as the "Copy /goblininfo" button on
-    /// the Diagnostics tab of the standalone /goblin window.
+    /// /ttinfo command. Builds the StatusPanelInjector diagnostic snapshot,
+    /// copies it to the system clipboard, and opens the standalone Tonberry
+    /// Tactics window so the Diagnostics tab is one click away.
+    ///
+    /// v0.6.5.1 redesign — the previous implementation printed the diagnostic
+    /// block to chat line-by-line via a foreach over <c>info.Split('\n')</c>.
+    /// That pattern was responsible for the v0.6.5 hard crash inside FFXIV's
+    /// native <c>Client::System::String::Utf8String::SetString</c> at
+    /// <c>+0x23</c> (RDX=null source pointer), triggered from
+    /// <c>Dalamud.Game.Gui.ChatGui.UpdateQueue</c> during a framework tick:
+    /// some lines of the dump (notably the trailing empty entry produced by
+    /// <c>AppendLine</c>'s CRLF terminator splitting on <c>'\n'</c>) marshaled
+    /// into a null native string under the right tick timing, and the game's
+    /// SetString dereferenced the null pointer. The bug was latent across
+    /// every release from v0.4.6 to v0.6.5; v0.6.5 just got unlucky and
+    /// surfaced it.
+    ///
+    /// The fix removes the multi-line ChatGui.Print pattern entirely.
+    /// Clipboard write + ImGui calls are dispatched onto the framework
+    /// thread (RunOnFrameworkThread) because ImGui.SetClipboardText reads
+    /// from the active ImGui context, which only exists during the render
+    /// tick. The single short ASCII confirmation line printed to chat
+    /// (one Print call, no foreach, no empty entries) is the only chat
+    /// I/O this command does now.
     /// </summary>
     private void OnInfoCommand(string command, string args)
     {
         try
         {
+            // Build the diagnostic block first. StringBuilder work is thread-safe
+            // and StatusPanel.GetDiagnostics() is a snapshot read.
             var info = BuildGoblinInfoString();
-            // Print line-by-line so each line gets the chat-window timestamp
-            // and is independently copy-clickable. Discrete lines also avoid
-            // a single huge entry that the chat log might truncate.
-            foreach (var line in info.Split('\n'))
+
+            // ImGui clipboard write needs the render-thread ImGui context.
+            // Schedule it for the next framework tick.
+            DalamudServices.Framework.RunOnFrameworkThread(() =>
             {
-                DalamudServices.ChatGui.Print(line);
+                try
+                {
+                    ImGui.SetClipboardText(info);
+                }
+                catch (Exception clipEx)
+                {
+                    // Clipboard failure is non-fatal — user still has the window.
+                    DalamudServices.Log.Warning(clipEx,
+                        "OnInfoCommand: ImGui.SetClipboardText threw; user will need to use the Diagnostics-tab button instead.");
+                }
+            });
+
+            // Open the window. IsOpen is just a bool flag the next render
+            // tick reads — safe to set from any thread.
+            mainWindow.IsOpen = true;
+
+            // One short ASCII confirmation line. This is the ONLY ChatGui.Print
+            // this command makes, and it does not iterate a Split() result, so
+            // it cannot reproduce the multi-line empty-entry path that caused
+            // the v0.6.5 crash. Wrapped in try/catch defensively anyway.
+            try
+            {
+                DalamudServices.ChatGui.Print(
+                    "[Tonberry Tactics] Diagnostics copied to clipboard. " +
+                    "Opening the Tonberry Tactics window — see the Diagnostics tab for live state.");
+            }
+            catch (Exception printEx)
+            {
+                DalamudServices.Log.Warning(printEx,
+                    "OnInfoCommand: confirmation ChatGui.Print threw; ignoring.");
             }
         }
         catch (Exception ex)
         {
-            DalamudServices.Log.Error(ex, "OnInfoCommand: BuildGoblinInfoString threw.");
-            DalamudServices.ChatGui.PrintError($"[Tonberry Tactics] /ttinfo failed: {ex.Message}");
+            DalamudServices.Log.Error(ex, "OnInfoCommand: BuildGoblinInfoString or dispatch threw.");
+            try
+            {
+                DalamudServices.ChatGui.PrintError($"[Tonberry Tactics] /ttinfo failed: {ex.Message}");
+            }
+            catch
+            {
+                // Already in a failure path; nothing to do.
+            }
         }
     }
 
