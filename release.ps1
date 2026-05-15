@@ -36,12 +36,6 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# v0.6.4 — persistent error log. Appends every run (success or failure)
-# to release-error.log alongside the script. Captures stdout and stderr
-# through the full transcript including any failure path.
-$logPath = Join-Path $PSScriptRoot "release-error.log"
-Start-Transcript -Path $logPath -Append -Force -ErrorAction SilentlyContinue | Out-Null
-
 # ---- 1. Find the csproj ------------------------------------------------------
 
 $csprojFiles = Get-ChildItem -Path . -Filter "*.csproj" -File
@@ -106,6 +100,42 @@ if ($existingTag) {
 # What's the current branch?
 $branch = git rev-parse --abbrev-ref HEAD
 Write-Host "  Branch:   $branch" -ForegroundColor White
+
+# ---- 2.5. Sync with remote (v0.6.5.2+) --------------------------------------
+#
+# Fetch and rebase before staging. Without this step, any commits on
+# origin/main that we don't have locally (most commonly the
+# github-actions[bot] repo.json bumps that fire after every tag push) will
+# cause the final `git push` to be rejected as non-fast-forward — exactly
+# the failure mode that derailed the v0.6.5.1 ship.
+#
+# --autostash handles the working-tree dropin changes during the rebase:
+# git stashes them automatically, runs the rebase, then restores them on
+# top. If the rebase would conflict with our dropin files (unlikely; the
+# bot only touches repo.json), the rebase aborts cleanly and we surface
+# the error.
+#
+# We do this BEFORE the status display so the "Changes to be committed"
+# view reflects the post-rebase state, not whatever was in the working
+# tree before sync.
+
+Write-Host "Syncing with origin/$branch (fetch + rebase + autostash)..." -ForegroundColor Cyan
+git fetch origin $branch
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: git fetch failed." -ForegroundColor Red
+    exit 1
+}
+git pull --rebase --autostash origin $branch
+if ($LASTEXITCODE -ne 0) {
+    Write-Host ""
+    Write-Host "ERROR: git pull --rebase failed." -ForegroundColor Red
+    Write-Host "If the rebase aborted mid-way (conflict), resolve manually:" -ForegroundColor Yellow
+    Write-Host "  git status   # see what's conflicting" -ForegroundColor Yellow
+    Write-Host "  git rebase --abort   # back out cleanly" -ForegroundColor Yellow
+    Write-Host "Then re-extract the dropin and re-run release.ps1." -ForegroundColor Yellow
+    exit 1
+}
+Write-Host ""
 
 # Show what's staged + unstaged.
 $status = git status --short
@@ -247,5 +277,3 @@ Write-Host ""
 Write-Host "==================================================" -ForegroundColor Green
 Write-Host "  Release complete: $projectName $tag" -ForegroundColor Green
 Write-Host "==================================================" -ForegroundColor Green
-
-Stop-Transcript -ErrorAction SilentlyContinue | Out-Null

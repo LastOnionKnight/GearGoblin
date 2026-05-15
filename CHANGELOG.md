@@ -10,6 +10,68 @@ follows [Semantic Versioning](https://semver.org/).
 the product bump together at every release going forward. Versions prior
 to v0.5.5 used independent semver tracks — the plugin's v0.4.x line and
 the web's v0.5.x line. v0.5.5 is the moment they re-align.
+## [0.6.5.2] — 2026-05-14  "Release Hardening"
+
+**No source changes.** Release-infra patch that closes the failure mode
+that derailed the v0.6.5.1 ship.
+
+### Root cause being addressed
+
+After every tag push, `LastOnionKnight/GearGoblin`'s
+`github-actions[bot]` workflow auto-commits a `repo.json` (Dalamud
+plugin manifest) bump with `[skip ci]` so it doesn't loop. The bot's
+commits accumulated on `origin/main` while Brian's local main stayed
+where the prior `release.ps1` had committed — by v0.6.5.1 the bot had
+three chore commits waiting (one each for v0.6.4, v0.6.5, v0.6.5.1)
+that local didn't have. When `release.ps1` then tried to push the
+v0.6.5.1 release commit, the push was rejected as non-fast-forward
+("fetch first" hint). The tag had already pushed, leaving the plugin
+repo briefly in a state where `v0.6.5.1` pointed at a commit not
+reachable from any branch — required a manual rebase + force-push to
+clean up.
+
+### Fixed
+
+- **`release.ps1`** — new "sync with remote" step between branch
+  detection and the staging/status display. Runs `git fetch origin
+  <branch>` followed by `git pull --rebase --autostash origin <branch>`.
+  `--autostash` handles the working-tree dropin changes during rebase:
+  git stashes them automatically, runs the rebase, restores them on
+  top. If the rebase would conflict with our dropin files (only happens
+  if the bot ever touches anything beyond `repo.json`), the rebase
+  aborts cleanly and the script surfaces the error with recovery
+  guidance:
+  ```
+  git status        # see what's conflicting
+  git rebase --abort   # back out cleanly
+  ```
+  Then re-extract the dropin and re-run release.ps1.
+
+### Pairing
+
+- **GearGoblin.Core v0.6.5.2** — same sync step added to its
+  release.ps1 for workflow symmetry; lockstep version bump.
+- **TonberryTactics web v0.6.5.2** — same sync step **plus** the
+  build gate that Web's release.ps1 was missing prior to this release
+  (the gateless script is exactly why the v0.6.5.1 broken csproj
+  reached GitHub at all). Also wraps the EVERCOLD wordmark in an
+  external link to the official FFXIV Evercold expansion page.
+
+### Out of scope (deferred to v0.6.6+)
+
+- Character-panel advisor row offset (push injection down 1-2 row
+  heights to clear the ILVL row's ghost overlay — visible in Refia's
+  Viper character panel).
+- `BrandResources.TryLoad` thread-affinity fix (three "Not on main
+  thread!" warnings during plugin startup; handled, falls back to
+  text-only branding).
+- Plan tab `GG-PLAN:v1:` paste UI + `Configuration.JobPlans`
+  persistence + in-game meld checklist.
+- Lodestone integration design (Cloudflare Worker proxy vs
+  third-party API vs plugin-only path).
+
+---
+
 ## [0.6.5.1] — 2026-05-14  "Quiet Info"
 
 **Hotfix.** Fixes a hard crash in `/ttinfo` that was latent in every
