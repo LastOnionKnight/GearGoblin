@@ -850,13 +850,25 @@ public sealed class MainWindow : Window, IDisposable
             ImGui.TextDisabled("Refia Rakkiri — the Last Onion Knight (Aisling O'Callaghan, Cork)");
         }
 
-        // What's New — under the v0.6.5.2 lockstep-preservation strategy,
-        // the v0.6.5.1 and original v0.6.5.2 entries are folded into a
-        // single comprehensive v0.6.5.2 block. The v0.6.5.2 tag now points
-        // at the polished build that ships /ttinfo fix + release hardening
-        // + all eight panel-polish items together. Below it we keep v0.6.5
-        // and v0.6.4 — three blocks total, matching the "latest 3 versions"
-        // pattern. Older history collapsed to a CHANGELOG.md pointer.
+        // What's New — under the v0.6.5.3 follow-up to v0.6.5.2's misdiagnosis,
+        // the v0.6.5.3 block sits above v0.6.5.2 to document the actual fix.
+        // We retain the v0.6.5.2 block below — it shipped 7 real fixes plus
+        // one wrong fix (the pre-pad). The wrong-fix bullet is rewritten to
+        // tell the honest story. Three blocks total (v0.6.5.3 / v0.6.5.2 /
+        // v0.6.5 / v0.6.4) — older history collapsed to a CHANGELOG.md
+        // pointer.
+
+        // ── v0.6.5.3 ──────────────────────────────────────────────────────
+        ImGui.Spacing();
+        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.5.3 — \"Collision Fix\":");
+        ImGui.BulletText("Character-panel ghost text on \"Materia Advisor\" header is GONE (the v0.6.5.2 pre-pad approach was wrong)");
+        ImGui.Indent();
+        ImGui.BulletText("v0.6.5.2 grew the Gear component's collision node by 20px before injecting — that's the operation that CAUSES the ghost text");
+        ImGui.BulletText("Comparing against CharacterPanelRefined (the upstream we adapted from) surfaced their AddStatRow's expandCollisionNode flag");
+        ImGui.BulletText("v0.6.5.3 adds the flag to our AddStatRow, removes the v0.6.5.2 pre-pad, and passes expandCollisionNode: false for advisor rows");
+        ImGui.BulletText("Advisor still grows the parent component for visible space; just no longer grows the collision node that the ILVL row's text re-rasterizes into");
+        ImGui.Unindent();
+        ImGui.BulletText("Advisor pill / click handler: 4 /goblin → /tt references the v0.6.4 sweep missed in StatusPanelInjector");
 
         // ── v0.6.5.2 ──────────────────────────────────────────────────────
         ImGui.Spacing();
@@ -877,10 +889,10 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.BulletText("Was a placeholder stub since v0.6.0 — click registered but did nothing");
         ImGui.BulletText("Now forces an explicit inventory re-read and shows a 2-second \"✓ refreshed\" confirmation that fades out");
         ImGui.Unindent();
-        ImGui.BulletText("Character-panel advisor row no longer overlaps the ILVL row");
+        ImGui.BulletText("Character-panel advisor row overlap fix attempted (didn't land — see v0.6.5.3 above for the real fix)");
         ImGui.Indent();
         ImGui.BulletText("Visible across both combat (VPR/PLD) and crafter (CRP) panels as ghost-text on the \"Average Item Level\" row");
-        ImGui.BulletText("First advisor row was injecting at Y too high; subsequent rows were fine. 20px pre-pad fixes the first row's anchor");
+        ImGui.BulletText("v0.6.5.2's 20px pre-pad was the wrong intervention; v0.6.5.3 swaps it for the expandCollisionNode parameter approach");
         ImGui.Unindent();
         ImGui.BulletText("BrandResources loads on framework thread (no more \"Not on main thread!\" warnings at plugin start)");
         ImGui.Indent();

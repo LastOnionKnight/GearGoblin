@@ -10,6 +10,86 @@ follows [Semantic Versioning](https://semver.org/).
 the product bump together at every release going forward. Versions prior
 to v0.5.5 used independent semver tracks — the plugin's v0.4.x line and
 the web's v0.5.x line. v0.5.5 is the moment they re-align.
+## [0.6.5.3] — 2026-05-16  "Collision Fix"
+
+v0.6.5.2 "Panel Polish" misdiagnosed the character-panel ghost-text bug
+and shipped the wrong fix. v0.6.5.3 ships the right one. Plugin = Core =
+Web = v0.6.5.3 (Core and Web are version-only lockstep bumps; no source
+changes on those two).
+
+### What was wrong
+
+The Materia Advisor section, injected into the "Average Item Level"
+component below the Gear header, rendered with ghost-text artifacts on
+its "Materia Advisor" header line. Symptom looked like the title text
+was being drawn twice at slightly offset Y positions. Visible across
+every job's Character window (combat: VPR, PLD; crafter: CRP — tested
+in-game).
+
+v0.6.5.2 attempted to fix this by pre-padding the Gear component's
+parent + collision node by 20px before the first advisor row injection.
+That made the bug worse: the operation that causes the ghost text IS
+growing the collision node, and the pre-pad added 20 more pixels of
+collision growth on top of the 80px that the 4 advisor rows were
+already adding (each row's existing `collisionNode->Height += 20`).
+Stack of 100px of collision growth stretched the ILVL row's text node
+across the whole advisor section.
+
+### How we found it
+
+Cloned `Kouzukii/ffxiv-characterstatus-refined` (CharacterPanelRefined,
+MIT — the upstream we adapted `AddStatRow` from) and compared their
+implementation against ours. CPR's `AddStatRow` signature carries a
+fourth parameter, `expandCollisionNode = true`, that ours dropped during
+the adaptation. CPR explicitly passes `expandCollisionNode: false` for
+every row injected into the Average Item Level component and the
+crafter-stats components (CP, GP). Without that flag our adaptation
+always grew the collision node, which the Gear / ILVL parent doesn't
+tolerate.
+
+### Fixed
+
+- **`Services/StatusPanelInjector.cs AddStatRow`** — added
+  `expandCollisionNode = true` as a fourth parameter. Body gates the
+  `collisionNode->Height += 20` line behind the flag. Default `true`
+  preserves behavior at every existing call site (Crit, Det, DH, Speed,
+  Tenacity, Piety — none change). `totalInjectedHeight` accumulator
+  unchanged: outer addon RootNode still needs to grow to accommodate
+  visible content regardless of the immediate parent's collision
+  behavior.
+- **`Services/StatusPanelInjector.cs InjectAdvisorSection`** — removed
+  the v0.6.5.2 pre-pad block (parent + collision +20px before the first
+  AddStatRow). All 4 advisor rows now pass `expandCollisionNode: false`
+  to suppress collision growth while still extending the parent
+  component's visible height. This matches the CPR pattern for the
+  Gear / Average Item Level component.
+
+### Changed
+
+- **`Services/StatusPanelInjector.cs`** — advisor pill text and click
+  handler reference `/tt` instead of `/goblin`. Four call sites:
+  has-audits branch pill (line 739), empty/error branch pill (line
+  761), `ProcessCommand("/tt")` on click (line 770), error log message
+  (line 774). This is a brand-convergence fix the v0.5.x sweep missed
+  in this file. `/goblin` remains registered as a legacy command alias
+  in `Plugin.cs` — clicking the pill now invokes the primary `/tt`
+  rather than the legacy form.
+
+### Pairing
+
+- **GearGoblin.Core v0.6.5.3** — version-only bump. No source changes.
+- **TonberryTactics web v0.6.5.3** — version-only bump. In-page version
+  strings updated in `Pages/Index.razor`. No functional changes.
+
+### Out of scope (deferred to v0.6.6)
+
+- Plan tab `GG-PLAN:v1:` paste UI + `Configuration.JobPlans` persistence.
+- README refreshes across the three GitHub repos.
+- Stale `/goblin*` references in `StatusPanelInjector.cs` code comments
+  (functional references all fixed; comments are historical record).
+
+---
+
 ## [0.6.5.2] — 2026-05-15  "Panel Polish" *(re-tagged)*
 
 **Important:** This release re-tags v0.6.5.2 with eight polish fixes that

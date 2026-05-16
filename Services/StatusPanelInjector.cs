@@ -509,41 +509,19 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         var avgIlvlComponent = (AtkComponentNode*)gear->ChildNode;
         var heightBeforeAdvisor = totalInjectedHeight;
 
-        // v0.6.5.2 — Pre-pad the parent component before the first advisor
-        // row injection. Prior to this fix, the advisor header rendered at
-        // a Y that overlapped the "Average Item Level" text above it,
-        // producing ghost-text artifacts like "Materia A...vi...Ger...5e..."
-        // visible in both combat (Image: Refia's VPR panel) and crafter
-        // (Image: Refia's CRP panel) layouts. Subsequent advisor rows
-        // (rec1/rec2/rec3) rendered cleanly because AddStatRow grows the
-        // parent height by 20px BEFORE placing each new row at
-        // Y = Height - 20 — so each row sits in space the previous grow
-        // call carved out. The FIRST row had no prior grow call to carve
-        // space, so its Y landed inside whatever space the existing ILVL
-        // text+padding already occupied.
-        //
-        // Fix: grow the parent component by 20px once before the first
-        // AddStatRow call. This creates an empty 20px row of buffer below
-        // the ILVL text, and AddStatRow's existing Y = Height - 20 logic
-        // then places the advisor header IN that buffer rather than on
-        // top of the ILVL row. The same buffer principle works on every
-        // job/role layout because it's relative to the parent's grown
-        // height, not an absolute pixel coordinate.
-        if (avgIlvlComponent != null && avgIlvlComponent->Component != null)
-        {
-            var bufferCollision = avgIlvlComponent->Component->UldManager.RootNode;
-            if (bufferCollision != null)
-            {
-                avgIlvlComponent->AtkResNode.Height += 20;
-                bufferCollision->Height += 20;
-                totalInjectedHeight = (ushort)(totalInjectedHeight + 20);
-            }
-        }
-
-        advisorHeader = AddStatRow(avgIlvlComponent, "── Materia Advisor ──");
-        advisorRec1   = AddStatRow(avgIlvlComponent, "");
-        advisorRec2   = AddStatRow(avgIlvlComponent, "");
-        advisorRec3   = AddStatRow(avgIlvlComponent, "");
+        // v0.6.5.3 — Advisor rows inject into the Gear / Average Item Level
+        // component. Each row passes expandCollisionNode: false so the original
+        // ILVL text node's bounds aren't stretched onto our injected rows.
+        // v0.6.5.2 attempted to fix this by pre-padding the parent + collision
+        // node by 20px before the first AddStatRow — that approach grew the
+        // collision node which is exactly the thing the ghost-text bug needed
+        // us to STOP doing. The pre-pad has been removed; the parameter on
+        // each AddStatRow call is the correct intervention, matching the
+        // upstream CharacterPanelRefined pattern (see AddStatRow comment).
+        advisorHeader = AddStatRow(avgIlvlComponent, "── Materia Advisor ──", expandCollisionNode: false);
+        advisorRec1   = AddStatRow(avgIlvlComponent, "",                        expandCollisionNode: false);
+        advisorRec2   = AddStatRow(avgIlvlComponent, "",                        expandCollisionNode: false);
+        advisorRec3   = AddStatRow(avgIlvlComponent, "",                        expandCollisionNode: false);
 
         var advisorHeightAdded = totalInjectedHeight - heightBeforeAdvisor;
         advisorSectionPresent =
@@ -758,7 +736,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
 
             if (advisorHeader != null)
             {
-                advisorHeader->SetText($"{crit}c · {warn}w · {empty}e   ▶ /goblin");
+                advisorHeader->SetText($"{crit}c · {warn}w · {empty}e   ▶ /tt");
             }
         }
         catch (Exception ex)
@@ -780,7 +758,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         SetAdvisorRow(advisorRec1, placeholder);
         SetAdvisorRow(advisorRec2, null);
         SetAdvisorRow(advisorRec3, null);
-        if (advisorHeader != null) advisorHeader->SetText("▶ /goblin");
+        if (advisorHeader != null) advisorHeader->SetText("▶ /tt");
     }
 
     // ── Header click → invoke /goblin ───────────────────────────────────
@@ -789,11 +767,11 @@ public sealed unsafe class StatusPanelInjector : IDisposable
     {
         try
         {
-            DalamudServices.CommandManager.ProcessCommand("/goblin");
+            DalamudServices.CommandManager.ProcessCommand("/tt");
         }
         catch (Exception ex)
         {
-            DalamudServices.Log.Error(ex, "StatusPanelInjector v0.4.6: /goblin invoke failed.");
+            DalamudServices.Log.Error(ex, "StatusPanelInjector v0.4.6: /tt invoke failed.");
         }
     }
 
@@ -819,7 +797,8 @@ public sealed unsafe class StatusPanelInjector : IDisposable
     /// gear section fall past the addon's visible clip and look invisible.
     /// </para>
     /// </summary>
-    private AtkTextNode* AddStatRow(AtkComponentNode* parentNode, string label)
+    private AtkTextNode* AddStatRow(AtkComponentNode* parentNode, string label,
+                                     bool expandCollisionNode = true)
     {
         if (parentNode == null) return null;
         if (parentNode->Component == null) return null;
@@ -832,8 +811,21 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         if (labelNode == null) return null;
 
         parentNode->AtkResNode.Height += 20;
-        collisionNode->Height          += 20;
+        // v0.6.5.3 — collisionNode growth is gated. Adapted from CharacterPanelRefined's
+        // AddStatRow signature (expandCollisionNode parameter). The Gear / Average Item
+        // Level component and crafter-stats components have collision nodes that the
+        // game uses to bound the existing row's text rendering — growing them stretches
+        // the original ILVL text node onto subsequent injected rows, producing the
+        // ghost-text overlay seen on VPR/PLD/CRP panels through v0.6.5.2. Substat
+        // sections (Crit/Det/DH/Speed/Tenacity/Piety) want the default true behavior so
+        // their hit regions extend with the new rows; only advisor / ilvl-area rows
+        // pass false. See CharacterPanelRefined CharacterStatusAugments.cs:246 for the
+        // original pattern (MIT, Kouzukii — LICENSES/CharacterPanelRefined-MIT.txt).
+        if (expandCollisionNode)
+            collisionNode->Height += 20;
         // v0.4.6: accumulate so we can grow the outer addon after injection.
+        // Always counted — the outer addon RootNode needs to grow for visible content
+        // regardless of whether the immediate parent's collision node grew.
         totalInjectedHeight = (ushort)(totalInjectedHeight + 20);
 
         var newNumberNode = NodeUtil.CloneNode(numberNode);
