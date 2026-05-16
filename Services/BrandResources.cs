@@ -41,24 +41,61 @@ public sealed class BrandResources : IDisposable
 
     public BrandResources()
     {
-        CircleLogo   = TryLoad("circle-logo.png");
-        RagsPortrait = TryLoad("rags-portrait.png");
-        RagsMini     = TryLoad("rags-mini.png");
+        // v0.6.5.2 — Defer the actual loads to the framework thread because
+        // TextureProvider.GetFromFile(path).GetWrapOrEmpty() reads from the
+        // render-thread ImGui/texture context, which only exists during a
+        // framework tick. The BrandResources constructor runs synchronously
+        // from Plugin's constructor at plugin load, which can be off the
+        // framework thread depending on Dalamud's load sequence. Prior to
+        // this fix, three "Not on main thread!" log warnings appeared on
+        // startup (one per asset), all three loads returned null, and the
+        // plugin silently fell back to text-only branding for the entire
+        // session.
+        //
+        // RunOnFrameworkThread queues the load work onto the next render
+        // tick. Properties (CircleLogo, RagsPortrait, RagsMini) start as
+        // null and populate within a frame or two of plugin load. All
+        // existing callers already null-check before drawing so they
+        // remain safe during the brief pre-load window.
+        try
+        {
+            DalamudServices.Framework.RunOnFrameworkThread(() =>
+            {
+                try
+                {
+                    CircleLogo   = TryLoad("circle-logo.png");
+                    RagsPortrait = TryLoad("rags-portrait.png");
+                    RagsMini     = TryLoad("rags-mini.png");
 
-        if (AnyLoaded)
-        {
-            DalamudServices.Log.Info(
-                "BrandResources v0.4.7.1: brand artwork loaded · " +
-                $"circle-logo={CircleLogo != null} · " +
-                $"rags-portrait={RagsPortrait != null} · " +
-                $"rags-mini={RagsMini != null}");
+                    if (AnyLoaded)
+                    {
+                        DalamudServices.Log.Info(
+                            "BrandResources v0.6.5.2: brand artwork loaded (deferred to framework thread) · " +
+                            $"circle-logo={CircleLogo != null} · " +
+                            $"rags-portrait={RagsPortrait != null} · " +
+                            $"rags-mini={RagsMini != null}");
+                    }
+                    else
+                    {
+                        DalamudServices.Log.Warning(
+                            "BrandResources v0.6.5.2: no brand artwork found. Plugin will " +
+                            "fall back to text-only branding. Expected files under Assets/ " +
+                            "in the plugin install directory; rebuild dropin if missing.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    DalamudServices.Log.Warning(ex,
+                        "BrandResources v0.6.5.2: deferred load threw on framework thread; " +
+                        "all assets remain null and plugin falls back to text-only branding.");
+                }
+            });
         }
-        else
+        catch (Exception ex)
         {
-            DalamudServices.Log.Warning(
-                "BrandResources v0.4.7.1: no brand artwork found. Plugin will " +
-                "fall back to text-only branding. Expected files under Assets/ " +
-                "in the plugin install directory; rebuild dropin if missing.");
+            DalamudServices.Log.Warning(ex,
+                "BrandResources v0.6.5.2: failed to schedule deferred load. " +
+                "Falling back to text-only branding.");
         }
     }
 

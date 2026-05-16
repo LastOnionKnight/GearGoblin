@@ -39,6 +39,13 @@ public sealed class MainWindow : Window, IDisposable
     private readonly Plugin plugin;
     private static readonly string s_versionString = ResolveVersion();
 
+    // v0.6.5.2 — Refresh button timestamp. Tracks when the user last clicked
+    // Refresh so we can fade out a "✓ refreshed" confirmation label over
+    // the following 2 seconds. Static because there's only one MainWindow
+    // instance per plugin load; lives at class scope so the fade survives
+    // across draw frames without needing a per-instance field.
+    private static DateTime s_lastRefreshTime = DateTime.MinValue;
+
     // v0.4.7 Feedback tab state. Persistent across frames so typing isn't lost.
     // Buffer is byte[] (not string) to match Dalamud.Bindings.ImGui's
     // InputTextMultiline signature: (label, byte[], Vector2 size, ImGuiInputTextFlags).
@@ -119,7 +126,50 @@ public sealed class MainWindow : Window, IDisposable
             ImGui.Text($"{player.Name} — {job} Lv {lvl}");
         }
         ImGui.SameLine();
-        if (ImGui.SmallButton("Refresh")) { /* placeholder for future cache invalidation */ }
+        // v0.6.5.2 — Refresh button: previously a stub.
+        //
+        // Most tabs already read fresh data each frame (InventoryReader,
+        // ClientState.LocalPlayer, etc. are queried per-draw), so there are
+        // no internal caches to invalidate. The button's real value is:
+        // (1) confirming the click registered with a visible cue, and
+        // (2) forcing one explicit inventory read NOW rather than waiting
+        // for the next render frame — useful right after equipping new
+        // gear or switching jobs.
+        //
+        // The visual cue is a 2-second "✓ refreshed" label that fades
+        // from full ice-cyan opacity to transparent. Static timestamp
+        // lives at class scope so the fade survives across draw frames.
+        if (ImGui.SmallButton("Refresh"))
+        {
+            try
+            {
+                // Discard the result — we don't need it here; the goal is
+                // just to force the read. Tabs call ReadEquipped() again
+                // when they draw. Some inventory reads can throw if the
+                // player object is in an unusual state (loading screens,
+                // between zones); swallow defensively so the UI never
+                // breaks on a refresh.
+                _ = plugin.Inventory.ReadEquipped();
+            }
+            catch (Exception ex)
+            {
+                DalamudServices.Log.Warning(ex,
+                    "Refresh button: InventoryReader.ReadEquipped() threw; UI continues with stale snapshot.");
+            }
+            s_lastRefreshTime = DateTime.UtcNow;
+        }
+
+        // Render the post-click confirmation label inline. Drawing it on
+        // the same line as the button keeps the header layout tight.
+        var sinceRefresh = (DateTime.UtcNow - s_lastRefreshTime).TotalSeconds;
+        if (sinceRefresh >= 0 && sinceRefresh < 2.0)
+        {
+            ImGui.SameLine();
+            // Linear fade across the 2-second window. Ice-cyan to match
+            // the rest of the TLF theme's "info" accent color.
+            var alpha = (float)Math.Max(0.0, 1.0 - sinceRefresh / 2.0);
+            ImGui.TextColored(new Vector4(0.49f, 0.75f, 0.77f, alpha), "✓ refreshed");
+        }
 
         // Version badge — right-aligned in the header, TLF gold. v0.6.0:
         // wrapped in Press Start 2P @ 10px to match the web's
@@ -800,22 +850,48 @@ public sealed class MainWindow : Window, IDisposable
             ImGui.TextDisabled("Refia Rakkiri — the Last Onion Knight (Aisling O'Callaghan, Cork)");
         }
 
-        // What's New — trimmed to the three most recent releases in v0.6.5.1.
-        // Older history collapsed to a CHANGELOG.md pointer below; full per-
-        // version detail lives in the repo's CHANGELOG, which is the source
-        // of truth anyway.
+        // What's New — under the v0.6.5.2 lockstep-preservation strategy,
+        // the v0.6.5.1 and original v0.6.5.2 entries are folded into a
+        // single comprehensive v0.6.5.2 block. The v0.6.5.2 tag now points
+        // at the polished build that ships /ttinfo fix + release hardening
+        // + all eight panel-polish items together. Below it we keep v0.6.5
+        // and v0.6.4 — three blocks total, matching the "latest 3 versions"
+        // pattern. Older history collapsed to a CHANGELOG.md pointer.
 
-        // ── v0.6.5.1 ──────────────────────────────────────────────────────
+        // ── v0.6.5.2 ──────────────────────────────────────────────────────
         ImGui.Spacing();
-        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.5.1 — \"Quiet Info\":");
+        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.5.2 — \"Panel Polish\":");
         ImGui.BulletText("Hotfix: /ttinfo no longer hard-crashes the game");
         ImGui.Indent();
-        ImGui.BulletText("v0.6.5 (and every release back to v0.4.6) printed the diagnostic block to chat line-by-line via foreach");
-        ImGui.BulletText("Latent bug: empty-line entries in the loop could marshal to a null native string, crashing FFXIV's Utf8String.SetString");
-        ImGui.BulletText("/ttinfo now copies the block to clipboard and opens the Diagnostics tab — one short confirmation line in chat instead of 15");
+        ImGui.BulletText("Pre-v0.6.5.2 the diagnostic block was printed to chat line-by-line via foreach");
+        ImGui.BulletText("Latent bug: empty-line entries could marshal to a null native string, crashing FFXIV's Utf8String.SetString");
+        ImGui.BulletText("/ttinfo now copies the block to clipboard and opens the Diagnostics tab — one short confirmation line in chat");
         ImGui.Unindent();
-        ImGui.BulletText("About-tab What's New trimmed to last 3 versions");
-        ImGui.BulletText("Web companion v0.6.5.1: off-by-one Tier XII fix (was reporting Tier XII melds as XI and flagging them under-tier)");
+        ImGui.BulletText("Header version badge now displays the full version string");
+        ImGui.Indent();
+        ImGui.BulletText("Prior formatter returned only Major.Minor.Build — v0.6.5.1 / v0.6.5.2 were silently truncated to \"v0.6.5\"");
+        ImGui.BulletText("Now shows the Revision component when non-zero (v0.6.5 stays \"v0.6.5\", v0.6.5.2 renders as \"v0.6.5.2\")");
+        ImGui.Unindent();
+        ImGui.BulletText("Refresh button (header, top-right) now functions");
+        ImGui.Indent();
+        ImGui.BulletText("Was a placeholder stub since v0.6.0 — click registered but did nothing");
+        ImGui.BulletText("Now forces an explicit inventory re-read and shows a 2-second \"✓ refreshed\" confirmation that fades out");
+        ImGui.Unindent();
+        ImGui.BulletText("Character-panel advisor row no longer overlaps the ILVL row");
+        ImGui.Indent();
+        ImGui.BulletText("Visible across both combat (VPR/PLD) and crafter (CRP) panels as ghost-text on the \"Average Item Level\" row");
+        ImGui.BulletText("First advisor row was injecting at Y too high; subsequent rows were fine. 20px pre-pad fixes the first row's anchor");
+        ImGui.Unindent();
+        ImGui.BulletText("BrandResources loads on framework thread (no more \"Not on main thread!\" warnings at plugin start)");
+        ImGui.Indent();
+        ImGui.BulletText("Three Dalamud warnings logged at every plugin load (circle-logo, rags-portrait, rags-mini)");
+        ImGui.BulletText("Assets silently failed to load; plugin fell back to text-only branding for the whole session");
+        ImGui.BulletText("Now deferred to a framework-tick load; assets populate within one frame of plugin start");
+        ImGui.Unindent();
+        ImGui.BulletText("/ttinfo diagnostic block now reads \"Tonberry Tactics\" instead of stale \"GearGoblin /goblininfo\"");
+        ImGui.BulletText("PlanTab.cs:96 CS4014 build warning silenced (intentional fire-and-forget, marked _ =)");
+        ImGui.BulletText("release.ps1 fetch + rebase + build gate (release-infra hardening from the original v0.6.5.2 ship)");
+        ImGui.BulletText("Web companion v0.6.5.2: EVERCOLD wordmark → external link; release.ps1 build gate added");
 
         // ── v0.6.5 ────────────────────────────────────────────────────────
         ImGui.Spacing();
@@ -828,8 +904,8 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.BulletText("v0.6.5 strips the offset before the sheet lookup; IsHighQuality still carries the quality state on the wire");
         ImGui.Unindent();
         ImGui.BulletText("Chat-message branding sweep: [GearGoblin] → [Tonberry Tactics], legacy /goblin* refs → /tt*");
-        ImGui.BulletText("About tab: Quick Start / slash commands / Diagnostics / Feedback labels updated to /tt* primary");
         ImGui.BulletText("Web companion v0.6.5: Meld Audit panel lit up (real Wrong-stat / Under-tier / Overcap counts + Sell/replace verdict row)");
+        ImGui.BulletText("Web companion v0.6.5.1: off-by-one Tier XII display fix");
 
         // ── v0.6.4 ────────────────────────────────────────────────────────
         ImGui.Spacing();
@@ -857,9 +933,32 @@ public sealed class MainWindow : Window, IDisposable
         Theme.TlfTheme.StandingReadyFooter(s_versionString);
     }
 
+    /// <summary>
+    /// Resolves the plugin's display version string from the loaded assembly.
+    ///
+    /// v0.6.5.2 fix — previous implementation returned only
+    /// <c>$"{v.Major}.{v.Minor}.{v.Build}"</c> (three components), which
+    /// silently truncated the Revision component for patch-level releases.
+    /// Every v0.6.5.x release (v0.6.5.1, v0.6.5.2, etc.) rendered as plain
+    /// "0.6.5" in the header badge / footer / Feedback tab / "in-game
+    /// plugin · v" subtitle, making it impossible to tell from the UI
+    /// which build was loaded — even when the underlying DLL was current.
+    /// We only noticed because <c>/ttinfo</c>'s new (v0.6.5.1) flow and
+    /// the About tab's "What's New" entries gave secondary signals.
+    ///
+    /// New behavior: emit four components when Revision is non-zero,
+    /// three when it isn't. So v0.6.5 (Revision=0) still renders as
+    /// "0.6.5" — no churn to existing display — while v0.6.5.1 renders
+    /// as "0.6.5.1", v0.6.5.2 as "0.6.5.2", and so on. The empty-version
+    /// fallback "0.3.2" is unchanged (kept for safety; should be
+    /// unreachable since the assembly always has a Version).
+    /// </summary>
     private static string ResolveVersion()
     {
         var v = Assembly.GetExecutingAssembly().GetName().Version;
-        return v is null ? "0.3.2" : $"{v.Major}.{v.Minor}.{v.Build}";
+        if (v is null) return "0.3.2";
+        return v.Revision > 0
+            ? $"{v.Major}.{v.Minor}.{v.Build}.{v.Revision}"
+            : $"{v.Major}.{v.Minor}.{v.Build}";
     }
 }

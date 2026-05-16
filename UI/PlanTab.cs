@@ -93,7 +93,12 @@ public static class PlanTab
         {
             var result = await BisFetcher.FetchAsync(url, s_pendingFetch.Token);
             // Marshal back to framework thread for safety when we mutate static state.
-            DalamudServices.Framework.RunOnFrameworkThread(() =>
+            // v0.6.5.2: explicit _ = discard silences CS4014 — the fire-and-forget
+            // pattern is intentional. We're already inside a Task.Run, so awaiting
+            // the framework dispatch would just add latency without changing
+            // behavior: the static state mutations happen on the framework tick
+            // regardless of whether this outer Task waits for them.
+            _ = DalamudServices.Framework.RunOnFrameworkThread(() =>
             {
                 s_isFetching = false;
                 if (result.Error is not null)

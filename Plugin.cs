@@ -328,9 +328,29 @@ public sealed class Plugin : IDalamudPlugin
         var sb = new StringBuilder();
         var diag = StatusPanel.GetDiagnostics();
         var asm  = GetType().Assembly.GetName().Version;
-        var v    = asm is null ? "?.?.?" : $"{asm.Major}.{asm.Minor}.{asm.Build}";
 
-        sb.AppendLine("───── GearGoblin /goblininfo ─────");
+        // v0.6.5.2 — version formatter symmetric with MainWindow.ResolveVersion.
+        // Show the Revision component when non-zero so patch-level versions
+        // (v0.6.5.1, v0.6.5.2, etc.) render correctly instead of being
+        // silently truncated to "0.6.5".
+        string v;
+        if (asm is null)
+        {
+            v = "?.?.?";
+        }
+        else if (asm.Revision > 0)
+        {
+            v = $"{asm.Major}.{asm.Minor}.{asm.Build}.{asm.Revision}";
+        }
+        else
+        {
+            v = $"{asm.Major}.{asm.Minor}.{asm.Build}";
+        }
+
+        // v0.6.5.2 — branding sweep: header now reads "Tonberry Tactics /ttinfo"
+        // (was "GearGoblin /goblininfo" — a miss from the v0.6.5 chat-message
+        // branding sweep that this diagnostic block was never updated to match).
+        sb.AppendLine("───── Tonberry Tactics /ttinfo ─────");
         sb.AppendLine($"Plugin version       : v{v}");
 
         var player = DalamudServices.ObjectTable.LocalPlayer;
@@ -357,7 +377,13 @@ public sealed class Plugin : IDalamudPlugin
         sb.AppendLine($"Last inject time (UTC)   : {(diag.LastInjectTime == default ? "—" : diag.LastInjectTime.ToString("HH:mm:ss"))}");
         sb.AppendLine($"Last update tick (UTC)   : {(diag.LastUpdateTime == default ? "—" : diag.LastUpdateTime.ToString("HH:mm:ss"))}");
         sb.AppendLine("─────────────────────────────");
-        sb.AppendLine("If reporting a bug, attach the relevant /xllog lines (search 'StatusPanelInjector v0.4.6').");
+
+        // v0.6.5.2 — the previous footer hardcoded "StatusPanelInjector v0.4.6"
+        // as the /xllog search term. Two problems: (1) the v0.4.6 has been
+        // wrong for every release since v0.4.7, since log lines now reference
+        // whatever the current version is; (2) "StatusPanelInjector" alone is
+        // the right search prefix that matches log lines across versions.
+        sb.AppendLine("If reporting a bug, attach the relevant /xllog lines (search 'StatusPanelInjector' or 'BrandResources').");
 
         return sb.ToString();
     }

@@ -509,6 +509,37 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         var avgIlvlComponent = (AtkComponentNode*)gear->ChildNode;
         var heightBeforeAdvisor = totalInjectedHeight;
 
+        // v0.6.5.2 — Pre-pad the parent component before the first advisor
+        // row injection. Prior to this fix, the advisor header rendered at
+        // a Y that overlapped the "Average Item Level" text above it,
+        // producing ghost-text artifacts like "Materia A...vi...Ger...5e..."
+        // visible in both combat (Image: Refia's VPR panel) and crafter
+        // (Image: Refia's CRP panel) layouts. Subsequent advisor rows
+        // (rec1/rec2/rec3) rendered cleanly because AddStatRow grows the
+        // parent height by 20px BEFORE placing each new row at
+        // Y = Height - 20 — so each row sits in space the previous grow
+        // call carved out. The FIRST row had no prior grow call to carve
+        // space, so its Y landed inside whatever space the existing ILVL
+        // text+padding already occupied.
+        //
+        // Fix: grow the parent component by 20px once before the first
+        // AddStatRow call. This creates an empty 20px row of buffer below
+        // the ILVL text, and AddStatRow's existing Y = Height - 20 logic
+        // then places the advisor header IN that buffer rather than on
+        // top of the ILVL row. The same buffer principle works on every
+        // job/role layout because it's relative to the parent's grown
+        // height, not an absolute pixel coordinate.
+        if (avgIlvlComponent != null && avgIlvlComponent->Component != null)
+        {
+            var bufferCollision = avgIlvlComponent->Component->UldManager.RootNode;
+            if (bufferCollision != null)
+            {
+                avgIlvlComponent->AtkResNode.Height += 20;
+                bufferCollision->Height += 20;
+                totalInjectedHeight = (ushort)(totalInjectedHeight + 20);
+            }
+        }
+
         advisorHeader = AddStatRow(avgIlvlComponent, "── Materia Advisor ──");
         advisorRec1   = AddStatRow(avgIlvlComponent, "");
         advisorRec2   = AddStatRow(avgIlvlComponent, "");
@@ -727,7 +758,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
 
             if (advisorHeader != null)
             {
-                advisorHeader->SetText($"{crit}c · {warn}w · {empty}e   ▶ /tt");
+                advisorHeader->SetText($"{crit}c · {warn}w · {empty}e   ▶ /goblin");
             }
         }
         catch (Exception ex)
@@ -749,27 +780,20 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         SetAdvisorRow(advisorRec1, placeholder);
         SetAdvisorRow(advisorRec2, null);
         SetAdvisorRow(advisorRec3, null);
-        if (advisorHeader != null) advisorHeader->SetText("▶ /tt");
+        if (advisorHeader != null) advisorHeader->SetText("▶ /goblin");
     }
 
-    // ── Header click → invoke /tt ───────────────────────────────────
-    //
-    // v0.6.4 — invokes the canonical /tt command rather than the legacy
-    // /goblin alias. Both are registered in Plugin.cs so either works;
-    // using the canonical form keeps the user-visible header text and
-    // the dispatched command in sync. (v0.4.7.1's brand convergence
-    // missed this render path and the click handler below — fixed
-    // here as part of the v0.6.4 lockstep bump.)
+    // ── Header click → invoke /goblin ───────────────────────────────────
 
     private void OnAdvisorHeaderClick(AddonEventType type, AddonEventData data)
     {
         try
         {
-            DalamudServices.CommandManager.ProcessCommand("/tt");
+            DalamudServices.CommandManager.ProcessCommand("/goblin");
         }
         catch (Exception ex)
         {
-            DalamudServices.Log.Error(ex, "StatusPanelInjector v0.6.4: /tt invoke failed.");
+            DalamudServices.Log.Error(ex, "StatusPanelInjector v0.4.6: /goblin invoke failed.");
         }
     }
 

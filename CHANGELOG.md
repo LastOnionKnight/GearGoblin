@@ -10,131 +10,113 @@ follows [Semantic Versioning](https://semver.org/).
 the product bump together at every release going forward. Versions prior
 to v0.5.5 used independent semver tracks — the plugin's v0.4.x line and
 the web's v0.5.x line. v0.5.5 is the moment they re-align.
-## [0.6.5.2] — 2026-05-14  "Release Hardening"
+## [0.6.5.2] — 2026-05-15  "Panel Polish" *(re-tagged)*
 
-**No source changes.** Release-infra patch that closes the failure mode
-that derailed the v0.6.5.1 ship.
+**Important:** This release re-tags v0.6.5.2 with eight polish fixes that
+should have shipped in the original v0.6.5.2 build. The previous v0.6.5.2
+tag (`fc42885`) was deleted from origin and recreated on the polished
+commit. Lockstep preserved: Plugin = Core = Web = v0.6.5.2.
 
-### Root cause being addressed
+### Why the re-tag
 
-After every tag push, `LastOnionKnight/GearGoblin`'s
-`github-actions[bot]` workflow auto-commits a `repo.json` (Dalamud
-plugin manifest) bump with `[skip ci]` so it doesn't loop. The bot's
-commits accumulated on `origin/main` while Brian's local main stayed
-where the prior `release.ps1` had committed — by v0.6.5.1 the bot had
-three chore commits waiting (one each for v0.6.4, v0.6.5, v0.6.5.1)
-that local didn't have. When `release.ps1` then tried to push the
-v0.6.5.1 release commit, the push was rejected as non-fast-forward
-("fetch first" hint). The tag had already pushed, leaving the plugin
-repo briefly in a state where `v0.6.5.1` pointed at a commit not
-reachable from any branch — required a manual rebase + force-push to
-clean up.
+The original v0.6.5.2 ship was release-infra only and didn't touch any
+user-visible code path. Loading the v0.6.5.2 DLL in-game produced a
+plugin that still LOOKED like v0.6.5 in several ways:
 
-### Fixed
+- Header version pill displayed `v0.6.5` (formatter truncated the
+  Revision component).
+- Refresh button in the header was a placeholder stub that did nothing.
+- About-tab "What's New" section had no v0.6.5.2 entry.
+- `/ttinfo` diagnostic block still headered itself as
+  `GearGoblin /goblininfo` (legacy branding the v0.6.5 sweep missed).
+- Character-panel advisor row still rendered with the ILVL ghost
+  overlay (visible in Refia's VPR and CRP panels).
+- `BrandResources.TryLoad` warnings still logged at every plugin
+  startup ("Not on main thread!"), with the icons silently failing
+  to load.
 
-- **`release.ps1`** — new "sync with remote" step between branch
-  detection and the staging/status display. Runs `git fetch origin
-  <branch>` followed by `git pull --rebase --autostash origin <branch>`.
-  `--autostash` handles the working-tree dropin changes during rebase:
-  git stashes them automatically, runs the rebase, restores them on
-  top. If the rebase would conflict with our dropin files (only happens
-  if the bot ever touches anything beyond `repo.json`), the rebase
-  aborts cleanly and the script surfaces the error with recovery
-  guidance:
-  ```
-  git status        # see what's conflicting
-  git rebase --abort   # back out cleanly
-  ```
-  Then re-extract the dropin and re-run release.ps1.
-
-### Pairing
-
-- **GearGoblin.Core v0.6.5.2** — same sync step added to its
-  release.ps1 for workflow symmetry; lockstep version bump.
-- **TonberryTactics web v0.6.5.2** — same sync step **plus** the
-  build gate that Web's release.ps1 was missing prior to this release
-  (the gateless script is exactly why the v0.6.5.1 broken csproj
-  reached GitHub at all). Also wraps the EVERCOLD wordmark in an
-  external link to the official FFXIV Evercold expansion page.
-
-### Out of scope (deferred to v0.6.6+)
-
-- Character-panel advisor row offset (push injection down 1-2 row
-  heights to clear the ILVL row's ghost overlay — visible in Refia's
-  Viper character panel).
-- `BrandResources.TryLoad` thread-affinity fix (three "Not on main
-  thread!" warnings during plugin startup; handled, falls back to
-  text-only branding).
-- Plan tab `GG-PLAN:v1:` paste UI + `Configuration.JobPlans`
-  persistence + in-game meld checklist.
-- Lodestone integration design (Cloudflare Worker proxy vs
-  third-party API vs plugin-only path).
-
----
-
-## [0.6.5.1] — 2026-05-14  "Quiet Info"
-
-**Hotfix.** Fixes a hard crash in `/ttinfo` that was latent in every
-release from v0.4.6 onward and finally surfaced during v0.6.5 testing.
-
-**Root cause.** `OnInfoCommand` printed the diagnostic block to chat by
-splitting the StringBuilder output on `'\n'` and looping `ChatGui.Print`
-over each line. `BuildGoblinInfoString` used `AppendLine` (Windows CRLF
-terminator), so `Split('\n')` produced a trailing empty entry. On some
-framework ticks, Dalamud's `ChatGui.UpdateQueue` flushed that empty
-entry through FFXIV's native `Client::System::String::Utf8String::SetString`
-with a null source pointer in `RDX` — instant `C0000005` access
-violation, hard process death, no managed catch.
-
-The bug was not introduced by v0.6.5; the foreach pattern is unchanged
-since v0.4.6. v0.6.5 just got unlucky during a routine `/ttinfo` call.
+Bumping to v0.6.5.3 would have broken the lockstep convention against
+Core and Web (both at v0.6.5.2). Re-tagging v0.6.5.2 keeps all three
+in sync while landing the polish work.
 
 ### Fixed
 
-- **`Plugin.cs` `OnInfoCommand`** — `foreach` chat-dump pattern removed
-  entirely. New flow:
-  1. Build the diagnostic string (unchanged `BuildGoblinInfoString`).
-  2. Schedule `ImGui.SetClipboardText(info)` on the framework thread via
-     `Framework.RunOnFrameworkThread` (ImGui requires the render-thread
-     context).
-  3. Open the main window via `mainWindow.IsOpen = true` (safe from any
-     thread; next render tick consumes the flag).
-  4. Print one short ASCII confirmation line to chat:
-     "Diagnostics copied to clipboard. Opening the Tonberry Tactics window
-     — see the Diagnostics tab for live state."
-  Every chat write is now wrapped in defensive try/catch; clipboard
-  failure is logged as a warning, not propagated.
+- **Version badge formatter** (`UI/MainWindow.cs ResolveVersion()`):
+  was `$"{v.Major}.{v.Minor}.{v.Build}"`, silently dropping the
+  Revision component for patch-level releases. Now emits four
+  components when Revision is non-zero, three when not. v0.6.5 still
+  reads "0.6.5"; v0.6.5.2 now correctly reads "0.6.5.2". Propagates
+  to every site that reads `s_versionString`: header badge,
+  standing-ready footer, Feedback tab title prefix, "in-game plugin"
+  subtitle.
+- **Refresh button** (`UI/MainWindow.cs`): was a placeholder stub
+  with empty body since v0.6.0. Now forces an explicit
+  `InventoryReader.ReadEquipped()` call, captures a timestamp, and
+  renders a 2-second "✓ refreshed" confirmation label inline with
+  the button. Label fades from full ice-cyan opacity to transparent
+  across the 2-second window so the click registers visually.
+  Read exception (rare; player object weird state during loading
+  screens) caught defensively so the UI never breaks on a refresh.
+- **Character-panel advisor row offset**
+  (`Services/StatusPanelInjector.cs InjectAdvisorSection()`): the
+  first advisor row injected at a Y that overlapped the "Average
+  Item Level" text above it, producing ghost-text artifacts in both
+  combat (VPR/PLD) and crafter (CRP) panels. Subsequent rows
+  rendered cleanly because each AddStatRow grows the parent height
+  by 20px before placing its row. The fix pre-pads the parent
+  component by 20px once before the first AddStatRow call, creating
+  the same buffer space the subsequent rows already enjoyed.
+- **BrandResources thread affinity**
+  (`Services/BrandResources.cs`): constructor synchronously called
+  `TextureProvider.GetFromFile(path).GetWrapOrEmpty()`, which
+  requires the render-thread ImGui/texture context. When the
+  constructor ran off the framework thread (typical during plugin
+  startup), Dalamud logged three "Not on main thread!" warnings
+  (one per asset) and all three loads returned null — plugin silently
+  fell back to text-only branding for the whole session. Now the
+  three loads are queued onto the next framework tick via
+  `Framework.RunOnFrameworkThread`; assets populate within one
+  frame of plugin load. Existing callers already null-check.
+- **PlanTab.cs:96 CS4014 build warning** (`UI/PlanTab.cs`): explicit
+  `_ =` discard added to the `Framework.RunOnFrameworkThread(...)`
+  call inside the BiS-fetcher fire-and-forget Task. The pattern was
+  intentional — we don't want to await the framework dispatch from
+  inside a Task.Run that's already off the main thread — but the
+  compiler couldn't infer that without the discard.
 
 ### Changed
 
-- **`UI/MainWindow.cs` About-tab "What's New" section** — trimmed to
-  the three most recent releases (v0.6.5.1, v0.6.5, v0.6.4). Backfills
-  the missing v0.6.5 and v0.6.4 blocks that were never added when those
-  releases shipped. Older entries (v0.6.1 → v0.3.x) collapsed into a
-  single pointer:
-  `Full history: github.com/LastOnionKnight/GearGoblin/blob/main/CHANGELOG.md`
-- **`GearGoblin.csproj`** — version `0.6.5 → 0.6.5.1`, Description
-  refreshed for "Quiet Info".
+- **`/ttinfo` diagnostic block** (`Plugin.cs BuildGoblinInfoString()`):
+  header reads `───── Tonberry Tactics /ttinfo ─────` instead of the
+  stale `───── GearGoblin /goblininfo ─────`. Footer drops the
+  hardcoded `v0.4.6` reference in favor of a generic search term
+  ('StatusPanelInjector' or 'BrandResources') that works across
+  versions. Version line now respects the same 4-component
+  formatting as the header badge.
+- **About-tab "What's New"** (`UI/MainWindow.cs DrawAbout()`):
+  v0.6.5.2 entry replaces both the previous v0.6.5.1 ("Quiet Info")
+  and the original v0.6.5.2 ("Release Hardening") blocks, since
+  this re-tag folds everything into a single comprehensive v0.6.5.2
+  release. Kept entries below: v0.6.5 ("Crafted Visible") and v0.6.4
+  ("Header Convergence"). Pointer to CHANGELOG.md preserved for
+  older versions.
 
 ### Pairing
 
-- **GearGoblin.Core v0.6.5.1** — lockstep version bump only, no source
-  changes.
-- **TonberryTactics web v0.6.5.1** — off-by-one Tier XII display fix.
-  Wire format's `Grade` is 0-indexed (Tier XII materia has Grade=11
-  on the wire), but the web's audit was comparing `Grade < CurrentCapTier`
-  (12) and rendering `RomanGrade(11) = "XI"`. Every Tier XII meld was
-  being flagged as under-tier with a phantom upgrade recommendation.
-  Web now adds 1 to Grade before comparison and display.
+- **GearGoblin.Core v0.6.5.2** — unchanged from yesterday's ship.
+  No re-tag needed; Core has no source changes that map to this
+  polish work.
+- **TonberryTactics web v0.6.5.2** — unchanged from yesterday's
+  ship. The web's v0.6.5.2 (EVERCOLD link + release.ps1 build gate)
+  is already live on Cloudflare; no re-tag needed.
 
-### Out of scope (v0.6.6)
+### Out of scope (deferred to v0.6.6)
 
-- Character-panel advisor row mangle (off-panel positioning rewrite).
-- Plan tab `GG-PLAN:v1:` paste UI + `Configuration.JobPlans` persistence
-  + in-game meld checklist.
-- `BrandResources` thread-affinity bug at plugin load (three "Not on
-  main thread!" warnings during startup; falls back to text-only
-  branding harmlessly, but should be fixed).
+- Plan tab `GG-PLAN:v1:` paste UI + `Configuration.JobPlans`
+  persistence + in-game meld checklist (ridden 7 releases).
+- Lodestone integration design (Cloudflare Worker proxy vs
+  third-party API vs plugin-only path).
+- README refreshes across the three GitHub repos.
 
 ---
 

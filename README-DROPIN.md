@@ -1,19 +1,27 @@
-# GearGoblin plugin v0.6.5.2 dropin — "Release Hardening"
+# GearGoblin plugin v0.6.5.2 polish dropin
 
-**No source changes.** Release-infrastructure patch that prevents the
-v0.6.5.1 push-rejection failure from recurring.
+**This is a re-tag of v0.6.5.2, not a new version.** Eight polish fixes
+that should have been part of the original v0.6.5.2 build. Plugin csproj
+stays at `0.6.5.2`. Lockstep preserved (Core = Web = v0.6.5.2 already).
 
 ## What's in this dropin
 
 ```
-release.ps1            overwrite — fetch + pull --rebase --autostash preamble
-GearGoblin.csproj      overwrite — version 0.6.5.1 → 0.6.5.2
-CHANGELOG.md           overwrite — v0.6.5.2 entry on top
+Plugin.cs                          overwrite — /ttinfo branding sweep + version formatter symmetry
+UI/MainWindow.cs                    overwrite — ResolveVersion fix, Refresh button, About-tab v0.6.5.2 entry
+UI/PlanTab.cs                       overwrite — CS4014 warning fix (line 96)
+Services/StatusPanelInjector.cs     overwrite — advisor row 20px pre-pad to clear ILVL overlap
+Services/BrandResources.cs          overwrite — defer asset loads to framework thread
+GearGoblin.csproj                   overwrite — Description refresh (version unchanged at 0.6.5.2)
+CHANGELOG.md                        overwrite — v0.6.5.2 entry replaces v0.6.5.1 folded-in block
 ```
 
-Three files. No code anywhere except the release script.
+Six source files + csproj + CHANGELOG. No version bump.
 
-## Build & deploy
+## Ship sequence (you've already done the tag-deletion step)
+
+The remote v0.6.5.2 tag is already deleted (from your earlier session).
+Just extract and ship normally:
 
 ```
 cd D:\GearGoblin-v0.1\GearGoblin
@@ -24,61 +32,41 @@ Unblock-File .\release.ps1
 .\release.ps1
 ```
 
-You should see a new "Syncing with origin/main (fetch + rebase + autostash)…"
-line near the top of the release output. If the repo.json bot has pushed
-since your last release (it will have — v0.6.5.1's bot commit is already
-on remote and not in your local now that you're starting fresh from
-yesterday's state), the rebase will pull it down silently before the build
-gate runs.
+release.ps1 will:
+1. Sync with remote (no bot commits since last ship, should be a no-op)
+2. Show "Changes to be committed" with the six source files
+3. Run the build gate — should succeed with NO warnings now (PlanTab CS4014 fix)
+4. Commit, tag v0.6.5.2 fresh, push
 
-## What the new step actually does
+## Verify after Dalamud reload
 
-Before this release, `release.ps1` went: read csproj → check git status →
-build gate → commit → tag → push. Step order in v0.6.5.2:
+`/xlrestart` or disable/enable plugin in `/xlplugins`, then:
 
-1. Read csproj
-2. Check git status (branch only)
-3. **NEW:** `git fetch origin <branch>`
-4. **NEW:** `git pull --rebase --autostash origin <branch>`
-5. Display "Changes to be committed"
-6. Build gate
-7. Commit → tag → push
+1. **Header version pill** — top right of the plugin window should now
+   read **v0.6.5.2** (not v0.6.5).
+2. **Refresh button** — click it. A "✓ refreshed" label should appear
+   next to the button in ice-cyan and fade out over 2 seconds.
+3. **About tab → Plugin info subtitle** — bottom of About body should
+   read "in-game plugin · v0.6.5.2".
+4. **About tab → What's New** — top entry is now "v0.6.5.2 — 'Panel
+   Polish'" with the union list. v0.6.5 and v0.6.4 below it.
+5. **Open character window**, equip any job, view PLD/VPR/CRP gear panel.
+   Advisor section header should now sit BELOW the "Average Item Level"
+   row with breathing room — no more ghost text overlap.
+6. **Run `/ttinfo`** with character window open. Diagnostic block in
+   your clipboard should header `───── Tonberry Tactics /ttinfo ─────`
+   and show `Plugin version : v0.6.5.2`.
+7. **Plugin startup logs** (`/xllog`) — search for "Not on main thread".
+   Should be ZERO hits now (was 3 per startup before).
 
-`--autostash` is the key: it lets the rebase run cleanly even though
-your working tree has the just-extracted dropin files modified. Git
-stashes them, runs the rebase, restores them. If the bot's commits
-actually conflict with anything we're shipping (extremely unlikely —
-the bot only touches `repo.json` and we never bundle that file in
-dropins), the rebase aborts with a clear error and we surface
-recovery guidance.
+## Pairing (unchanged)
 
-## Verify after push
+- **GearGoblin.Core v0.6.5.2** — same csproj as yesterday, no re-ship.
+- **TonberryTactics web v0.6.5.2** — same Cloudflare deploy as
+  yesterday, no re-ship.
 
-1. `Get-Content GearGoblin.csproj | Select-String "Version"` shows
-   `0.6.5.2` everywhere.
-2. In-game `/ttinfo` continues to work (no regression on the v0.6.5.1
-   `/ttinfo` crash fix).
-3. About-tab What's New still shows the trimmed 3-version list (v0.6.5.2,
-   v0.6.5.1, v0.6.5) — wait, that's not what's in this release.
+## Out of scope (v0.6.6)
 
-   Actually About-tab still shows v0.6.5.1, v0.6.5, v0.6.4 from the
-   previous dropin — we did NOT touch UI/MainWindow.cs in v0.6.5.2.
-   That's fine, the v0.6.5.2 entry is in CHANGELOG.md on GitHub
-   instead. We can refresh the What's New section in v0.6.6 when
-   there's actual user-visible work to highlight.
-
-## Pairing
-
-- **GearGoblin.Core v0.6.5.2** — same release.ps1 sync step,
-  lockstep version bump.
-- **TonberryTactics web v0.6.5.2** — same sync step **plus** the
-  build gate that Web's release.ps1 was missing, plus the EVERCOLD
-  wordmark wrapped in an external link.
-
-## Out of scope (deferred to v0.6.6+)
-
-- Character-panel advisor row offset (push injection down 1-2 row
-  heights to clear the ILVL row's ghost overlay).
-- `BrandResources.TryLoad` thread-affinity fix.
-- Plan tab `GG-PLAN:v1:` paste UI + persistence + checklist.
+- Plan tab paste UI + persistence + checklist.
 - Lodestone integration design.
+- README refreshes across the three GitHub repos.
