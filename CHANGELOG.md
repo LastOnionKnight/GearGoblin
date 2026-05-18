@@ -10,6 +10,111 @@ follows [Semantic Versioning](https://semver.org/).
 the product bump together at every release going forward. Versions prior
 to v0.5.5 used independent semver tracks — the plugin's v0.4.x line and
 the web's v0.5.x line. v0.5.5 is the moment they re-align.
+## [0.6.5.3a] — UNRELEASED (candidate; pending in-game verification)
+
+> **Status:** This entry documents a candidate build staged for testing.
+> It has not been released. The fix proposed below has NOT yet been
+> verified to resolve BUG-001 in-game. Do not treat this as a shipped
+> release until Brian gives an explicit thumbs-up and the version is
+> formally tagged on origin/main. The "UNRELEASED" date placeholder
+> will be replaced with the actual release date upon verification.
+
+> **Versioning note:** The "a" suffix signals a contained patch on top
+> of v0.6.5.3, distinct from a regular x-bump. v0.6.5.4 is reserved for
+> the Tonberry Tactics mobile site (see scoping doc). AssemblyVersion
+> ticks forward numerically to 0.6.5.4 because .NET AssemblyVersion
+> cannot carry letter suffixes (CS7034); the human-facing string
+> "0.6.5.3a" lives in `<InformationalVersion>` and `ResolveVersion()`
+> reads from there for all user-visible display.
+
+**Targets:** BUG-001 (Materia Advisor header ghost text) — the same
+character-panel rendering bug that v0.6.5.2 ("Panel Polish") and
+v0.6.5.3 ("Collision Fix") both attempted and missed. This is attempt
+three. See `BUG_HUNT_AND_ROADMAP.md` for the experiment-plan context.
+
+### Intervention
+
+A single change, applied with single-intervention discipline (no
+opportunistic items in this candidate):
+
+- **`Services/StatusPanelInjector.cs` AddStatRow** — removed the
+  two-line bidirectional sibling-link patch:
+  ```csharp
+  if (prevSiblingBeforeLabel != null)
+      prevSiblingBeforeLabel->NextSiblingNode = (AtkResNode*)newLabelNode;
+  ```
+  This patch had been in place since v0.4.0 to keep the new node's
+  `NextSibling` chain consistent with its `PrevSibling` chain after
+  insertion. It is not present in CharacterPanelRefined, the upstream
+  reference implementation we adapted `AddStatRow` from.
+
+### Plumbing changes (related but separate from the bug fix)
+
+- **`GearGoblin.csproj`** — added `<InformationalVersion>0.6.5.3a</InformationalVersion>`
+  and `<IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>`.
+  AssemblyVersion / FileVersion / Version remain numeric at 0.6.5.4.
+- **`UI/MainWindow.cs ResolveVersion()`** — now prefers
+  `AssemblyInformationalVersionAttribute.InformationalVersion` when set,
+  falls back to AssemblyVersion-based formatting otherwise. Strips any
+  `+SourceRevisionId` suffix the SDK might append (belt-and-suspenders
+  alongside the csproj setting above).
+
+### Hypothesis (H1 from CPR_DEEP_DIVE.md)
+
+`UldManager.UpdateDrawNodeList()` rebuilds the component's draw-order
+NodeList by walking sibling chains. If it walks PrevSibling and
+NextSibling separately and enumerates nodes from both directions, our
+bidirectional patch makes cloned label nodes reachable through two
+paths. Each clone enters NodeList twice, gets rendered twice per frame
+at slightly different draw priorities. The visible ghost-text on the
+Materia Advisor header (visible since the section was added; misdiagnosed
+twice as collision-node / pre-pad issues) matches this signature.
+
+CPR's `AddStatRow` only updates PrevSibling. Aligning our code with
+CPR's pattern verbatim should resolve the bug — if H1 is correct.
+
+### Verification gate (definition of done)
+
+This candidate ships as v0.6.5.3a only when all six criteria from
+BUG-001's definition of done are met:
+
+1. Character-panel advisor header renders cleanly on VPR, no ghost text
+2. The fix is a single intervention (this is — only AddStatRow touched)
+3. Root cause is articulable (yes — H1 documented in code comment + CPR_DEEP_DIVE.md)
+4. Tested on combat job (VPR/PLD) AND crafter job (CRP)
+5. Tested with CharacterPanelRefined both enabled and disabled
+6. `/ttinfo` reports clean inject state with no warnings or errors
+
+Additional v0.6.5.3a-specific verification:
+
+7. In-game header version pill renders as `v0.6.5.3a` (not `v0.6.5.4`)
+   — validates the InformationalVersion plumbing
+8. About-tab footer reads `in-game plugin · v0.6.5.3a`
+9. `/ttinfo` output's version line reads `v0.6.5.3a`
+
+### If this doesn't work
+
+This CHANGELOG entry gets revised with a "didn't work" note, the patch
+is restored, and we move to H2 (Gear section repositioning). The
+experiment plan in BUG_HUNT_AND_ROADMAP.md drives next steps.
+
+### Pairing
+
+- **GearGoblin.Core** stays at v0.6.5.3 until this fix is verified.
+  Lockstep ship happens only on confirmed-working v0.6.5.3a.
+- **TonberryTactics web** stays at v0.6.5.3 for the same reason.
+
+### Explicitly NOT in this candidate
+
+- Stale `/goblin*` references in `StatusPanelInjector.cs` code comments
+  (deferred — comment cleanup is risk-free but expands the diff, which
+  muddies the experiment signal)
+- README refreshes (v0.6.6)
+- Any non-AddStatRow code path changes
+- Mobile site work (scoped for v0.6.5.4 — see TT_MOBILE_SCOPE.md)
+
+---
+
 ## [0.6.5.3] — 2026-05-16  "Collision Fix"
 
 v0.6.5.2 "Panel Polish" misdiagnosed the character-panel ghost-text bug

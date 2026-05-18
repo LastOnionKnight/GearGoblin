@@ -964,9 +964,33 @@ public sealed class MainWindow : Window, IDisposable
     /// as "0.6.5.1", v0.6.5.2 as "0.6.5.2", and so on. The empty-version
     /// fallback "0.3.2" is unchanged (kept for safety; should be
     /// unreachable since the assembly always has a Version).
+    ///
+    /// v0.6.5.3a: prefer AssemblyInformationalVersionAttribute when present.
+    /// This is the canonical .NET home for human-friendly version strings
+    /// that can carry letter suffixes ("0.6.5.3a"), pre-release tags, or
+    /// build metadata — things AssemblyVersion can't represent (it's
+    /// strictly Major.Minor.Build.Revision, validated by CS7034). When the
+    /// csproj sets &lt;InformationalVersion&gt; explicitly, that's what users
+    /// see in the header pill / About tab / /ttinfo. Fall back to formatting
+    /// AssemblyVersion the v0.6.5.2 way if no InformationalVersion is set.
     /// </summary>
     private static string ResolveVersion()
     {
+        // 1) AssemblyInformationalVersion — the canonical display version.
+        var info = Assembly.GetExecutingAssembly()
+                            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+                            ?.InformationalVersion;
+        if (!string.IsNullOrEmpty(info))
+        {
+            // Belt-and-suspenders: if the SDK has appended a "+commitHash" or
+            // "+SourceRevisionId" suffix (which we also disable in csproj via
+            // IncludeSourceRevisionInInformationalVersion=false), strip it for
+            // user-facing display.
+            var plusIdx = info.IndexOf('+');
+            return plusIdx >= 0 ? info.Substring(0, plusIdx) : info;
+        }
+
+        // 2) Fall back to AssemblyVersion-based formatting (v0.6.5.2 behavior).
         var v = Assembly.GetExecutingAssembly().GetName().Version;
         if (v is null) return "0.3.2";
         return v.Revision > 0

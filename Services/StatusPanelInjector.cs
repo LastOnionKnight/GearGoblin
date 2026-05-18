@@ -845,8 +845,36 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         NodeUtil.AllocateFreshTextBuffer(newLabelNode);
         newLabelNode->SetText(label);
 
-        if (prevSiblingBeforeLabel != null)
-            prevSiblingBeforeLabel->NextSiblingNode = (AtkResNode*)newLabelNode;
+        // v0.6.5.4 [CANDIDATE FIX, PENDING VERIFICATION] — BUG-001, hypothesis H1
+        //
+        // Previous versions had a bidirectional sibling-link patch here:
+        //
+        //   if (prevSiblingBeforeLabel != null)
+        //       prevSiblingBeforeLabel->NextSiblingNode = (AtkResNode*)newLabelNode;
+        //
+        // It was added defensively to keep both the PrevSibling and NextSibling
+        // chains internally consistent after node insertion. The reasoning at
+        // the time: "if the renderer walks either direction, we want it to find
+        // the new nodes." Plausible-sounding; almost certainly the bug.
+        //
+        // CharacterPanelRefined (the upstream we adapted AddStatRow from) does
+        // NOT do this patch. CPR works visually; ours produces ghost-text
+        // artifacts on the Materia Advisor header. See CPR_DEEP_DIVE.md for
+        // the full analysis, but the short version:
+        //
+        // UldManager.UpdateDrawNodeList() rebuilds the component's NodeList[]
+        // by walking PrevSiblingNode only (one direction). With our extra
+        // NextSibling patch, the new nodes are reachable through TWO traversal
+        // paths instead of one. If the rebuild enumerates each reachable node
+        // once per path, our cloned labels end up in NodeList[] twice — and
+        // render twice per frame at slightly different draw priorities. That
+        // matches the visible ghost-text signature exactly.
+        //
+        // Removing the patch aligns our AddStatRow with CPR's pattern verbatim.
+        // If the ghost text resolves with this change in place, H1 is confirmed
+        // and we ship v0.6.5.4 with this revert. If it persists, this code
+        // comment gets a "didn't work" addendum and we move to H2 (Gear section
+        // repositioning).
 
         parentNode->Component->UldManager.UpdateDrawNodeList();
 

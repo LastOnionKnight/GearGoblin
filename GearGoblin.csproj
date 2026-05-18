@@ -4,12 +4,21 @@
     <Author>LastOnionKnight</Author>
     <Name>Tonberry Tactics</Name>
     <InternalName>GearGoblin</InternalName>
-    <AssemblyVersion>0.6.5.3</AssemblyVersion>
-    <FileVersion>0.6.5.3</FileVersion>
-    <Version>0.6.5.3</Version>
+    <AssemblyVersion>0.6.5.4</AssemblyVersion>
+    <FileVersion>0.6.5.4</FileVersion>
+    <Version>0.6.5.4</Version>
+    <!-- v0.6.5.3a — InformationalVersion is the .NET-canonical home for human-friendly
+         version strings that can include letter suffixes ("0.6.5.3a"), pre-release
+         markers ("-rc1"), build metadata, etc. The numeric AssemblyVersion above is
+         still strictly Major.Minor.Build.Revision (validated by CS7034); we tick it
+         forward by one whenever the binary changes, regardless of how the display
+         version looks. ResolveVersion() in UI/MainWindow.cs prefers this string for
+         everything user-visible (header pill, About tab, /ttinfo output). -->
+    <InformationalVersion>0.6.5.3a</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <MinimumDalamudVersion>15.0.0</MinimumDalamudVersion>
     <Punchline>BiS planner, Materia Advisor, and round-trip optimizer for FFXIV. The in-game half of Tonberry Tactics; coexists with CharacterPanelRefined.</Punchline>
-    <Description>The in-game half of Tonberry Tactics — BiS planner, gear inventory reader, materia advisor for FFXIV. v0.6.5.3 ("Collision Fix") corrects the character-panel ghost-text bug that v0.6.5.2 misdiagnosed. The Materia Advisor section injected under "Average Item Level" rendered with ghost-text overlay artifacts on the "Materia Advisor" header line, visible on every job's Character window (VPR/PLD combat panels and CRP crafter panel were the test cases). v0.6.5.2 attempted a fix by pre-padding the Gear component's parent + collision node by 20px before the first advisor row — that approach grew the collision node, which is exactly the operation that causes the ghost text. Going back to the CharacterPanelRefined upstream we adapted from surfaced the right pattern: AddStatRow needs an "expandCollisionNode" parameter, and the Gear / Average Item Level / Crafter-stats rows must pass false to suppress collision growth while still growing the parent component's height for visible space. v0.6.5.3 adds that parameter to our AddStatRow, removes the v0.6.5.2 pre-pad block, and passes expandCollisionNode: false to all 4 advisor row injections. Same release also lands the brand-convergence fixes the v0.5.x sweep missed in this file: advisor pill text reads "▶ /tt" instead of "▶ /goblin" (both empty and with-audits branches), and clicking the pill invokes /tt instead of /goblin. Companion web (TonberryTactics v0.6.5.3) and Core (GearGoblin.Core v0.6.5.3) are version-only lockstep bumps with no source changes.</Description>
+    <Description>The in-game half of Tonberry Tactics — BiS planner, gear inventory reader, materia advisor for FFXIV. v0.6.5.3a is a small patch on top of v0.6.5.3 that targets BUG-001 (the character-panel Materia Advisor header ghost-text artifact that v0.6.5.2 and v0.6.5.3 both attempted to fix and missed). The "a" suffix signals this is a focused contained patch — not a regular x-bump — sitting between v0.6.5.3 and the planned v0.6.5.4 ("Mobile Site"). The intervention this time: hypothesis H1 from the CharacterPanelRefined deep dive — removing the two-line bidirectional sibling-link patch in StatusPanelInjector.cs AddStatRow that CPR's upstream pattern does not have. The patch was added defensively in earlier development to keep the cloned node's NextSiblingNode chain consistent with its PrevSiblingNode chain; on review against CPR, it's likely causing UldManager.UpdateDrawNodeList to enumerate cloned label nodes via two traversal paths, resulting in double-rendering at slightly offset draw priorities. The visible ghost-text signature matches that hypothesis. Status: pending in-game verification. Core and Web at v0.6.5.3 awaiting lockstep bump until this candidate is confirmed working. AssemblyVersion ticks numerically to 0.6.5.4 (the .NET version system can't represent letter suffixes in AssemblyVersion); the human-facing version string "0.6.5.3a" lives in InformationalVersion. See BUG_HUNT_AND_ROADMAP.md for the experiment plan and CPR_DEEP_DIVE.md for the analysis.</Description>
     <RepoUrl>https://github.com/LastOnionKnight/GearGoblin</RepoUrl>
     <Tags>gear;bis;materia;etro;xivgear;raid;advisor;cpr;character-panel;tonberry-tactics</Tags>
 
