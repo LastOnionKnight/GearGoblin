@@ -327,25 +327,16 @@ public sealed class Plugin : IDalamudPlugin
     {
         var sb = new StringBuilder();
         var diag = StatusPanel.GetDiagnostics();
-        var asm  = GetType().Assembly.GetName().Version;
 
-        // v0.6.5.2 — version formatter symmetric with MainWindow.ResolveVersion.
-        // Show the Revision component when non-zero so patch-level versions
-        // (v0.6.5.1, v0.6.5.2, etc.) render correctly instead of being
-        // silently truncated to "0.6.5".
-        string v;
-        if (asm is null)
-        {
-            v = "?.?.?";
-        }
-        else if (asm.Revision > 0)
-        {
-            v = $"{asm.Major}.{asm.Minor}.{asm.Build}.{asm.Revision}";
-        }
-        else
-        {
-            v = $"{asm.Major}.{asm.Minor}.{asm.Build}";
-        }
+        // v0.6.5.4 — version resolution unified with the in-game header pill
+        // via UI.MainWindow.ResolveVersion(). Previously this function had
+        // its own copy of the version-formatter logic (Major.Minor.Build +
+        // Revision-if-non-zero), which meant /ttinfo showed AssemblyVersion-
+        // formatted numbers while the header pill could be showing the
+        // AssemblyInformationalVersion string (e.g. v0.6.5.3a's "0.6.5.3a"
+        // pill vs /ttinfo's "0.6.5.4"). Now both use the same resolver:
+        // InformationalVersion preferred, AssemblyVersion-formatting fallback.
+        string v = UI.MainWindow.ResolveVersion();
 
         // v0.6.5.2 — branding sweep: header now reads "Tonberry Tactics /ttinfo"
         // (was "GearGoblin /goblininfo" — a miss from the v0.6.5 chat-message

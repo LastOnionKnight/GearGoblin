@@ -10,7 +10,100 @@ follows [Semantic Versioning](https://semver.org/).
 the product bump together at every release going forward. Versions prior
 to v0.5.5 used independent semver tracks — the plugin's v0.4.x line and
 the web's v0.5.x line. v0.5.5 is the moment they re-align.
-## [0.6.5.3a] — UNRELEASED (candidate; pending in-game verification)
+## [0.6.5.4] — 2026-05-18  (H6 candidate — BUG-001 attempt #4)
+
+> **Status:** Released to test hypothesis H6. Whether this actually
+> resolves BUG-001 is pending in-game verification. The prior three
+> swings (v0.6.5.2, v0.6.5.3, v0.6.5.3a) each tested a hypothesis that
+> turned out to be wrong; this is attempt #4. Awaiting Brian's thumbs
+> up on the panel render before we declare done.
+
+> **Versioning note:** Pure numeric versioning going forward. The
+> letter-suffix experiment (v0.6.5.3a) is closed — caused friction with
+> release.ps1's tag-from-csproj-Version flow and the github-actions
+> repo.json bot's semver parsing. The `<InformationalVersion>` property
+> has been removed from GearGoblin.csproj. `UI/MainWindow.cs
+> ResolveVersion()` retains the InformationalVersion-preferring code
+> path as dormant infrastructure for future use but it is not actively
+> populated.
+
+**Targets:** BUG-001 (Materia Advisor header ghost text).
+
+### Hypothesis (H6)
+
+The cloned label cell in our `AddStatRow` inherits the original ILVL
+row's `TextAlignment` and `Width` properties (we clone byte-for-byte,
+allocate a fresh string buffer, but never touch the geometry fields).
+The original label is "Average Item Level" — fits its allotted cell.
+Our injected label "── Materia Advisor ──" (with em-dashes) may be
+wider than that cell, causing rightward text overflow into the number
+cell's render zone. Both cells render at the same Y; their texts
+collide visually. CharacterPanelRefined's `ilvlSync` injection works
+fine because their text fits the inherited cell geometry. Our use
+case puts longer content in a cell sized for shorter content.
+
+### Intervention (H6-A test)
+
+Single change:
+
+- **`Services/StatusPanelInjector.cs InjectAdvisorSection`** —
+  shortened the advisor header label argument passed to
+  `AddStatRow`. Was `"── Materia Advisor ──"` (21 chars, em-dashes);
+  now `"Materia Advisor"` (15 chars, no decorations).
+
+If H6 is correct, the ghost text on the advisor header should go away
+or shrink dramatically. If the ghost persists with the shorter label,
+H6 is wrong and we move to the next hypothesis (likely H7: explicit
+width-setting or buffer zero-initialization).
+
+### Bonus consistency fix
+
+- **`Plugin.cs BuildGoblinInfoString`** — `/ttinfo`'s "Plugin version"
+  line now reads through `UI.MainWindow.ResolveVersion()` instead of
+  duplicating the version-formatter logic locally. Surfaces the same
+  display version everywhere (header pill, About tab, `/ttinfo`).
+  Discovered during v0.6.5.3a testing — the header pill correctly
+  showed "v0.6.5.3a" while `/ttinfo` printed "v0.6.5.4" (the underlying
+  numeric AssemblyVersion) because the two read from different code
+  paths. `ResolveVersion()`'s visibility changed from `private static`
+  to `internal static` to enable the shared call.
+
+### Pairing
+
+- **GearGoblin.Core v0.6.5.4** — version-only lockstep bump.
+- **TonberryTactics web v0.6.5.4** — version-only lockstep bump.
+
+### If this doesn't work
+
+This CHANGELOG entry gets an addendum noting H6's result, and v0.6.5.5
+tries the next hypothesis. Most likely H7 (zero-init fresh buffers in
+`NodeUtil.AllocateFreshTextBuffer`) or H8 (explicit Width-setting on
+cloned cells — the H6-B "proper fix" path if H6-A confirms but the
+short label is felt to be a design regression).
+
+### Out of scope (still deferred)
+
+- Mobile site work — slides to v0.6.6 from the original v0.6.5.4 slot
+- Round-trip closure (Plan tab paste UI, persistence, checklist)
+- README refreshes across the three GitHub repos
+- Stale `/goblin*` references in StatusPanelInjector.cs code comments
+
+---
+
+## [0.6.5.3a] — 2026-05-17  "H1 candidate"  *(superseded by 0.6.5.4)*
+
+> **Outcome:** Pushed for in-game verification on 2026-05-17. In-game
+> test on 2026-05-18 confirmed the ghost text PERSISTS after the H1
+> fix — bidirectional sibling-link patch was not the cause. Bug pattern
+> changed slightly (different garbage characters in the overlap) but
+> the bug remained. H1 ELIMINATED from the hypothesis ranking. The
+> AddStatRow change (removing the bidirectional patch) is RETAINED
+> in v0.6.5.4 — it aligns our code with CharacterPanelRefined's
+> upstream pattern verbatim and didn't break anything we can identify.
+
+**Pushed to origin/main** via manual git tag (skipped release.ps1 to
+allow the letter-suffix tag). Letter-suffix versioning was deprecated
+on the same day (Option 3): v0.6.5.4 is the next iteration, numeric.
 
 > **Status:** This entry documents a candidate build staged for testing.
 > It has not been released. The fix proposed below has NOT yet been

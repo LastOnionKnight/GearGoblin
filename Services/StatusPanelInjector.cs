@@ -518,7 +518,19 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         // us to STOP doing. The pre-pad has been removed; the parameter on
         // each AddStatRow call is the correct intervention, matching the
         // upstream CharacterPanelRefined pattern (see AddStatRow comment).
-        advisorHeader = AddStatRow(avgIlvlComponent, "── Materia Advisor ──", expandCollisionNode: false);
+        // v0.6.5.4 — H6-A test: shortened advisor header label from
+        // "── Materia Advisor ──" to just "Materia Advisor" (no dashes).
+        // BUG-001 persists after v0.6.5.3a's H1 fix, but the ghost-text
+        // pattern changed (different garbage chars overlapping the header).
+        // Working theory H6: the cloned label cell inherits the original
+        // ILVL row's TextAlignment / Width properties. The original label
+        // "Average Item Level" fits its cell; our "── Materia Advisor ──"
+        // with em-dashes may be wider than the cell allows, overflowing
+        // into the number cell's render zone and creating the visible
+        // overlap. A shorter label tests this hypothesis. If ghost goes
+        // away or shrinks → H6 confirmed, ship H6-B (explicit Width fix).
+        // If ghost unchanged → H6 wrong, move to next hypothesis.
+        advisorHeader = AddStatRow(avgIlvlComponent, "Materia Advisor", expandCollisionNode: false);
         advisorRec1   = AddStatRow(avgIlvlComponent, "",                        expandCollisionNode: false);
         advisorRec2   = AddStatRow(avgIlvlComponent, "",                        expandCollisionNode: false);
         advisorRec3   = AddStatRow(avgIlvlComponent, "",                        expandCollisionNode: false);

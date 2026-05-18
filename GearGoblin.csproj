@@ -7,18 +7,18 @@
     <AssemblyVersion>0.6.5.4</AssemblyVersion>
     <FileVersion>0.6.5.4</FileVersion>
     <Version>0.6.5.4</Version>
-    <!-- v0.6.5.3a — InformationalVersion is the .NET-canonical home for human-friendly
-         version strings that can include letter suffixes ("0.6.5.3a"), pre-release
-         markers ("-rc1"), build metadata, etc. The numeric AssemblyVersion above is
-         still strictly Major.Minor.Build.Revision (validated by CS7034); we tick it
-         forward by one whenever the binary changes, regardless of how the display
-         version looks. ResolveVersion() in UI/MainWindow.cs prefers this string for
-         everything user-visible (header pill, About tab, /ttinfo output). -->
-    <InformationalVersion>0.6.5.3a</InformationalVersion>
-    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <!-- v0.6.5.4 — pure numeric versioning per "Option 3" decision after v0.6.5.3a.
+         Letter-suffix versions (0.6.5.3a) cause toolchain friction with release.ps1
+         (which tags from numeric Version) and the github-actions repo.json bot
+         (which expects numeric semver). Letter suffixes deprecated; iterate by
+         bumping the numeric Build component. The InformationalVersion property and
+         IncludeSourceRevisionInInformationalVersion flag have been removed from this
+         csproj. UI/MainWindow.cs ResolveVersion() retains the InformationalVersion-
+         preferring code path — dormant infrastructure for future use if we ever
+         need pre-release tags or build metadata, but not actively populated. -->
     <MinimumDalamudVersion>15.0.0</MinimumDalamudVersion>
     <Punchline>BiS planner, Materia Advisor, and round-trip optimizer for FFXIV. The in-game half of Tonberry Tactics; coexists with CharacterPanelRefined.</Punchline>
-    <Description>The in-game half of Tonberry Tactics — BiS planner, gear inventory reader, materia advisor for FFXIV. v0.6.5.3a is a small patch on top of v0.6.5.3 that targets BUG-001 (the character-panel Materia Advisor header ghost-text artifact that v0.6.5.2 and v0.6.5.3 both attempted to fix and missed). The "a" suffix signals this is a focused contained patch — not a regular x-bump — sitting between v0.6.5.3 and the planned v0.6.5.4 ("Mobile Site"). The intervention this time: hypothesis H1 from the CharacterPanelRefined deep dive — removing the two-line bidirectional sibling-link patch in StatusPanelInjector.cs AddStatRow that CPR's upstream pattern does not have. The patch was added defensively in earlier development to keep the cloned node's NextSiblingNode chain consistent with its PrevSiblingNode chain; on review against CPR, it's likely causing UldManager.UpdateDrawNodeList to enumerate cloned label nodes via two traversal paths, resulting in double-rendering at slightly offset draw priorities. The visible ghost-text signature matches that hypothesis. Status: pending in-game verification. Core and Web at v0.6.5.3 awaiting lockstep bump until this candidate is confirmed working. AssemblyVersion ticks numerically to 0.6.5.4 (the .NET version system can't represent letter suffixes in AssemblyVersion); the human-facing version string "0.6.5.3a" lives in InformationalVersion. See BUG_HUNT_AND_ROADMAP.md for the experiment plan and CPR_DEEP_DIVE.md for the analysis.</Description>
+    <Description>The in-game half of Tonberry Tactics — BiS planner, gear inventory reader, materia advisor for FFXIV. v0.6.5.4 is the next attempt at BUG-001 (the Materia Advisor header ghost text). Prior swings: v0.6.5.2 (pre-pad, wrong), v0.6.5.3 (collision-node param, wrong), v0.6.5.3a (H1 removed bidirectional sibling-link patch — changed the bug pattern but didn't eliminate it). v0.6.5.4 tests hypothesis H6: the cloned label cell inherits the original ILVL row's text geometry, and our "── Materia Advisor ──" label (with em-dashes) overflows the inherited cell width, bleeding into the number cell's render zone. The intervention this time is one targeted change in StatusPanelInjector.cs: shorten the advisor header label from "── Materia Advisor ──" to "Materia Advisor" — no dashes. If H6 is correct, ghost goes away or shrinks dramatically. Plus a bonus consistency fix: Plugin.cs BuildGoblinInfoString() now reads from UI.MainWindow.ResolveVersion() instead of its own duplicate version-formatter, so /ttinfo and the in-game header pill always agree on what version is loaded. Pure numeric versioning going forward (Option 3): no more letter-suffix versions; iterate by bumping the numeric Build. Core and Web at v0.6.5.4 lockstep (version-only). Mobile site work slides to v0.6.6 (it was tentatively scoped for v0.6.5.4 before BUG-001 turned into a multi-version saga). See BUG_HUNT_AND_ROADMAP.md for the experiment plan; if H6 is confirmed, v0.6.5.5 ships the proper Width-fix (H6-B); if H6 is wrong, v0.6.5.5 tries the next hypothesis.</Description>
     <RepoUrl>https://github.com/LastOnionKnight/GearGoblin</RepoUrl>
     <Tags>gear;bis;materia;etro;xivgear;raid;advisor;cpr;character-panel;tonberry-tactics</Tags>
 

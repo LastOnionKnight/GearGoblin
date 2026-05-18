@@ -850,60 +850,60 @@ public sealed class MainWindow : Window, IDisposable
             ImGui.TextDisabled("Refia Rakkiri — the Last Onion Knight (Aisling O'Callaghan, Cork)");
         }
 
-        // What's New — under the v0.6.5.3 follow-up to v0.6.5.2's misdiagnosis,
-        // the v0.6.5.3 block sits above v0.6.5.2 to document the actual fix.
-        // We retain the v0.6.5.2 block below — it shipped 7 real fixes plus
-        // one wrong fix (the pre-pad). The wrong-fix bullet is rewritten to
-        // tell the honest story. Three blocks total (v0.6.5.3 / v0.6.5.2 /
-        // v0.6.5 / v0.6.4) — older history collapsed to a CHANGELOG.md
-        // pointer.
+        // What's New — restructured in v0.6.5.4 for honesty. BUG-001 (panel
+        // ghost text) has been the subject of four iterations: v0.6.5.2, .3,
+        // .3a, and now .4. Each prior swing claimed a fix that didn't hold up
+        // under in-game test. We now show all four iterations side-by-side
+        // with honest framing rather than rewriting history into a tidy
+        // "fixed in version X" narrative. Real wins from those versions
+        // (brand pills, release-infra hardening, HQ-crafted fix from v0.6.5)
+        // are preserved. Older entries collapsed to a CHANGELOG.md pointer.
+
+        // ── v0.6.5.4 ──────────────────────────────────────────────────────
+        ImGui.Spacing();
+        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.5.4 — BUG-001 attempt #4 (H6 test):");
+        ImGui.BulletText("Character-panel ghost text on Materia Advisor header — testing hypothesis H6 (text overflow)");
+        ImGui.Indent();
+        ImGui.BulletText("Prior swings (v0.6.5.2 pre-pad, v0.6.5.3 collision-node param, v0.6.5.3a sibling-link patch removal) all missed");
+        ImGui.BulletText("H6 theory: cloned label cell inherits the original ILVL row's text geometry; our em-dashed label may overflow the inherited width into the number cell");
+        ImGui.BulletText("Single intervention: shorten advisor label from \"── Materia Advisor ──\" to \"Materia Advisor\" (no dashes)");
+        ImGui.BulletText("If ghost disappears or shrinks → H6 confirmed, ship v0.6.5.5 with proper Width-fix");
+        ImGui.BulletText("If ghost persists → H6 wrong, move to next hypothesis (likely buffer zero-init)");
+        ImGui.Unindent();
+        ImGui.BulletText("/ttinfo and header version pill now share UI.MainWindow.ResolveVersion() — single source of truth for display version");
+        ImGui.BulletText("Pure numeric versioning going forward; letter-suffix experiment (v0.6.5.3a) closed due to release-tooling friction");
+
+        // ── v0.6.5.3a ─────────────────────────────────────────────────────
+        ImGui.Spacing();
+        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.5.3a — H1 candidate (didn't fix BUG-001):");
+        ImGui.BulletText("Removed AddStatRow's extra bidirectional sibling-link patch to match CharacterPanelRefined's pattern verbatim");
+        ImGui.Indent();
+        ImGui.BulletText("In-game test confirmed ghost text PERSISTS — H1 was not the cause");
+        ImGui.BulletText("Bug pattern CHANGED (different garbage characters in the overlap) which was diagnostically useful");
+        ImGui.BulletText("The AddStatRow change is RETAINED in v0.6.5.4+ — aligns with upstream CPR, no observed regressions");
+        ImGui.Unindent();
+        ImGui.BulletText("InformationalVersion plumbing for letter-suffix versions added then deprecated (Option 3 numeric-only)");
 
         // ── v0.6.5.3 ──────────────────────────────────────────────────────
         ImGui.Spacing();
-        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.5.3 — \"Collision Fix\":");
-        ImGui.BulletText("Character-panel ghost text on \"Materia Advisor\" header is GONE (the v0.6.5.2 pre-pad approach was wrong)");
+        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.5.3 — \"Collision Fix\" (didn't fix BUG-001, but brand pills landed):");
+        ImGui.BulletText("Attempted collision-node fix for advisor header overlap — added expandCollisionNode parameter to AddStatRow, didn't resolve ghost text");
+        ImGui.BulletText("Brand convergence: 4 functional /goblin → /tt references in StatusPanelInjector that v0.6.4's sweep missed");
         ImGui.Indent();
-        ImGui.BulletText("v0.6.5.2 grew the Gear component's collision node by 20px before injecting — that's the operation that CAUSES the ghost text");
-        ImGui.BulletText("Comparing against CharacterPanelRefined (the upstream we adapted from) surfaced their AddStatRow's expandCollisionNode flag");
-        ImGui.BulletText("v0.6.5.3 adds the flag to our AddStatRow, removes the v0.6.5.2 pre-pad, and passes expandCollisionNode: false for advisor rows");
-        ImGui.BulletText("Advisor still grows the parent component for visible space; just no longer grows the collision node that the ILVL row's text re-rasterizes into");
+        ImGui.BulletText("Empty-state advisor pill, with-audits pill, click handler ProcessCommand, error log message");
+        ImGui.BulletText("This part DID land — /tt is now the only command path through the in-game advisor UI");
         ImGui.Unindent();
-        ImGui.BulletText("Advisor pill / click handler: 4 /goblin → /tt references the v0.6.4 sweep missed in StatusPanelInjector");
 
         // ── v0.6.5.2 ──────────────────────────────────────────────────────
         ImGui.Spacing();
-        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.5.2 — \"Panel Polish\":");
-        ImGui.BulletText("Hotfix: /ttinfo no longer hard-crashes the game");
-        ImGui.Indent();
-        ImGui.BulletText("Pre-v0.6.5.2 the diagnostic block was printed to chat line-by-line via foreach");
-        ImGui.BulletText("Latent bug: empty-line entries could marshal to a null native string, crashing FFXIV's Utf8String.SetString");
-        ImGui.BulletText("/ttinfo now copies the block to clipboard and opens the Diagnostics tab — one short confirmation line in chat");
-        ImGui.Unindent();
-        ImGui.BulletText("Header version badge now displays the full version string");
-        ImGui.Indent();
-        ImGui.BulletText("Prior formatter returned only Major.Minor.Build — v0.6.5.1 / v0.6.5.2 were silently truncated to \"v0.6.5\"");
-        ImGui.BulletText("Now shows the Revision component when non-zero (v0.6.5 stays \"v0.6.5\", v0.6.5.2 renders as \"v0.6.5.2\")");
-        ImGui.Unindent();
-        ImGui.BulletText("Refresh button (header, top-right) now functions");
-        ImGui.Indent();
-        ImGui.BulletText("Was a placeholder stub since v0.6.0 — click registered but did nothing");
-        ImGui.BulletText("Now forces an explicit inventory re-read and shows a 2-second \"✓ refreshed\" confirmation that fades out");
-        ImGui.Unindent();
-        ImGui.BulletText("Character-panel advisor row overlap fix attempted (didn't land — see v0.6.5.3 above for the real fix)");
-        ImGui.Indent();
-        ImGui.BulletText("Visible across both combat (VPR/PLD) and crafter (CRP) panels as ghost-text on the \"Average Item Level\" row");
-        ImGui.BulletText("v0.6.5.2's 20px pre-pad was the wrong intervention; v0.6.5.3 swaps it for the expandCollisionNode parameter approach");
-        ImGui.Unindent();
-        ImGui.BulletText("BrandResources loads on framework thread (no more \"Not on main thread!\" warnings at plugin start)");
-        ImGui.Indent();
-        ImGui.BulletText("Three Dalamud warnings logged at every plugin load (circle-logo, rags-portrait, rags-mini)");
-        ImGui.BulletText("Assets silently failed to load; plugin fell back to text-only branding for the whole session");
-        ImGui.BulletText("Now deferred to a framework-tick load; assets populate within one frame of plugin start");
-        ImGui.Unindent();
-        ImGui.BulletText("/ttinfo diagnostic block now reads \"Tonberry Tactics\" instead of stale \"GearGoblin /goblininfo\"");
-        ImGui.BulletText("PlanTab.cs:96 CS4014 build warning silenced (intentional fire-and-forget, marked _ =)");
-        ImGui.BulletText("release.ps1 fetch + rebase + build gate (release-infra hardening from the original v0.6.5.2 ship)");
-        ImGui.BulletText("Web companion v0.6.5.2: EVERCOLD wordmark → external link; release.ps1 build gate added");
+        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.5.2 — \"Panel Polish\" (panel-fix didn't land, 7 polish items did):");
+        ImGui.BulletText("Version-pill formatter shows the Revision component so v0.6.5.x patch-levels render correctly");
+        ImGui.BulletText("Refresh button wired with ✓ refreshed fading confirmation");
+        ImGui.BulletText("BrandResources loads on framework thread (no more \"Not on main thread!\" warnings)");
+        ImGui.BulletText("/ttinfo diagnostic block reads \"Tonberry Tactics\" instead of legacy \"GearGoblin /goblininfo\"");
+        ImGui.BulletText("PlanTab.cs CS4014 warning silenced (intentional fire-and-forget marked _ =)");
+        ImGui.BulletText("release.ps1 fetch + rebase + build-gate (infra hardening)");
+        ImGui.BulletText("Character-panel pre-pad approach to BUG-001 didn't land (collision growth was the wrong intervention)");
 
         // ── v0.6.5 ────────────────────────────────────────────────────────
         ImGui.Spacing();
@@ -919,22 +919,10 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.BulletText("Web companion v0.6.5: Meld Audit panel lit up (real Wrong-stat / Under-tier / Overcap counts + Sell/replace verdict row)");
         ImGui.BulletText("Web companion v0.6.5.1: off-by-one Tier XII display fix");
 
-        // ── v0.6.4 ────────────────────────────────────────────────────────
-        ImGui.Spacing();
-        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.4 — \"Header Convergence\":");
-        ImGui.BulletText("Fix: in-game advisor header reads ▶ /tt instead of ▶ /goblin");
-        ImGui.Indent();
-        ImGui.BulletText("A v0.4.7.1 brand-convergence miss left the header text and header-click handler still dispatching the legacy command name");
-        ImGui.BulletText("v0.6.4 fixes the three remaining string sites in StatusPanelInjector");
-        ImGui.Unindent();
-        ImGui.BulletText("Skill Speed materia prefix corrected via Core: \"Piety\" → \"Quickarm\"");
-        ImGui.BulletText("release.ps1 gains persistent error-log transcript via Start/Stop-Transcript");
-
         // ── Older history ────────────────────────────────────────────────
         ImGui.Spacing();
-        ImGui.TextDisabled("Earlier versions (v0.3.x → v0.6.3) trimmed for brevity.");
+        ImGui.TextDisabled("Earlier versions (v0.3.x → v0.6.4) trimmed for brevity.");
         ImGui.TextDisabled("Full history: github.com/LastOnionKnight/GearGoblin/blob/main/CHANGELOG.md");
-
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
@@ -973,8 +961,14 @@ public sealed class MainWindow : Window, IDisposable
     /// csproj sets &lt;InformationalVersion&gt; explicitly, that's what users
     /// see in the header pill / About tab / /ttinfo. Fall back to formatting
     /// AssemblyVersion the v0.6.5.2 way if no InformationalVersion is set.
+    ///
+    /// v0.6.5.4: made internal (was private) so Plugin.cs BuildGoblinInfoString
+    /// can share the same resolution logic. Previously, the in-game header
+    /// pill read one version (via this method) while /ttinfo printed a
+    /// different version (duplicate logic in Plugin.cs that didn't consult
+    /// InformationalVersion). Single source of truth for display versions now.
     /// </summary>
-    private static string ResolveVersion()
+    internal static string ResolveVersion()
     {
         // 1) AssemblyInformationalVersion — the canonical display version.
         var info = Assembly.GetExecutingAssembly()
