@@ -4,10 +4,10 @@
     <Author>LastOnionKnight</Author>
     <Name>Tonberry Tactics</Name>
     <InternalName>GearGoblin</InternalName>
-    <AssemblyVersion>0.6.5.4</AssemblyVersion>
-    <FileVersion>0.6.5.4</FileVersion>
-    <Version>0.6.5.4</Version>
-    <!-- v0.6.5.4 — pure numeric versioning per "Option 3" decision after v0.6.5.3a.
+    <AssemblyVersion>0.6.6.0</AssemblyVersion>
+    <FileVersion>0.6.6.0</FileVersion>
+    <Version>0.6.6.0</Version>
+    <!-- v0.6.6.0 — pure numeric versioning per "Option 3" decision after v0.6.5.3a.
          Letter-suffix versions (0.6.5.3a) cause toolchain friction with release.ps1
          (which tags from numeric Version) and the github-actions repo.json bot
          (which expects numeric semver). Letter suffixes deprecated; iterate by
@@ -18,7 +18,7 @@
          need pre-release tags or build metadata, but not actively populated. -->
     <MinimumDalamudVersion>15.0.0</MinimumDalamudVersion>
     <Punchline>BiS planner, Materia Advisor, and round-trip optimizer for FFXIV. The in-game half of Tonberry Tactics; coexists with CharacterPanelRefined.</Punchline>
-    <Description>The in-game half of Tonberry Tactics — BiS planner, gear inventory reader, materia advisor for FFXIV. v0.6.5.4 is the next attempt at BUG-001 (the Materia Advisor header ghost text). Prior swings: v0.6.5.2 (pre-pad, wrong), v0.6.5.3 (collision-node param, wrong), v0.6.5.3a (H1 removed bidirectional sibling-link patch — changed the bug pattern but didn't eliminate it). v0.6.5.4 tests hypothesis H6: the cloned label cell inherits the original ILVL row's text geometry, and our "── Materia Advisor ──" label (with em-dashes) overflows the inherited cell width, bleeding into the number cell's render zone. The intervention this time is one targeted change in StatusPanelInjector.cs: shorten the advisor header label from "── Materia Advisor ──" to "Materia Advisor" — no dashes. If H6 is correct, ghost goes away or shrinks dramatically. Plus a bonus consistency fix: Plugin.cs BuildGoblinInfoString() now reads from UI.MainWindow.ResolveVersion() instead of its own duplicate version-formatter, so /ttinfo and the in-game header pill always agree on what version is loaded. Pure numeric versioning going forward (Option 3): no more letter-suffix versions; iterate by bumping the numeric Build. Core and Web at v0.6.5.4 lockstep (version-only). Mobile site work slides to v0.6.6 (it was tentatively scoped for v0.6.5.4 before BUG-001 turned into a multi-version saga). See BUG_HUNT_AND_ROADMAP.md for the experiment plan; if H6 is confirmed, v0.6.5.5 ships the proper Width-fix (H6-B); if H6 is wrong, v0.6.5.5 tries the next hypothesis.</Description>
+    <Description>The in-game half of Tonberry Tactics — BiS planner, gear inventory reader, materia advisor for FFXIV. v0.6.6.0 is the next attempt at BUG-001 (the Materia Advisor header ghost text). Prior swings: v0.6.5.2 (pre-pad, wrong), v0.6.5.3 (collision-node param, wrong), v0.6.5.3a (H1 removed bidirectional sibling-link patch — changed the bug pattern but didn't eliminate it). v0.6.6.0 tests hypothesis H6: the cloned label cell inherits the original ILVL row's text geometry, and our "── Materia Advisor ──" label (with em-dashes) overflows the inherited cell width, bleeding into the number cell's render zone. The intervention this time is one targeted change in StatusPanelInjector.cs: shorten the advisor header label from "── Materia Advisor ──" to "Materia Advisor" — no dashes. If H6 is correct, ghost goes away or shrinks dramatically. Plus a bonus consistency fix: Plugin.cs BuildGoblinInfoString() now reads from UI.MainWindow.ResolveVersion() instead of its own duplicate version-formatter, so /ttinfo and the in-game header pill always agree on what version is loaded. Pure numeric versioning going forward (Option 3): no more letter-suffix versions; iterate by bumping the numeric Build. Core and Web at v0.6.6.0 lockstep (version-only). Mobile site work slides to v0.6.6 (it was tentatively scoped for v0.6.6.0 before BUG-001 turned into a multi-version saga). See BUG_HUNT_AND_ROADMAP.md for the experiment plan; if H6 is confirmed, v0.6.5.5 ships the proper Width-fix (H6-B); if H6 is wrong, v0.6.5.5 tries the next hypothesis.</Description>
     <RepoUrl>https://github.com/LastOnionKnight/GearGoblin</RepoUrl>
     <Tags>gear;bis;materia;etro;xivgear;raid;advisor;cpr;character-panel;tonberry-tactics</Tags>
 
@@ -73,3 +73,4 @@
   </ItemGroup>
 
 </Project>
+

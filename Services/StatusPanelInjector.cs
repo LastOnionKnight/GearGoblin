@@ -518,19 +518,17 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         // us to STOP doing. The pre-pad has been removed; the parameter on
         // each AddStatRow call is the correct intervention, matching the
         // upstream CharacterPanelRefined pattern (see AddStatRow comment).
-        // v0.6.5.4 — H6-A test: shortened advisor header label from
-        // "── Materia Advisor ──" to just "Materia Advisor" (no dashes).
-        // BUG-001 persists after v0.6.5.3a's H1 fix, but the ghost-text
-        // pattern changed (different garbage chars overlapping the header).
-        // Working theory H6: the cloned label cell inherits the original
-        // ILVL row's TextAlignment / Width properties. The original label
-        // "Average Item Level" fits its cell; our "── Materia Advisor ──"
-        // with em-dashes may be wider than the cell allows, overflowing
-        // into the number cell's render zone and creating the visible
-        // overlap. A shorter label tests this hypothesis. If ghost goes
-        // away or shrinks → H6 confirmed, ship H6-B (explicit Width fix).
-        // If ghost unchanged → H6 wrong, move to next hypothesis.
-        advisorHeader = AddStatRow(avgIlvlComponent, "Materia Advisor", expandCollisionNode: false);
+        // v0.6.6 — restored the em-dashed label. The v0.6.6 H6-A test
+        // (shorten label to "Materia Advisor") reduced the ghost text
+        // visibly but didn't eliminate it, which proved the overflow
+        // was coming from the NUMBER cell, not the label. With the
+        // actual root cause now fixed in UpdateAdvisor (see SetText
+        // call further down — pill text shortened from the long
+        // "{crit}c · {warn}w · {empty}e   ▶ /tt" format to just
+        // "▶ /tt" to match CharacterPanelRefined's short-number-cell
+        // discipline), the label aesthetic returns to the original
+        // em-dashed form.
+        advisorHeader = AddStatRow(avgIlvlComponent, "── Materia Advisor ──", expandCollisionNode: false);
         advisorRec1   = AddStatRow(avgIlvlComponent, "",                        expandCollisionNode: false);
         advisorRec2   = AddStatRow(avgIlvlComponent, "",                        expandCollisionNode: false);
         advisorRec3   = AddStatRow(avgIlvlComponent, "",                        expandCollisionNode: false);
@@ -748,7 +746,23 @@ public sealed unsafe class StatusPanelInjector : IDisposable
 
             if (advisorHeader != null)
             {
-                advisorHeader->SetText($"{crit}c · {warn}w · {empty}e   ▶ /tt");
+                // v0.6.6 — match CharacterPanelRefined's short-number-cell
+                // discipline. The cloned number cell here inherits "780"-sized
+                // geometry from the original ILVL value cell (~30px wide,
+                // right-aligned text). The previous text format
+                // `{crit}c · {warn}w · {empty}e   ▶ /tt` is ~17 characters
+                // wide; right-aligned, it overflows leftward into the label
+                // cell's render zone, producing BUG-001's visible ghost
+                // pattern. CPR's analogous ilvlSync injection only ever puts
+                // short numeric values in the cloned cell (e.g. "660",
+                // "12.4%") — values that fit the inherited geometry. Mirror
+                // that approach: just the command hint, 5 chars, fits.
+                // Audit counts (crit/warn/empty) are not lost — they remain
+                // visible in the rec rows injected immediately below this
+                // header (the empty-state row renders "All guaranteed slots
+                // filled · no upgrades suggested"; the with-audits rows
+                // render the individual slot recommendations).
+                advisorHeader->SetText("▶ /tt");
             }
         }
         catch (Exception ex)
@@ -857,7 +871,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         NodeUtil.AllocateFreshTextBuffer(newLabelNode);
         newLabelNode->SetText(label);
 
-        // v0.6.5.4 [CANDIDATE FIX, PENDING VERIFICATION] — BUG-001, hypothesis H1
+        // v0.6.6 [CANDIDATE FIX, PENDING VERIFICATION] — BUG-001, hypothesis H1
         //
         // Previous versions had a bidirectional sibling-link patch here:
         //
@@ -884,7 +898,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         //
         // Removing the patch aligns our AddStatRow with CPR's pattern verbatim.
         // If the ghost text resolves with this change in place, H1 is confirmed
-        // and we ship v0.6.5.4 with this revert. If it persists, this code
+        // and we ship v0.6.6 with this revert. If it persists, this code
         // comment gets a "didn't work" addendum and we move to H2 (Gear section
         // repositioning).
 
@@ -970,3 +984,4 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         advisorSectionPresent = false;
     }
 }
+

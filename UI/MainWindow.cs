@@ -850,7 +850,7 @@ public sealed class MainWindow : Window, IDisposable
             ImGui.TextDisabled("Refia Rakkiri — the Last Onion Knight (Aisling O'Callaghan, Cork)");
         }
 
-        // What's New — restructured in v0.6.5.4 for honesty. BUG-001 (panel
+        // What's New — restructured in v0.6.6 for honesty. BUG-001 (panel
         // ghost text) has been the subject of four iterations: v0.6.5.2, .3,
         // .3a, and now .4. Each prior swing claimed a fix that didn't hold up
         // under in-game test. We now show all four iterations side-by-side
@@ -859,15 +859,15 @@ public sealed class MainWindow : Window, IDisposable
         // (brand pills, release-infra hardening, HQ-crafted fix from v0.6.5)
         // are preserved. Older entries collapsed to a CHANGELOG.md pointer.
 
-        // ── v0.6.5.4 ──────────────────────────────────────────────────────
+        // ── v0.6.6 ──────────────────────────────────────────────────────
         ImGui.Spacing();
-        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.5.4 — BUG-001 attempt #4 (H6 test):");
+        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.6 — BUG-001 attempt #4 (H6 test):");
         ImGui.BulletText("Character-panel ghost text on Materia Advisor header — testing hypothesis H6 (text overflow)");
         ImGui.Indent();
         ImGui.BulletText("Prior swings (v0.6.5.2 pre-pad, v0.6.5.3 collision-node param, v0.6.5.3a sibling-link patch removal) all missed");
         ImGui.BulletText("H6 theory: cloned label cell inherits the original ILVL row's text geometry; our em-dashed label may overflow the inherited width into the number cell");
         ImGui.BulletText("Single intervention: shorten advisor label from \"── Materia Advisor ──\" to \"Materia Advisor\" (no dashes)");
-        ImGui.BulletText("If ghost disappears or shrinks → H6 confirmed, ship v0.6.5.5 with proper Width-fix");
+        ImGui.BulletText("If ghost disappears or shrinks → H6 confirmed, ship v0.6.6 with proper Width-fix");
         ImGui.BulletText("If ghost persists → H6 wrong, move to next hypothesis (likely buffer zero-init)");
         ImGui.Unindent();
         ImGui.BulletText("/ttinfo and header version pill now share UI.MainWindow.ResolveVersion() — single source of truth for display version");
@@ -880,7 +880,7 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.Indent();
         ImGui.BulletText("In-game test confirmed ghost text PERSISTS — H1 was not the cause");
         ImGui.BulletText("Bug pattern CHANGED (different garbage characters in the overlap) which was diagnostically useful");
-        ImGui.BulletText("The AddStatRow change is RETAINED in v0.6.5.4+ — aligns with upstream CPR, no observed regressions");
+        ImGui.BulletText("The AddStatRow change is RETAINED in v0.6.6+ — aligns with upstream CPR, no observed regressions");
         ImGui.Unindent();
         ImGui.BulletText("InformationalVersion plumbing for letter-suffix versions added then deprecated (Option 3 numeric-only)");
 
@@ -962,7 +962,7 @@ public sealed class MainWindow : Window, IDisposable
     /// see in the header pill / About tab / /ttinfo. Fall back to formatting
     /// AssemblyVersion the v0.6.5.2 way if no InformationalVersion is set.
     ///
-    /// v0.6.5.4: made internal (was private) so Plugin.cs BuildGoblinInfoString
+    /// v0.6.6: made internal (was private) so Plugin.cs BuildGoblinInfoString
     /// can share the same resolution logic. Previously, the in-game header
     /// pill read one version (via this method) while /ttinfo printed a
     /// different version (duplicate logic in Plugin.cs that didn't consult
@@ -992,3 +992,5 @@ public sealed class MainWindow : Window, IDisposable
             : $"{v.Major}.{v.Minor}.{v.Build}";
     }
 }
+
+

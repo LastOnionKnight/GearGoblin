@@ -290,12 +290,12 @@ public sealed class Plugin : IDalamudPlugin
             // The previous "next build" promise rode through v0.4.7 → v0.6.4
             // (seven releases) without bodies being filled in. The honest
             // version below ships in v0.6.5; the real persistence + Plan-tab
-            // checklist workflow lands in v0.6.6 ("Round-trip closed").
+            // checklist workflow lands in v0.6.7 ("Round-trip closed").
             DalamudServices.ChatGui.Print(
                 "[Tonberry Tactics] Plan parsed successfully. " +
                 $"({result.Payload?.Melds.Count ?? 0} meld(s) recommended for " +
                 $"{result.Payload?.SourceCharacter.JobAbbreviation ?? "?"}.) " +
-                "In-game apply checklist + plan persistence ships in v0.6.6. " +
+                "In-game apply checklist + plan persistence ships in v0.6.7. " +
                 "For now: visit tonberrytactics.pages.dev to view the plan.");
 
             foreach (var warning in result.Warnings)
@@ -328,13 +328,13 @@ public sealed class Plugin : IDalamudPlugin
         var sb = new StringBuilder();
         var diag = StatusPanel.GetDiagnostics();
 
-        // v0.6.5.4 — version resolution unified with the in-game header pill
+        // v0.6.6 — version resolution unified with the in-game header pill
         // via UI.MainWindow.ResolveVersion(). Previously this function had
         // its own copy of the version-formatter logic (Major.Minor.Build +
         // Revision-if-non-zero), which meant /ttinfo showed AssemblyVersion-
         // formatted numbers while the header pill could be showing the
         // AssemblyInformationalVersion string (e.g. v0.6.5.3a's "0.6.5.3a"
-        // pill vs /ttinfo's "0.6.5.4"). Now both use the same resolver:
+        // pill vs /ttinfo's "0.6.6"). Now both use the same resolver:
         // InformationalVersion preferred, AssemblyVersion-formatting fallback.
         string v = UI.MainWindow.ResolveVersion();
 
@@ -388,3 +388,5 @@ public sealed class Plugin : IDalamudPlugin
 
     private void DrawUI() => WindowSystem.Draw();
 }
+
+
