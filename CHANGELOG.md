@@ -10,6 +10,118 @@ follows [Semantic Versioning](https://semver.org/).
 the product bump together at every release going forward. Versions prior
 to v0.5.5 used independent semver tracks — the plugin's v0.4.x line and
 the web's v0.5.x line. v0.5.5 is the moment they re-align.
+## [0.6.6.1] — 2026-05-19  (Character tab polish I: StatsStrip cards + BUG-003)
+
+> **Status:** Released. First polish pass on the Character tab introduced
+> in v0.6.6.0. Card-based StatsStrip lands per the Claude Design v0.2.0
+> spec; BUG-003 (latent `KeyNotFoundException` in MeldOptimizer on
+> materia with unrecognized stat types) is now closed.
+
+### New — StatsStrip card layout (`UI/CharacterTab.cs`)
+
+The plain `ImGui.Text` row dump from v0.6.6.0's skeleton is replaced
+with a horizontal card grid. Each substat renders as its own vertical
+card with four content layers:
+
+- **Label** — Press Start 2P @ 10px (`Pixel` font handle from
+  `FontAtlasManager`), GoldDim, uppercased. Matches the design
+  deliverable's `.stat-card .lbl` styling.
+- **Value** — Cinzel Regular @ 22px (`CinzelHeader` handle),
+  GoldBright. Slightly smaller than the design's 28px spec — closest
+  size already registered in the font atlas. JetBrains Mono / larger
+  Cinzel sizes deferred to a later atlas pass if appetite emerges.
+- **Derived effect line** — default Dalamud font, FrostSoft. Pulls
+  from existing `DerivedStatFormatter` (`CritCompact`, `DetCompact`,
+  `DhCompact`, `TenacityCompact`, `PietyMpPerTick`) so the per-stat
+  effect strings match what the StatusPanelInjector renders on the
+  native panel — single source of truth for the math.
+- **Tier / breakpoint hint** — placeholder for now ("min substat (job
+  baseline)" on speed cards, empty on others). The "next tier: +N stat
+  → +X% rate (at YYYY)" breakpoint math from the design spec lands in
+  a v0.6.6.x polish pass once we settle the rendering convention.
+
+Cards are laid out via `ImGui.BeginTable("##stats_strip", N,
+SizingStretchSame)` — one row, N columns, each column an equal share
+of the available width. Card chrome (background, border, padding) comes
+from `BeginChild` with `ChildBg = InkPanelAlt`, `Border = BorderPixelLite`,
+`WindowPadding = 12px`. All color tokens pulled from existing
+`Theme/TlfTheme.cs` constants — no new tokens introduced.
+
+#### Warn-chip on speed stats
+
+Cards display a warn-chip footer (Press Start 2P, Warning color,
+bordered) when the corresponding speed stat exceeds the 420 baseline
+(level-100 sub-floor). The card's border also swaps to Warning,
+matching the design's `.stat-card.has-warn` rule. Heuristic is
+deliberately crude — flags ANY value above 420, regardless of job.
+A more nuanced per-job behavior ("BLM melds heavily into SpS for
+2.45s GCD targets; RDM does not; tank GNB melds away from SkS")
+lands in v0.6.6.x once we have a job-aware speed-meld profile.
+
+#### Crafter / Gatherer handling
+
+The role-gated code from v0.6.6.0 (which already dropped the speed-stat
+and Tenacity/Piety rows for `Role.Crafter` / `Role.Gatherer`) is
+augmented with an explicit early-return path: when no relevant battle
+stats apply, the StatsStrip renders a single disabled-text line —
+`"Battle stats not applicable for this class."` — instead of three
+near-meaningless 420 placeholder values. The Character tab as a whole
+still renders the hero, advisor (empty-state), and gear table sections
+for crafters, which remains useful for confirming what's equipped.
+
+#### Signature change
+
+`CharacterTab.Draw(InventoryReader, IPlayerCharacter)` → `Draw(Plugin,
+IPlayerCharacter)`. The tab now pulls inventory from `plugin.Inventory`
+internally and gains access to `plugin.Fonts` for the font-stack push.
+Single call site in `UI/MainWindow.cs` updated.
+
+### Closed — BUG-003 (MeldOptimizer KeyNotFoundException)
+
+Three-line guard in `Materia/MeldOptimizer.cs` `GenerateAudits`:
+
+```csharp
+if (current.Stat == Substat.None) continue;
+```
+
+inserted immediately after the existing `IsEmpty || Current is null`
+short-circuit. `MateriaCatalog.StatNameToSubstat()` returns
+`Substat.None` for materia whose game-side stat-name strings don't map
+to any of the seven substats the advisor reasons about (CriticalHit,
+Determination, DirectHit, SkillSpeed, SpellSpeed, Tenacity, Piety).
+Without the guard, `AuditSingleMeld`'s downstream lookup at
+`totals[current.Stat]` throws on missing-key — `totals` is initialized
+with the seven recognized substats only.
+
+The defensive `try/catch` around `MeldOptimizer.Optimize` in
+`CharacterTab.DrawMateriaAdvisor` (added in v0.6.6.0) was the immediate
+safety net; this fix removes the root cause. The catch block stays as
+belt-and-suspenders for any future optimizer crashes from unrelated
+paths.
+
+### Pairing
+
+- **GearGoblin.Core v0.6.6.1** — version-only lockstep bump.
+- **TonberryTactics web v0.6.6.1** — version-only lockstep bump.
+
+### What's still deliberately deferred
+
+- **Next-tier breakpoint math** in StatCard `Tier` field. The design's
+  "next tier: +N stat → +X% rate (at YYYY)" rendering needs decisions
+  about which breakpoint to surface (rate floor, damage floor, GCD
+  step) and how to weight cross-stat trade-offs. v0.6.6.x.
+- **Per-job speed-meld profile** for a smarter warn-chip. Requires
+  augmenting `JobProfile` with a "speed posture" field
+  (`MeldsInto` / `MeldsAwayFrom` / `TargetsGcd`). v0.6.6.x.
+- **JetBrains Mono** font atlas registration for derived/tier lines.
+  The design spec wants it; we're using the default font for those
+  rows. Will land if the visual mismatch becomes a real complaint.
+- **CharacterHero portrait + corner brackets** — v0.6.6.2.
+- **Advisor ranked rows + gain badges** — v0.6.6.3.
+- **Gear table stripes + gold-tier highlight** — v0.6.6.4.
+
+---
+
 ## [0.6.6.0] — 2026-05-19  (Character tab introduction; BUG-001/002 closeouts)
 
 > **Status:** Released. v0.6.6.0 is the first tagged release of the new

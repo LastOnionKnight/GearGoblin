@@ -193,7 +193,7 @@ public sealed class MainWindow : Window, IDisposable
             // See UI/CharacterTab.cs and CHANGELOG.md v0.6.6 entry.
             if (ImGui.BeginTabItem("Character"))
             {
-                CharacterTab.Draw(plugin.Inventory, player);
+                CharacterTab.Draw(plugin, player);
                 ImGui.EndTabItem();
             }
             if (ImGui.BeginTabItem("Quick Start"))

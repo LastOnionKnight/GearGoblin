@@ -37,6 +37,7 @@ using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using GearGoblin.Materia;
 using GearGoblin.Services;
+using GearGoblin.Theme;
 
 namespace GearGoblin.UI;
 
@@ -49,7 +50,7 @@ public static class CharacterTab
     /// JobProfiles → LevelTable) and extends it with the live
     /// <see cref="IPlayerCharacter"/> for identity rendering.
     /// </summary>
-    public static void Draw(InventoryReader inventory, IPlayerCharacter player)
+    public static void Draw(Plugin plugin, IPlayerCharacter player)
     {
         // Stats first — if we can't read them, no point continuing.
         // The hero region can still render with just player+inventory data,
@@ -65,14 +66,14 @@ public static class CharacterTab
         var profile = JobProfiles.GetOrDefault(s.JobId);
         var mod     = LevelTable.Get(s.Level);
 
-        var equipped = inventory.ReadEquipped();
-        var ilvl     = equipped.Count > 0 ? inventory.CalculateAverageItemLevel(equipped) : 0;
+        var equipped = plugin.Inventory.ReadEquipped();
+        var ilvl     = equipped.Count > 0 ? plugin.Inventory.CalculateAverageItemLevel(equipped) : 0;
 
         DrawHero(player, profile, ilvl);
         ImGui.Spacing();
         ImGui.Spacing();
 
-        DrawStatsStrip(s, profile, mod);
+        DrawStatsStrip(plugin, s, profile, mod);
         ImGui.Spacing();
         ImGui.Spacing();
 
@@ -138,20 +139,180 @@ public static class CharacterTab
     //   - Derived-effect math already exists in StatReader/LevelTable;
     //     wire the existing breakpoint helpers from MateriaTab.DrawCritRow
     //     and DrawSpeedRow.
-    private static void DrawStatsStrip(StatSnapshot s, JobProfile profile, LevelMod mod)
+    // ─── § 4.2 Stats strip ────────────────────────────────────────────────
+    //
+    // v0.6.6.1: card-based layout per Claude Design v0.2.0 spec.
+    // Each substat renders as a vertical card in a horizontal grid. Cards
+    // surface label / value / derived effect on every job. The optional
+    // "next tier" breakpoint hint is stubbed — the real math will land in
+    // a v0.6.6.x polish pass once we settle the +N stat → +X% rendering
+    // convention. Warn-chip on speed stat fires when the stat exceeds the
+    // 420 baseline (the level-100 sub-floor); a more nuanced job-aware
+    // heuristic ("BLM melds away from speed", "RDM wants 2.45 GCD") lands
+    // in v0.6.6.x once we have per-job speed-meld profiles.
+
+    private readonly record struct StatCardModel(
+        string Label,
+        int    Value,
+        string Derived,
+        string Tier,
+        string? Warn);
+
+    private static void DrawStatsStrip(Plugin plugin, StatSnapshot s, JobProfile profile, LevelMod mod)
     {
         DrawSectionHead("Substats", $"{profile.Name} · Lv {s.Level}");
 
-        ImGui.Text($"Critical Hit     {s.Crit}");
-        ImGui.Text($"Determination    {s.Det}");
-        ImGui.Text($"Direct Hit Rate  {s.DH}");
-        if (UsesSks(profile))      ImGui.Text($"Skill Speed      {s.SkS}");
-        else if (UsesSps(profile)) ImGui.Text($"Spell Speed      {s.SpS}");
+        var cards = BuildStatCards(s, profile, mod);
+        if (cards.Count == 0)
+        {
+            // Crafter/Gatherer with no relevant battle substats. Quiet placeholder
+            // rather than the misleading 420/420 default values the game returns.
+            ImGui.TextDisabled("Battle stats not applicable for this class.");
+            return;
+        }
 
-        // Tank-only fifth card.
-        if (profile.Role == Role.Tank)   ImGui.Text($"Tenacity         {s.Ten}");
-        // Healer-only fifth card (less common to surface, but accurate).
-        if (profile.Role == Role.Healer) ImGui.Text($"Piety            {s.Pie}");
+        // Render as a horizontal grid via a table. SizingStretchSame gives each
+        // card an equal share of the available width.
+        if (ImGui.BeginTable("##stats_strip", cards.Count, ImGuiTableFlags.SizingStretchSame))
+        {
+            ImGui.TableNextRow();
+            foreach (var card in cards)
+            {
+                ImGui.TableNextColumn();
+                DrawStatCard(plugin, card);
+            }
+            ImGui.EndTable();
+        }
+    }
+
+    private static List<StatCardModel> BuildStatCards(StatSnapshot s, JobProfile profile, LevelMod mod)
+    {
+        // Crafter/Gatherer: skip the strip entirely. Their "battle" stats are
+        // always 420/420 placeholder values that confuse rather than inform.
+        if (profile.Role == Role.Crafter || profile.Role == Role.Gatherer)
+            return new List<StatCardModel>();
+
+        var cards = new List<StatCardModel>
+        {
+            new StatCardModel(
+                Label:   "Critical Hit",
+                Value:   s.Crit,
+                Derived: DerivedStatFormatter.CritCompact(s.Crit, mod),
+                Tier:    "",
+                Warn:    null),
+            new StatCardModel(
+                Label:   "Determination",
+                Value:   s.Det,
+                Derived: DerivedStatFormatter.DetCompact(s.Det, mod),
+                Tier:    "",
+                Warn:    null),
+            new StatCardModel(
+                Label:   "Direct Hit",
+                Value:   s.DH,
+                Derived: DerivedStatFormatter.DhCompact(s.DH, mod),
+                Tier:    "",
+                Warn:    null),
+        };
+
+        if (UsesSks(profile))
+        {
+            var gcd  = Formulas.GcdFromSpeed(s.SkS, mod);
+            var warn = s.SkS > 420 ? "Above 420 baseline" : null;
+            cards.Add(new StatCardModel(
+                Label:   "Skill Speed",
+                Value:   s.SkS,
+                Derived: $"{gcd:F2}s GCD",
+                Tier:    "min substat (job baseline)",
+                Warn:    warn));
+        }
+        else if (UsesSps(profile))
+        {
+            var gcd  = Formulas.GcdFromSpeed(s.SpS, mod);
+            var warn = s.SpS > 420 ? "Above 420 baseline" : null;
+            cards.Add(new StatCardModel(
+                Label:   "Spell Speed",
+                Value:   s.SpS,
+                Derived: $"{gcd:F2}s GCD",
+                Tier:    "min substat (job baseline)",
+                Warn:    warn));
+        }
+
+        if (profile.Role == Role.Tank)
+            cards.Add(new StatCardModel(
+                Label:   "Tenacity",
+                Value:   s.Ten,
+                Derived: DerivedStatFormatter.TenacityCompact(s.Ten, mod),
+                Tier:    "",
+                Warn:    null));
+        else if (profile.Role == Role.Healer)
+            cards.Add(new StatCardModel(
+                Label:   "Piety",
+                Value:   s.Pie,
+                Derived: DerivedStatFormatter.PietyMpPerTick(s.Pie, mod),
+                Tier:    "",
+                Warn:    null));
+
+        return cards;
+    }
+
+    private static void DrawStatCard(Plugin plugin, StatCardModel m)
+    {
+        // Border color swaps to Warning if the card is warn-flagged. Background
+        // is always InkPanelAlt. Inner padding 12px via WindowPadding style var.
+        var border = m.Warn != null ? TlfTheme.Warning : TlfTheme.BorderPixelLite;
+        ImGui.PushStyleColor(ImGuiCol.ChildBg, TlfTheme.InkPanelAlt);
+        ImGui.PushStyleColor(ImGuiCol.Border,  border);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(12f, 12f));
+
+        // Card height — fixed so all cards align even when contents differ in
+        // line count. 112px covers label + value + derived + tier line. Cards
+        // with warn chips get an additional 24px.
+        var cardHeight = m.Warn != null ? 138f : 114f;
+
+        if (ImGui.BeginChild($"##card_{m.Label}", new Vector2(0f, cardHeight), true))
+        {
+            // Label — Press Start 2P 10px, GoldDim, uppercased
+            using (plugin.Fonts.Pixel.PushOrNull())
+            {
+                ImGui.TextColored(TlfTheme.GoldDim, m.Label.ToUpperInvariant());
+            }
+
+            ImGui.Spacing();
+
+            // Value — Cinzel Regular 22px, GoldBright
+            using (plugin.Fonts.CinzelHeader.PushOrNull())
+            {
+                ImGui.TextColored(TlfTheme.GoldBright, m.Value.ToString("N0"));
+            }
+
+            // Derived effect line — default font, FrostSoft
+            if (!string.IsNullOrEmpty(m.Derived))
+            {
+                ImGui.TextColored(TlfTheme.FrostSoft, m.Derived);
+            }
+
+            // Tier divider + tier text (only if tier line is populated)
+            if (!string.IsNullOrEmpty(m.Tier))
+            {
+                ImGui.Spacing();
+                ImGui.Separator();
+                ImGui.TextColored(TlfTheme.FrostDim, m.Tier);
+            }
+
+            // Warn chip — Press Start 2P 10px, Warning color
+            if (m.Warn != null)
+            {
+                ImGui.Spacing();
+                using (plugin.Fonts.Pixel.PushOrNull())
+                {
+                    ImGui.TextColored(TlfTheme.Warning, $"⚠ {m.Warn.ToUpperInvariant()}");
+                }
+            }
+        }
+        ImGui.EndChild();
+
+        ImGui.PopStyleVar();
+        ImGui.PopStyleColor(2);
     }
 
     // ─── § 4.3 Materia advisor inline ──────────────────────────────────────

@@ -4,32 +4,31 @@
     <Author>LastOnionKnight</Author>
     <Name>Tonberry Tactics</Name>
     <InternalName>GearGoblin</InternalName>
-    <AssemblyVersion>0.6.6.0</AssemblyVersion>
-    <FileVersion>0.6.6.0</FileVersion>
-    <Version>0.6.6.0</Version>
-    <!-- v0.6.6.0 opens a new architectural era for the plugin. The
-         StatusPanelInjector-based character-panel injection that
-         dominated the v0.4.x–v0.6.5.x lineage is now feature-complete
-         on its native-panel surface; BUG-001 (header ghost text) and
-         BUG-002 (right-aligned cell overflow into the label region)
-         both closed in the v0.6.5.5 H6-B + label-cell-rerouting
-         intervention. Going forward we add a dedicated Character tab
-         to the /tt window. That tab will absorb the materia advisor,
-         substat sheet, audit display, and equipped gear into one
-         designed surface that we fully own — eliminating the entire
-         cloned-cell-overflow class of bugs at the root. v0.6.6 ships
-         the skeleton of that tab; visual polish lands in v0.6.6.1+.
-         The StatusPanelInjector remains shipped through the v0.6.x
-         line for backward compatibility and side-by-side validation;
-         it gets a deprecation note in v0.6.7 and is removed in v0.7.0.
+    <AssemblyVersion>0.6.6.1</AssemblyVersion>
+    <FileVersion>0.6.6.1</FileVersion>
+    <Version>0.6.6.1</Version>
+    <!-- v0.6.6.1 — first polish pass on the Character tab introduced in
+         v0.6.6.0. Replaces the plain-text StatsStrip with the card-based
+         layout per Claude Design v0.2.0: horizontal grid, per-stat cards
+         with label / value / derived-effect lines, border swap on speed
+         stats above the 420 baseline, Cinzel + Press Start 2P typography
+         pulled from the existing FontAtlasManager. Crafter / Gatherer
+         classes now render a "Battle stats not applicable" line instead
+         of the misleading 420/420 placeholder values the game returns.
+         Bundles BUG-003 closeout — MeldOptimizer.cs now skips audits for
+         materia with unrecognized stat types (Substat.None) instead of
+         throwing KeyNotFoundException on the totals lookup. Defensive
+         try/catch in CharacterTab.DrawMateriaAdvisor still wraps the
+         call as belt-and-suspenders.
 
-         Pure numeric versioning (Option 3) preserved from the v0.6.5.x
-         decision. UI/MainWindow.cs ResolveVersion() retains the
-         InformationalVersion-preferring code path as dormant
-         infrastructure but it is not actively populated. -->
+         Visual polish work continues across v0.6.6.x — CharacterHero
+         portrait/bracket treatment in v0.6.6.2, ranked advisor rows
+         with gain badges in v0.6.6.3, striped gear table in v0.6.6.4.
+         StatusPanelInjector remains shipped through the v0.6.6.x line
+         for backward compat — deprecation in v0.6.7, removal in v0.7.0. -->
     <MinimumDalamudVersion>15.0.0</MinimumDalamudVersion>
     <Punchline>BiS planner, Materia Advisor, and round-trip optimizer for FFXIV. The in-game half of Tonberry Tactics; coexists with CharacterPanelRefined.</Punchline>
-    <Description>In-game half of Tonberry Tactics. v0.6.6.0 closes the BUG-001 (Materia Advisor header ghost text) and BUG-002 (advisor row left-overflow) sagas — both confirmed dead in v0.6.5.5 H6-B in-game testing — and introduces the Character tab in /tt as the strategic replacement for the native-panel injection approach. The new tab consolidates name + class + iLvl identity, substat sheet, materia advisor recommendations, and equipped gear table into one ImGui surface we fully own. Skeleton wired to live data; visual polish (Adventurer Plate aesthetic, stat-card chrome, ranked advisor rows with gain badges, striped gear table) lands incrementally in v0.6.6.x. The legacy StatusPanelInjector continues shipping in parallel for backward compat — deprecation notice in v0.6.7, removal in v0.7.0. Core and Web at v0.6.6.0 lockstep (version-only). See CHANGELOG.md for the full BUG-001/002 hypothesis archaeology and the Character tab roadmap.</Description>
+    <Description>In-game half of Tonberry Tactics. v0.6.6.1 lands the first Character-tab polish pass — card-based StatsStrip per the Claude Design v0.2.0 spec, with per-stat cards (label / value / derived effect / optional next-tier hint), Cinzel + Press Start 2P typography from the existing font atlas, border swap on speed stats above the 420 baseline, and a "Battle stats not applicable" path for Crafter / Gatherer classes. Closes BUG-003 (MeldOptimizer KeyNotFoundException on materia with unrecognized stat types — now skipped quietly instead of throwing). Visual polish continues incrementally across v0.6.6.x: CharacterHero next, then advisor rows, then gear table. Core and Web at v0.6.6.1 lockstep (version-only).</Description>
     <RepoUrl>https://github.com/LastOnionKnight/GearGoblin</RepoUrl>
     <Tags>gear;bis;materia;etro;xivgear;raid;advisor;cpr;character-panel;tonberry-tactics</Tags>
 
@@ -68,15 +67,6 @@
         D:\GearGoblin-Core-v0.1\GearGoblin.Core\        (Core, this reference's target)
         D:\GearGoblin-v0.1\GearGoblin\                  (this project)
         D:\TonberryTactics-workspace\TonberryTactics\   (web, mirrors this same reference)
-
-    If Core lives somewhere else on your machine, update the path to
-    point at your local clone. The web's csproj uses the same relative
-    pattern so both halves resolve to the same library on disk.
-
-    Plugin's existing MeldOptimizer (already job-aware via JobProfile)
-    continues to function unchanged in v0.6.6 — Core integration on
-    the plugin side is incremental, tracked for v0.7.x alongside the
-    StatusPanelInjector removal work.
   -->
   <ItemGroup>
     <ProjectReference Include="..\..\GearGoblin-Core-v0.1\GearGoblin.Core\GearGoblin.Core.csproj" />

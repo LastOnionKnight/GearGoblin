@@ -270,7 +270,13 @@ public static class MeldOptimizer
                 if (slot.IsEmpty || slot.Current is null) continue;
                 var current = slot.Current.Value;
 
-                if (current.Stat == Substat.None) continue;  // BUG-003 guard: skip materia with unrecognized stat
+                // v0.6.6.1 BUG-003 guard: skip melds with unrecognized stat type.
+                // MateriaCatalog.StatNameToSubstat() returns Substat.None for
+                // unknown stat strings; AuditSingleMeld would then throw
+                // KeyNotFoundException on totals[current.Stat] (line ~292).
+                // Quietly skip — we can't meaningfully audit a materia whose
+                // stat we don't know how to score.
+                if (current.Stat == Substat.None) continue;
 
                 var audit = AuditSingleMeld(piece, slot, current, totals, mod, profile, weightMode);
                 audits.Add(audit);
