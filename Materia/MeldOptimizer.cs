@@ -270,6 +270,8 @@ public static class MeldOptimizer
                 if (slot.IsEmpty || slot.Current is null) continue;
                 var current = slot.Current.Value;
 
+                if (current.Stat == Substat.None) continue;  // BUG-003 guard: skip materia with unrecognized stat
+
                 var audit = AuditSingleMeld(piece, slot, current, totals, mod, profile, weightMode);
                 audits.Add(audit);
             }

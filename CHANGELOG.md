@@ -10,6 +10,153 @@ follows [Semantic Versioning](https://semver.org/).
 the product bump together at every release going forward. Versions prior
 to v0.5.5 used independent semver tracks — the plugin's v0.4.x line and
 the web's v0.5.x line. v0.5.5 is the moment they re-align.
+## [0.6.6.0] — 2026-05-19  (Character tab introduction; BUG-001/002 closeouts)
+
+> **Status:** Released. v0.6.6.0 is the first tagged release of the new
+> Character-tab era and the formal closeout of the BUG-001 / BUG-002
+> saga that dominated the v0.6.5.x patch stream. The Character tab
+> ships in skeleton form — live data wired through, visual polish
+> layered in across the v0.6.6.x line.
+
+> **Strategic pivot:** v0.6.6 begins the migration away from the
+> StatusPanelInjector approach. Months of injection-related bugs
+> (BUG-001 cloned-cell text overflow, BUG-002 right-aligned-overflow on
+> long advisor strings, CharacterPanelRefined incompatibility, addon
+> lifecycle event misses) all share the same root cause: we do not own
+> the native Character panel's node tree, so every coercion of it into
+> displaying our data hits a new edge case in cell geometry, alignment
+> inheritance, or initialization timing. The pivot replaces that
+> approach with a dedicated Character tab inside our own ImGui window,
+> where we control every pixel. The injection codepath remains shipped
+> in this version for backward compatibility and side-by-side validation;
+> v0.6.7 marks it deprecated in `/ttinfo`; v0.7.0 removes it entirely.
+
+### Closed — BUG-001 (Materia Advisor header ghost text)
+
+**Verified dead in in-game testing on 2026-05-18 (and reconfirmed
+2026-05-19).** Refia Rakkiri on Gunbreaker, iLvl 780, CPR disabled.
+The Materia Advisor row injected below "Average Item Level: 780"
+renders cleanly: `── Materia Advisor` label on the left, `▶ /tt` pill
+on the right, no ghost characters, no overflow. Two independent
+screenshot captures across two sessions.
+
+Root cause confirmation: H6 was right. The cloned label cell inherits
+geometry from the original ILVL row's number cell (sized for "780",
+~30px wide), then the existing `advisorHeader->SetText()` call wrote a
+~17-char pill string into that narrow cell with right-alignment. The
+right-aligned text overflowed *leftward* past the cell boundary, into
+the label cell's render zone, producing the visible "ghost." The fix
+that landed in `Services/StatusPanelInjector.cs`: both the with-audits
+and empty-state branches of `advisorHeader->SetText()` now write just
+`"▶ /tt"` (5 chars), which fits the cell without overflowing.
+
+H1 (bidirectional sibling-link patch, v0.6.5.3a) was a real artifact
+of cloning AtkResNode sibling pointers but did not cause the ghost.
+H2 (collision-node parameter, v0.6.5.3) was the right structural
+change for cell collision detection but unrelated to text overflow.
+H6-A (label shortening, v0.6.5.4) confirmed the direction by shrinking
+the ghost dramatically but mis-attributed the overflow source as the
+label cell rather than the number cell.
+
+Eight months. Three wrong hypotheses. One screenshot confirms the kill.
+
+### Closed — BUG-002 (Empty-state and candidate row overflow)
+
+A second symptom of the same architectural flaw, hidden behind
+BUG-001's worse rendering. The 51-character empty-state string
+`"All guaranteed slots filled · no upgrades suggested"` was being
+written into `advisorRec1`'s number cell (right-aligned, ~30px wide).
+After BUG-001 went away, BUG-002 became visible: the empty-state
+sentence spilled leftward past the entire Character panel boundary.
+
+The structural rule established: **descriptive payload belongs in the
+left-aligned label cell, short tags belong in the right-aligned
+number cell.** Codified in `Services/StatusPanelInjector.cs`:
+
+- `SetAdvisorRow(numberNode, numberText, labelText)` — new signature
+  with optional `labelText` parameter. When provided, walks the
+  number cell's `PrevSiblingNode` chain (with a defensive
+  `NodeType.Text` guard) and `SetText`s the label cell. Old
+  signature's implicit `?? "—"` em-dash fallback removed; callers
+  now explicitly pass `""` for empty cells.
+- Empty state: descriptive sentence in label cell, number cells empty.
+- Candidate state: each candidate string in label cell, number cells
+  empty. Same rule applies whether candidates come from audits
+  (`"{slot} #{idx} → {repl}"`) or plan recommendations
+  (`"{slot} #{idx} ← {mat}"`).
+- `ClearAdvisorRows()`: placeholder text routed to label cell.
+
+Verified dead in the same in-game tests that closed BUG-001.
+
+### New — Character tab (`UI/CharacterTab.cs`)
+
+Brand new file. The first iteration of what becomes the StatusPanel
+Injector's replacement. Registered in `MainWindow.cs` as the first
+tab in `BeginTabBar("##goblintabs")`, positioned ahead of Quick Start.
+
+Four sections wired to live data:
+
+- **Hero region**: player name, class line, iLvl. Skeleton renders
+  plain text. Visual polish (portrait frame, Adventurer Plate
+  aesthetic, FC tag, world/DC strip) comes in subsequent passes.
+- **Stats strip**: substat values displayed one-per-line. Role-gated
+  (Sks vs Sps based on job's primary speed stat; Tenacity for tanks).
+  Skeleton is plain `ImGui.Text` rows. Visual polish (4-5 stat cards
+  in a horizontal grid, derived-effect math display, next-tier
+  breakpoint hints, warning chip on speed for jobs that meld away
+  from it) comes next.
+- **Materia advisor inline**: top 3 recommendations or empty-state
+  line. Logic mirrors `StatusPanelInjector.UpdateAdvisor`'s
+  candidate-build (audits-by-gain, plan-recs fallback) so users see
+  the same recommendations in both surfaces during the transition.
+  Skeleton renders as plain text rows. Visual polish (ranked rows,
+  gain-badge, "See full audit in Materia tab →" link) comes next.
+- **Gear table**: lifted verbatim from `DrawCurrentGear()`. Same
+  columns, same data source, parallel rendering. The existing
+  "Current Gear" tab still works; this duplicates it for now until
+  Current Gear is removed (or repurposed) in a later pass.
+
+Defensive: `MeldOptimizer.Optimize()` is wrapped in try/catch so a
+single bad meld (BUG-003 dormant — `KeyNotFoundException` on
+`Substat.None` materia lookups) doesn't crash the whole tab. The
+catch renders an "Advisor errored: {ExceptionType}" line with a
+pointer to `/xllog`. BUG-003's actual guard fix lands in v0.6.6.1.
+
+Design source: `character-tab/` (Claude Design deliverable v0.2.0),
+which lives outside this repo but is referenced in each section's
+TODO block. The deliverable's README enumerates 12 explicit ImGui
+port flags — those are the spec for the polish passes.
+
+### Pairing
+
+- **GearGoblin.Core v0.6.6.0** — version-only lockstep bump. The
+  optimizer logic the new tab calls is already in Core; no API
+  changes.
+- **TonberryTactics web v0.6.6.0** — version-only lockstep bump. The
+  web app's existing Adventurer card design in `Pages/Index.razor`
+  remains the visual reference target for the plugin port.
+
+### What's deliberately deferred to v0.6.6.x
+
+- BUG-003 guard (`Substat.None` lookup skip in
+  `MeldOptimizer.AuditSingleMeld`). Dormant — only fires on
+  unrecognized materia types, which Refia's GNB loadout doesn't
+  trigger. Lands in v0.6.6.1 alongside the StatsStrip visual polish.
+- CharacterPanelRefined coexistence skip in StatusPanelInjector. Not
+  blocking now that the Character tab works independently of CPR.
+- Crafter/Gatherer class handling in the new tab's StatsStrip and
+  Materia Advisor sections. DoH/DoL classes don't have meaningful
+  battle substats; the skeleton currently shows the placeholder
+  values the game returns. A "Battle stats not applicable for crafter
+  classes" render path lands in v0.6.6.1.
+- Removal/deprecation of Quick Start tab. Stays in the tab strip
+  through v0.6.6.x; absorbed into About in a later pass.
+- Removal of duplicate "Current Gear" tab. The Character tab's gear
+  section duplicates it; consolidation lands once Character tab
+  visual polish is locked.
+
+---
+
 ## [0.6.5.4] — 2026-05-18  (H6 candidate — BUG-001 attempt #4)
 
 > **Status:** Released to test hypothesis H6. Whether this actually

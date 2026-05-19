@@ -733,15 +733,15 @@ public sealed unsafe class StatusPanelInjector : IDisposable
 
             if (candidates.Count == 0)
             {
-                SetAdvisorRow(advisorRec1, "All guaranteed slots filled · no upgrades suggested");
-                SetAdvisorRow(advisorRec2, null);
-                SetAdvisorRow(advisorRec3, null);
+                SetAdvisorRow(advisorRec1, "", "All guaranteed slots filled · no upgrades suggested");
+                SetAdvisorRow(advisorRec2, "", "");
+                SetAdvisorRow(advisorRec3, "", "");
             }
             else
             {
-                SetAdvisorRow(advisorRec1, candidates.ElementAtOrDefault(0));
-                SetAdvisorRow(advisorRec2, candidates.ElementAtOrDefault(1));
-                SetAdvisorRow(advisorRec3, candidates.ElementAtOrDefault(2));
+                SetAdvisorRow(advisorRec1, "", candidates.ElementAtOrDefault(0) ?? "");
+                SetAdvisorRow(advisorRec2, "", candidates.ElementAtOrDefault(1) ?? "");
+                SetAdvisorRow(advisorRec3, "", candidates.ElementAtOrDefault(2) ?? "");
             }
 
             if (advisorHeader != null)
@@ -773,17 +773,26 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         }
     }
 
-    private void SetAdvisorRow(AtkTextNode* node, string? text)
+    private void SetAdvisorRow(AtkTextNode* numberNode, string numberText, string? labelText = null)
     {
-        if (node == null) return;
-        node->SetText(string.IsNullOrEmpty(text) ? "—" : text);
+        if (numberNode == null) return;
+        numberNode->SetText(numberText);
+
+        if (labelText != null)
+        {
+            var prevSibling = numberNode->AtkResNode.PrevSiblingNode;
+            if (prevSibling != null && prevSibling->Type == NodeType.Text)
+            {
+                ((AtkTextNode*)prevSibling)->SetText(labelText);
+            }
+        }
     }
 
     private void ClearAdvisorRows(string placeholder)
     {
-        SetAdvisorRow(advisorRec1, placeholder);
-        SetAdvisorRow(advisorRec2, null);
-        SetAdvisorRow(advisorRec3, null);
+        SetAdvisorRow(advisorRec1, "", placeholder);
+        SetAdvisorRow(advisorRec2, "", "");
+        SetAdvisorRow(advisorRec3, "", "");
         if (advisorHeader != null) advisorHeader->SetText("▶ /tt");
     }
 

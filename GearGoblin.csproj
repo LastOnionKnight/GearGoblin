@@ -4,21 +4,32 @@
     <Author>LastOnionKnight</Author>
     <Name>Tonberry Tactics</Name>
     <InternalName>GearGoblin</InternalName>
-    <AssemblyVersion>0.6.5.4</AssemblyVersion>
-    <FileVersion>0.6.5.4</FileVersion>
-    <Version>0.6.5.4</Version>
-    <!-- v0.6.6.0 — pure numeric versioning per "Option 3" decision after v0.6.5.3a.
-         Letter-suffix versions (0.6.5.3a) cause toolchain friction with release.ps1
-         (which tags from numeric Version) and the github-actions repo.json bot
-         (which expects numeric semver). Letter suffixes deprecated; iterate by
-         bumping the numeric Build component. The InformationalVersion property and
-         IncludeSourceRevisionInInformationalVersion flag have been removed from this
-         csproj. UI/MainWindow.cs ResolveVersion() retains the InformationalVersion-
-         preferring code path — dormant infrastructure for future use if we ever
-         need pre-release tags or build metadata, but not actively populated. -->
+    <AssemblyVersion>0.6.6.0</AssemblyVersion>
+    <FileVersion>0.6.6.0</FileVersion>
+    <Version>0.6.6.0</Version>
+    <!-- v0.6.6.0 opens a new architectural era for the plugin. The
+         StatusPanelInjector-based character-panel injection that
+         dominated the v0.4.x–v0.6.5.x lineage is now feature-complete
+         on its native-panel surface; BUG-001 (header ghost text) and
+         BUG-002 (right-aligned cell overflow into the label region)
+         both closed in the v0.6.5.5 H6-B + label-cell-rerouting
+         intervention. Going forward we add a dedicated Character tab
+         to the /tt window. That tab will absorb the materia advisor,
+         substat sheet, audit display, and equipped gear into one
+         designed surface that we fully own — eliminating the entire
+         cloned-cell-overflow class of bugs at the root. v0.6.6 ships
+         the skeleton of that tab; visual polish lands in v0.6.6.1+.
+         The StatusPanelInjector remains shipped through the v0.6.x
+         line for backward compatibility and side-by-side validation;
+         it gets a deprecation note in v0.6.7 and is removed in v0.7.0.
+
+         Pure numeric versioning (Option 3) preserved from the v0.6.5.x
+         decision. UI/MainWindow.cs ResolveVersion() retains the
+         InformationalVersion-preferring code path as dormant
+         infrastructure but it is not actively populated. -->
     <MinimumDalamudVersion>15.0.0</MinimumDalamudVersion>
     <Punchline>BiS planner, Materia Advisor, and round-trip optimizer for FFXIV. The in-game half of Tonberry Tactics; coexists with CharacterPanelRefined.</Punchline>
-    <Description>The in-game half of Tonberry Tactics — BiS planner, gear inventory reader, materia advisor for FFXIV. v0.6.6.0 is the next attempt at BUG-001 (the Materia Advisor header ghost text). Prior swings: v0.6.5.2 (pre-pad, wrong), v0.6.5.3 (collision-node param, wrong), v0.6.5.3a (H1 removed bidirectional sibling-link patch — changed the bug pattern but didn't eliminate it). v0.6.6.0 tests hypothesis H6: the cloned label cell inherits the original ILVL row's text geometry, and our "── Materia Advisor ──" label (with em-dashes) overflows the inherited cell width, bleeding into the number cell's render zone. The intervention this time is one targeted change in StatusPanelInjector.cs: shorten the advisor header label from "── Materia Advisor ──" to "Materia Advisor" — no dashes. If H6 is correct, ghost goes away or shrinks dramatically. Plus a bonus consistency fix: Plugin.cs BuildGoblinInfoString() now reads from UI.MainWindow.ResolveVersion() instead of its own duplicate version-formatter, so /ttinfo and the in-game header pill always agree on what version is loaded. Pure numeric versioning going forward (Option 3): no more letter-suffix versions; iterate by bumping the numeric Build. Core and Web at v0.6.6.0 lockstep (version-only). Mobile site work slides to v0.6.6 (it was tentatively scoped for v0.6.6.0 before BUG-001 turned into a multi-version saga). See BUG_HUNT_AND_ROADMAP.md for the experiment plan; if H6 is confirmed, v0.6.5.5 ships the proper Width-fix (H6-B); if H6 is wrong, v0.6.5.5 tries the next hypothesis.</Description>
+    <Description>In-game half of Tonberry Tactics. v0.6.6.0 closes the BUG-001 (Materia Advisor header ghost text) and BUG-002 (advisor row left-overflow) sagas — both confirmed dead in v0.6.5.5 H6-B in-game testing — and introduces the Character tab in /tt as the strategic replacement for the native-panel injection approach. The new tab consolidates name + class + iLvl identity, substat sheet, materia advisor recommendations, and equipped gear table into one ImGui surface we fully own. Skeleton wired to live data; visual polish (Adventurer Plate aesthetic, stat-card chrome, ranked advisor rows with gain badges, striped gear table) lands incrementally in v0.6.6.x. The legacy StatusPanelInjector continues shipping in parallel for backward compat — deprecation notice in v0.6.7, removal in v0.7.0. Core and Web at v0.6.6.0 lockstep (version-only). See CHANGELOG.md for the full BUG-001/002 hypothesis archaeology and the Character tab roadmap.</Description>
     <RepoUrl>https://github.com/LastOnionKnight/GearGoblin</RepoUrl>
     <Tags>gear;bis;materia;etro;xivgear;raid;advisor;cpr;character-panel;tonberry-tactics</Tags>
 
@@ -63,14 +74,12 @@
     pattern so both halves resolve to the same library on disk.
 
     Plugin's existing MeldOptimizer (already job-aware via JobProfile)
-    continues to function unchanged in v0.6.3 — Core integration on
+    continues to function unchanged in v0.6.6 — Core integration on
     the plugin side is incremental, tracked for v0.7.x alongside the
-    CPR-replacement work. Today's ProjectReference exists so future
-    migrations are mechanical rather than gated on adding a dependency.
+    StatusPanelInjector removal work.
   -->
   <ItemGroup>
     <ProjectReference Include="..\..\GearGoblin-Core-v0.1\GearGoblin.Core\GearGoblin.Core.csproj" />
   </ItemGroup>
 
 </Project>
-
