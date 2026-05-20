@@ -1,6 +1,19 @@
 // UI/MateriaTab.cs
-// Renders the Materia tab. Three sub-modes: Stat Sheet / Plan / Audit.
-// Plus a Pure-math vs Balance-preset toggle for Plan/Audit.
+// v0.6.6.4: Stat Sheet + Plan merged into one default landing per Fork 1
+// (toggle treatment). The 3-radio sub-tab selector is gone. The default
+// view shows current substats and recommended fills stacked on a single
+// scroll surface; an [Audit ▸] toggle in the top-right swaps the body to
+// the audit view, and a [Balance preset] toggle re-runs the optimizer
+// with the alternate weighting.
+//
+// State:
+//   s_showingAudit  — false (default) shows Stat Sheet + Plan; true shows Audit
+//   s_weightMode    — Pure math (default) vs Balance preset
+//
+// Cross-tab signal:
+//   WantsAuditOnNextDraw — set by CharacterTab's "See full audit in
+//   Materia tab →" link to land the user directly on the Audit view
+//   when MateriaTab.Draw next runs.
 
 using System;
 using System.Collections.Generic;
@@ -9,16 +22,28 @@ using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using GearGoblin.Materia;
 using GearGoblin.Services;
+using GearGoblin.Theme;
 
 namespace GearGoblin.UI;
 
 public static class MateriaTab
 {
-    private static int s_subTabIndex = 0;
+    private static bool       s_showingAudit;
     private static WeightMode s_weightMode = WeightMode.PureMath;
+
+    // v0.6.6.4: cross-tab signal from CharacterTab's audit-link footer.
+    // When true on next Draw, lands the user on the Audit view directly.
+    internal static bool WantsAuditOnNextDraw;
 
     public static void Draw(InventoryReader inventory)
     {
+        // Consume cross-tab signal if pending
+        if (WantsAuditOnNextDraw)
+        {
+            s_showingAudit       = true;
+            WantsAuditOnNextDraw = false;
+        }
+
         var snap = StatReader.ReadCurrent();
         if (snap is null)
         {
@@ -30,71 +55,128 @@ public static class MateriaTab
         var profile = JobProfiles.GetOrDefault(s.JobId);
         var mod     = LevelTable.Get(s.Level);
 
-        ImGui.Text($"{profile.Name}  Lv {s.Level}");
-        ImGui.SameLine();
-        ImGui.TextDisabled($"({profile.Role})");
+        // Header line — job/level/role on the left, toggles right-aligned
+        DrawHeader(profile, s.Level);
         ImGui.Separator();
-
-        DrawSubTabSelector();
         ImGui.Spacing();
 
-        switch (s_subTabIndex)
+        if (s_showingAudit)
         {
-            case 0: DrawStatSheet(s, profile, mod); break;
-            case 1: DrawPlan(s, profile, mod, inventory); break;
-            case 2: DrawAudit(s, profile, mod, inventory); break;
+            DrawAuditView(s, profile, mod, inventory);
+        }
+        else
+        {
+            DrawDefaultView(s, profile, mod, inventory);
         }
     }
 
-    private static void DrawSubTabSelector()
-    {
-        if (ImGui.RadioButton("Stat Sheet", s_subTabIndex == 0)) s_subTabIndex = 0;
-        ImGui.SameLine();
-        if (ImGui.RadioButton("Plan", s_subTabIndex == 1)) s_subTabIndex = 1;
-        ImGui.SameLine();
-        if (ImGui.RadioButton("Audit", s_subTabIndex == 2)) s_subTabIndex = 2;
+    // ─── Header + toolbar ─────────────────────────────────────────────────
 
-        if (s_subTabIndex != 0)
+    private static void DrawHeader(JobProfile profile, int level)
+    {
+        ImGui.Text($"{profile.Name}  Lv {level}");
+        ImGui.SameLine();
+        ImGui.TextDisabled($"({profile.Role})");
+
+        // Right-align the toggle pair. Compute reserved width based on the
+        // longest button label so the buttons stay anchored to the right edge
+        // regardless of which mode is active.
+        var auditLabel  = s_showingAudit ? "◀ Back to gear"   : "Audit ▸";
+        var modeLabel   = s_weightMode == WeightMode.PureMath ? "Pure math" : "Balance preset";
+        var auditWidth  = ImGui.CalcTextSize(auditLabel).X  + 16f;
+        var modeWidth   = ImGui.CalcTextSize(modeLabel).X   + 16f;
+        var reservedW   = auditWidth + modeWidth + 8f;
+        var availableW  = ImGui.GetContentRegionAvail().X;
+        if (availableW > reservedW + 20f)
+        {
+            ImGui.SameLine(ImGui.GetCursorPosX() + availableW - reservedW);
+        }
+        else
+        {
+            // Narrow window — drop the toggles to a new line rather than truncate
+            ImGui.NewLine();
+        }
+
+        // Balance preset toggle (only meaningful when viewing Plan; still
+        // shown in Audit since the optimizer feeds both surfaces)
+        ImGui.PushStyleColor(ImGuiCol.Text, TlfTheme.FrostSoft);
+        if (ImGui.SmallButton(modeLabel))
+        {
+            s_weightMode = s_weightMode == WeightMode.PureMath
+                ? WeightMode.BalancePreset
+                : WeightMode.PureMath;
+        }
+        ImGui.PopStyleColor();
+
+        ImGui.SameLine();
+        ImGui.PushStyleColor(ImGuiCol.Text, s_showingAudit ? TlfTheme.Lantern : TlfTheme.FrostSoft);
+        if (ImGui.SmallButton(auditLabel))
+        {
+            s_showingAudit = !s_showingAudit;
+        }
+        ImGui.PopStyleColor();
+    }
+
+    // ─── Default view: Stat Sheet + Recommended Fills stacked ─────────────
+
+    private static void DrawDefaultView(StatSnapshot s, JobProfile profile, LevelMod mod, InventoryReader inventory)
+    {
+        DrawSectionHead("Current Substats", null);
+        DrawStatSheet(s, profile, mod);
+
+        ImGui.Spacing();
+        ImGui.Spacing();
+
+        DrawSectionHead("Recommended Fills", null);
+        DrawModeDisclaimer();
+        ImGui.Spacing();
+        DrawPlan(s, profile, mod, inventory);
+    }
+
+    // ─── Audit view ───────────────────────────────────────────────────────
+
+    private static void DrawAuditView(StatSnapshot s, JobProfile profile, LevelMod mod, InventoryReader inventory)
+    {
+        DrawSectionHead("Materia Audit", null);
+        DrawAudit(s, profile, mod, inventory);
+    }
+
+    // Section head mirrors CharacterTab's visual treatment (gold-bright title,
+    // hairline separator). Local copy to avoid cross-class coupling.
+    private static void DrawSectionHead(string title, string? rightRail)
+    {
+        ImGui.TextColored(TlfTheme.GoldBright, title);
+        if (!string.IsNullOrEmpty(rightRail))
         {
             ImGui.SameLine();
-            ImGui.Dummy(new Vector2(40, 0));
-            ImGui.SameLine();
-            ImGui.TextDisabled("Mode:");
-            ImGui.SameLine();
-            if (ImGui.RadioButton("Pure math", s_weightMode == WeightMode.PureMath))
-                s_weightMode = WeightMode.PureMath;
-            ImGui.SameLine();
-            if (ImGui.RadioButton("Balance preset", s_weightMode == WeightMode.BalancePreset))
-                s_weightMode = WeightMode.BalancePreset;
-
-            // v0.4.0: caption explaining the active mode. Single italic line,
-            // disabled-text style so it doesn't compete with the tab content.
-            DrawModeDisclaimer();
+            var w   = ImGui.GetContentRegionAvail().X;
+            var rw  = ImGui.CalcTextSize(rightRail).X;
+            if (w > rw + 8f)
+                ImGui.SameLine(ImGui.GetCursorPosX() + w - rw - 4f);
+            ImGui.TextDisabled(rightRail);
         }
+        ImGui.Separator();
+        ImGui.Spacing();
     }
 
     private static void DrawModeDisclaimer()
     {
-        // Indent a little so the caption visually attaches to the selector
-        // rather than the sub-tab body that follows.
         ImGui.Indent(12);
+        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.55f, 0.55f, 0.55f, 1f));
         if (s_weightMode == WeightMode.PureMath)
         {
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.55f, 0.55f, 0.55f, 1f));
             ImGui.TextWrapped(
                 "Pure math ranks melds by the formula deltas alone, with no opinion. " +
                 "Doesn't model Crit's multiplier effect on Det/DH — for tighter raid recs, " +
                 "switch to Balance preset.");
-            ImGui.PopStyleColor();
         }
         else
         {
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.55f, 0.55f, 0.55f, 1f));
             ImGui.TextWrapped(
                 "Balance preset uses per-job weights from thebalanceffxiv.com. " +
                 "Community consensus circa Patch 7.5 (May 2026); weights drift over time.");
-            ImGui.PopStyleColor();
         }
+        ImGui.PopStyleColor();
         ImGui.Unindent(12);
     }
 
@@ -102,9 +184,6 @@ public static class MateriaTab
 
     private static void DrawStatSheet(StatSnapshot s, JobProfile profile, LevelMod mod)
     {
-        ImGui.TextUnformatted("Current substats and breakpoints");
-        ImGui.Spacing();
-
         if (ImGui.BeginTable("##statsheet", 4,
             ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.SizingFixedFit))
         {
@@ -144,11 +223,11 @@ public static class MateriaTab
     {
         var rate = Formulas.CritRate(crit, mod);
         var dmg  = Formulas.CritDmg(crit, mod);
-
         ImGui.TableNextRow();
         ImGui.TableNextColumn(); ImGui.TextUnformatted("Critical Hit");
         ImGui.TableNextColumn(); ImGui.TextUnformatted(crit.ToString());
-        ImGui.TableNextColumn(); ImGui.TextUnformatted($"{rate.DisplayValue * 100:0.0}% rate, {dmg.DisplayValue:0.000}× dmg");
+        ImGui.TableNextColumn();
+        ImGui.TextUnformatted($"{rate.DisplayValue * 100:0.0}% rate, {dmg.DisplayValue:0.000}× dmg");
         ImGui.TableNextColumn();
         var deltaToNext = rate.NextTier - crit;
         if (deltaToNext > 0)
@@ -175,7 +254,6 @@ public static class MateriaTab
     {
         var dmg = Formulas.SpeedDamage(speed, mod);
         var gcd = Formulas.GcdFromSpeed(speed, mod);
-
         ImGui.TableNextRow();
         ImGui.TableNextColumn(); ImGui.TextUnformatted(label);
         ImGui.TableNextColumn(); ImGui.TextUnformatted(speed.ToString());
@@ -187,7 +265,7 @@ public static class MateriaTab
             ImGui.TextDisabled($"+{dmg.NextTier - speed} stat → next tier");
     }
 
-    // ─── Plan mode ─────────────────────────────────────────────────────────
+    // ─── Plan body ────────────────────────────────────────────────────────
 
     private static void DrawPlan(StatSnapshot s, JobProfile profile, LevelMod mod, InventoryReader inventory)
     {
@@ -204,7 +282,7 @@ public static class MateriaTab
         {
             ImGui.TextColored(new Vector4(0.5f, 0.9f, 0.5f, 1f),
                 "No empty meld slots — your gear is fully melded.");
-            ImGui.TextDisabled("Switch to Audit to review whether existing melds are optimal.");
+            ImGui.TextDisabled("Toggle Audit ▸ to review whether existing melds are optimal.");
             return;
         }
 
@@ -242,7 +320,7 @@ public static class MateriaTab
         }
     }
 
-    // ─── Audit mode ────────────────────────────────────────────────────────
+    // ─── Audit body ───────────────────────────────────────────────────────
 
     private static void DrawAudit(StatSnapshot s, JobProfile profile, LevelMod mod, InventoryReader inventory)
     {
@@ -257,7 +335,7 @@ public static class MateriaTab
 
         if (result.Audits.Count == 0)
         {
-            ImGui.TextDisabled("No existing melds to audit. Switch to Plan to see fill recommendations.");
+            ImGui.TextDisabled("No existing melds to audit. Use ◀ Back to gear to see fill recommendations.");
             return;
         }
 

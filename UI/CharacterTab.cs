@@ -614,7 +614,8 @@ public static class CharacterTab
             ImGui.PushStyleColor(ImGuiCol.HeaderActive,  new Vector4(0f, 0f, 0f, 0f));
             if (ImGui.Selectable("See full audit in Materia tab →"))
             {
-                WantsMateriaTabFocus = true;
+                WantsMateriaTabFocus       = true;
+                MateriaTab.WantsAuditOnNextDraw = true;
             }
             ImGui.PopStyleColor(3);
         }

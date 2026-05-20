@@ -7,7 +7,7 @@
 //                  No webhooks, no analytics, no auto-submit.
 //
 // Tab order (v0.4.7):
-//   Quick Start | Current Gear | Plan | Materia | Settings | Diagnostics | Feedback | About
+//   Character | Quick Start | Plan | Materia | Settings | Diagnostics | Feedback | About
 //
 // v0.4.6 tabs (still here):
 //   Quick Start  — first-time-user workflow guide for the export–optimize–
@@ -201,11 +201,6 @@ public sealed class MainWindow : Window, IDisposable
                 DrawQuickStart();
                 ImGui.EndTabItem();
             }
-            if (ImGui.BeginTabItem("Current Gear"))
-            {
-                DrawCurrentGear();
-                ImGui.EndTabItem();
-            }
             if (ImGui.BeginTabItem("Plan"))
             {
                 PlanTab.Draw(plugin.Inventory);
@@ -393,50 +388,6 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.TableNextRow();
         ImGui.TableNextColumn(); ImGui.TextColored(Theme.TlfTheme.GoldBright, cmd);
         ImGui.TableNextColumn(); ImGui.TextUnformatted(desc);
-    }
-
-    private void DrawCurrentGear()
-    {
-        var equipped = plugin.Inventory.ReadEquipped();
-        if (equipped.Count == 0)
-        {
-            ImGui.TextDisabled("No equipped items detected.");
-            return;
-        }
-        var ilvl = plugin.Inventory.CalculateAverageItemLevel(equipped);
-        ImGui.Text($"Average Item Level: {ilvl}");
-        ImGui.Spacing();
-        if (ImGui.BeginTable("##gear", 4,
-                ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInner | ImGuiTableFlags.SizingStretchProp))
-        {
-            ImGui.TableSetupColumn("Slot",    ImGuiTableColumnFlags.WidthFixed, 90);
-            ImGui.TableSetupColumn("Item",    ImGuiTableColumnFlags.WidthStretch);
-            ImGui.TableSetupColumn("iLvl",    ImGuiTableColumnFlags.WidthFixed, 50);
-            ImGui.TableSetupColumn("Materia", ImGuiTableColumnFlags.WidthStretch);
-            ImGui.TableHeadersRow();
-            foreach (var piece in equipped)
-            {
-                ImGui.TableNextRow();
-                ImGui.TableNextColumn(); ImGui.Text(piece.Slot.ToString());
-                ImGui.TableNextColumn();
-                ImGui.Text(piece.IsHighQuality ? $"{piece.Name} ★" : piece.Name);
-                ImGui.TableNextColumn(); ImGui.Text(piece.ItemLevel.ToString());
-                ImGui.TableNextColumn();
-                if (piece.Materia.Count == 0)
-                {
-                    ImGui.TextDisabled("—");
-                }
-                else
-                {
-                    foreach (var m in piece.Materia)
-                    {
-                        ImGui.TextUnformatted($"+{m.StatValue} {m.StatName}");
-                        if (m.SlotIndex < piece.Materia.Count - 1) ImGui.SameLine();
-                    }
-                }
-            }
-            ImGui.EndTable();
-        }
     }
 
     // ── v0.4.6 Settings tab ─────────────────────────────────────────────

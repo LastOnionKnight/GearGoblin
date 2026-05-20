@@ -1,3 +1,30 @@
+## [0.6.6.4] — Materia tab merge (Fork 1) + Current Gear tab purge
+
+### Changed
+- **Materia tab default landing now merges Stat Sheet + Plan** on one scroll surface. The three-radio sub-tab selector (`Stat Sheet` / `Plan` / `Audit`) is gone. The default view stacks `Current Substats` (4-col table) above `Recommended Fills` (4-col table), with the Pure-math mode disclaimer rendered as an inline italic caption above the fills.
+- **Two small toggles right-aligned in the header line:**
+  - `[Audit ▸]` / `[◀ Back to gear]` — swaps the body to the Audit view (severity counts + 4-col audit table) and back. Active state renders in Lantern color so the user can see the toggle is "armed."
+  - `[Pure math]` / `[Balance preset]` — flips the optimizer's weighting; re-renders the Plan (or Audit) in place. Pure math is default; Balance preset persists for the session.
+- **Cross-tab focus signal expanded.** CharacterTab's `See full audit in Materia tab →` link now sets BOTH `CharacterTab.WantsMateriaTabFocus` (tab focus) and `MateriaTab.WantsAuditOnNextDraw` (view selection). Single-click from the Character tab's Materia Advisor footer now lands the user directly in the Audit view. `WantsAuditOnNextDraw` is consumed on the next Draw and resets to false the same frame.
+
+### Removed
+- **`Current Gear` tab** — fully subsumed by the Character tab's `Equipped Gear` section (shipped in v0.6.6.0). Both render the same Slot / Item / iLvl / Materia table; the Current Gear tab's `Average Item Level: XXX` header line is already shown in the Character tab's right-rail pill (`iLvl 777`). Zero information loss. The `DrawCurrentGear()` method is deleted; the file-header tab-list comment in `MainWindow.cs` is updated.
+
+### Why this version
+Closes the v0.6.6.x Character-tab + Materia-tab polish arc on the TlfTheme (gold/navy) era. The four-pass character tab polish (StatsStrip v0.6.6.1, CharacterHero v0.6.6.2, Materia Advisor v0.6.6.3, gear-table polish deferred to v0.6.6.5) and now the Materia tab merge are all that's left of the Track 1 visual language. v0.6.7 begins the Track 2 (ember/frost-blue) era with the new Plan tab paste UI as the first surface in the unified design language.
+
+### Build-gate risks
+- **`MateriaTab.WantsAuditOnNextDraw` is `internal static`** — same access level pattern as `CharacterTab.WantsMateriaTabFocus`. CharacterTab can set it because they're in the same assembly (`GearGoblin.UI` namespace). If access fails, change to `public static`.
+- **`ImGui.SameLine(float positionX)` for right-aligning the toggle pair** — confirmed pattern from v0.6.6.1's StatsStrip cards. Falls back gracefully to a new line via the explicit `ImGui.NewLine()` branch when the window is too narrow.
+
+### Verify in-game (`/xlplugins` toggle off/on)
+1. **Tab strip** — `Character | Quick Start | Plan | Materia | Settings | Diagnostics | Feedback | About`. No `Current Gear` tab.
+2. **Materia tab default view** — opens to Stat Sheet table on top, Recommended Fills below. No radio buttons at top.
+3. **Right-aligned toggles** — `[Pure math]` and `[Audit ▸]` (smaller, on the same line as `{Job} Lv {Lv} ({Role})`).
+4. **Click `[Audit ▸]`** — body swaps to severity counts + audit table. Toggle label flips to `[◀ Back to gear]` and turns gold (Lantern color). Click again to return.
+5. **Click `[Pure math]`** — flips to `[Balance preset]`, the mode disclaimer caption above the fills table changes to the Balance preset version, and the Plan table re-orders by the new weighting.
+6. **Cross-tab path** — switch to Character tab, click `See full audit in Materia tab →` on the Materia Advisor card footer. Should land directly on the Audit view (not the default Stat Sheet + Plan view).
+
 ## [0.6.6.3] — Character tab polish pass 3: Materia Advisor ranked rows
 
 ### Added

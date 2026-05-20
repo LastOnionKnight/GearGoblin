@@ -4,36 +4,38 @@
     <Author>LastOnionKnight</Author>
     <Name>Tonberry Tactics</Name>
     <InternalName>GearGoblin</InternalName>
-    <AssemblyVersion>0.6.6.3</AssemblyVersion>
-    <FileVersion>0.6.6.3</FileVersion>
-    <Version>0.6.6.3</Version>
-    <!-- v0.6.6.3 — third polish pass on the Character tab. Materia Advisor
-         section rebuilt as a card with ranked rows. Each row carries a
-         rank prefix (00–02 in Press Start 2P pixel font, GoldDim), slot
-         label (Knife color), direction arrow (Lantern — → for audit
-         replacements, ← for plan additions), materia/replacement spec
-         (Frost color), and a gain badge (right-aligned in pixel font,
-         Ice color) showing the calibrated marginal percentage gain
-         (FormatGain(score) → "+0.42%"). Empty state renders the
-         ◆ Ship-green glyph + italic Garamond message. Footer adds a
-         clickable "See full audit in Materia tab →" link styled as a
-         hyperlink (Lantern text, no hover background) that sets
-         CharacterTab.WantsMateriaTabFocus; MainWindow.cs's tab strip
-         reads the flag in the next frame and passes
-         ImGuiTabItemFlags.SetSelected to the Materia tab's BeginTabItem
-         for one frame.
+    <AssemblyVersion>0.6.6.4</AssemblyVersion>
+    <FileVersion>0.6.6.4</FileVersion>
+    <Version>0.6.6.4</Version>
+    <!-- v0.6.6.4 — Materia tab merge (Fork 1, toggle treatment) + Current
+         Gear tab redundancy purge.
 
-         This closes the Character tab's three large-surface polish
-         passes (StatsStrip cards in v0.6.6.1, CharacterHero in v0.6.6.2,
-         Materia Advisor in v0.6.6.3). v0.6.6.4 polishes the gear table —
-         striped rows, gold-tier highlight, HQ star, Soul Crystal divider.
-         The full Track 1 (gold/navy) visual treatment lands then, and
-         v0.6.7 begins the Track 2 (ember/frost-blue) work with the new
-         Plan tab paste UI as the first surface in the v1.0 design
-         language. -->
+         The Materia tab's three-radio sub-selector (Stat Sheet / Plan /
+         Audit) is gone. The default landing shows Current Substats and
+         Recommended Fills stacked on one scroll surface, with two small
+         toggles right-aligned in the header line: [Audit ▸] to swap the
+         body to the audit view, and [Pure math | Balance preset] to flip
+         the optimizer's weighting. The mode disclaimer is now an inline
+         italic caption directly above the Recommended Fills table.
+
+         The Current Gear tab is removed entirely. Its 4-column gear
+         table is fully subsumed by the Character tab's Equipped Gear
+         section that shipped in v0.6.6.0; the average-iLvl line is now
+         in the Character tab's right-rail pill. Zero information loss.
+
+         Cross-tab signal: CharacterTab's "See full audit in Materia
+         tab →" link now sets both WantsMateriaTabFocus (focuses the
+         tab) AND MateriaTab.WantsAuditOnNextDraw (lands the user on
+         the Audit view directly). Single-click path from the
+         Character tab advisor card to the full audit view.
+
+         This closes the Character tab + Materia tab polish arc on
+         TlfTheme (gold/navy). v0.6.7 begins the ember/frost-blue
+         repaint with the new Plan tab paste UI as the first Track 2
+         surface. -->
     <MinimumDalamudVersion>15.0.0</MinimumDalamudVersion>
     <Punchline>BiS planner, Materia Advisor, and round-trip optimizer for FFXIV. The in-game half of Tonberry Tactics; coexists with CharacterPanelRefined.</Punchline>
-    <Description>In-game half of Tonberry Tactics. v0.6.6.3 lands the third Character-tab polish pass — Materia Advisor section is now a card with ranked rows. Each row has a pixel-font rank prefix, slot label, direction arrow, materia/replacement spec, and a calibrated percentage-gain badge. Empty state uses the ◆ Ship glyph and an italic Garamond message. Footer link "See full audit in Materia tab →" focuses the Materia tab when clicked, wired via a one-frame ImGuiTabItemFlags.SetSelected signal. v0.6.6.4 closes the Character tab polish arc with the gear table; v0.6.7 begins the v1.0 design language with the new Plan tab paste UI. Core and Web at v0.6.6.3 lockstep (version-only).</Description>
+    <Description>In-game half of Tonberry Tactics. v0.6.6.4 merges the Materia tab's Stat Sheet + Plan into one default landing per Fork 1 (toggle treatment) — small [Audit ▸] and [Pure math / Balance preset] toggles right-aligned in the header, no more sub-tab radio strip. The Current Gear tab is removed; its content was already fully redundant with the Character tab. CharacterTab's "See full audit" link now lands users directly on the Audit view via a one-frame cross-tab signal. Core and Web at v0.6.6.4 lockstep (version-only).</Description>
     <RepoUrl>https://github.com/LastOnionKnight/GearGoblin</RepoUrl>
     <Tags>gear;bis;materia;etro;xivgear;raid;advisor;cpr;character-panel;tonberry-tactics</Tags>
 
