@@ -24,9 +24,12 @@
   - **Diff card** — eyebrow `» BIS · {name}`, description quip (if any), 4-column diff table (Slot / Current / Target / Status). Match status renders as `[ ✓ match ]` pill in HpGreen; farm status as `[ ✗ farm ]` pill in Farm orange.
 - **`PlanTab.Draw` signature changed** from `Draw(InventoryReader inventory)` to `Draw(Plugin plugin)` so it can reach `plugin.Fonts` for the Track 2 typography. The data flow (StartFetch, BisFetcher.FetchAsync, slot-by-slot diff via InventoryReader.ReadEquipped) is preserved verbatim — only the chrome wraps it.
 - **`MainWindow.cs` line ~203** — caller updated from `PlanTab.Draw(plugin.Inventory)` to `PlanTab.Draw(plugin)`. One-line edit.
+- **Tab bar reordered** — `Quick Start` now leads, `Character` moves to position 2. Rationale: first-time users land on onboarding rather than the meatiest content surface. Existing users muscle-memory-shifts one slot. Other tabs unchanged: `Plan / Materia / Settings / Diagnostics / Feedback / About`.
 
 ### Why this version
 First surface in the new ember/frost-blue visual language (Track 2) that gradually replaces TlfTheme (gold/navy) over the v0.6.7 → v1.0 migration. The Plan tab was the natural starting point because it's a contained surface with stable data flow — the chrome can change without disturbing the fetch/diff logic underneath.
+
+**Also ships v0.6.6.5's changes** (Equipped Gear table polish + section eyebrow glyph fix). v0.6.6.5 was built on disk but never separately released to the Custom Repo — Brian switched to the Custom Repo install path before pushing it, so its changes carry forward in the v0.6.7 build. The [0.6.6.5] entry below in this CHANGELOG documents what's in those changes; the build that ships to Custom Repo with the v0.6.7 tag includes both sets atomically.
 
 Per the v0.6.7 vs v0.6.8 split locked 2026-05-20:
 - **v0.6.7** = visual rebuild only (this ship)

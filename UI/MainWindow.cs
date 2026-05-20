@@ -191,14 +191,16 @@ public sealed class MainWindow : Window, IDisposable
             // v0.6.6: Character tab — first in the strip, the new landing experience.
             // Replaces the StatusPanelInjector's native-panel injection over time.
             // See UI/CharacterTab.cs and CHANGELOG.md v0.6.6 entry.
-            if (ImGui.BeginTabItem("Character"))
-            {
-                CharacterTab.Draw(plugin, player);
-                ImGui.EndTabItem();
-            }
+            // v0.6.7: Quick Start leads the tab bar for new-user onboarding;
+            // Character moves to position 2 (still the meatiest content).
             if (ImGui.BeginTabItem("Quick Start"))
             {
                 DrawQuickStart();
+                ImGui.EndTabItem();
+            }
+            if (ImGui.BeginTabItem("Character"))
+            {
+                CharacterTab.Draw(plugin, player);
                 ImGui.EndTabItem();
             }
             if (ImGui.BeginTabItem("Plan"))
