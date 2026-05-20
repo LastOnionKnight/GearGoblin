@@ -79,7 +79,14 @@ public static class TlfTheme
     // The TLF design uses three section glyphs in the prototype.
     // Keeping them as named constants so consistency is enforced.
 
-    public const string GlyphSection    = "◇";   // section eyebrow (TLF Manifesto, etc)
+    // v0.6.6.5 — `GlyphSection` was "◇" (U+25C7 WHITE DIAMOND) but the WHITE
+    // variant isn't in the default ImGui font's glyph range; it rendered as `?`
+    // in-game on the About + Quick Start tabs. The other two glyphs work
+    // because filled-shape Unicode (U+25B6 / U+25C6) is broadly supported
+    // while outlined-shape Unicode often isn't. Swapped to `»` (U+00BB,
+    // RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK) which lives in Latin-1
+    // Supplement — universally available. Visually distinct from ▶ and ◆.
+    public const string GlyphSection    = "»";   // section eyebrow (TLF Manifesto, etc)
     public const string GlyphAdvisor    = "▶";   // active / forward / call-to-action
     public const string GlyphCredo      = "◆";   // credo / standing-ready footer
 

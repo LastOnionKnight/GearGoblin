@@ -203,7 +203,9 @@ public sealed class MainWindow : Window, IDisposable
             }
             if (ImGui.BeginTabItem("Plan"))
             {
-                PlanTab.Draw(plugin.Inventory);
+                // v0.6.7: pass full plugin so PlanTab can reach plugin.Fonts
+                // for Track 2 typography (Cormorant Garamond, JetBrains Mono).
+                PlanTab.Draw(plugin);
                 ImGui.EndTabItem();
             }
             // v0.6.6.3: CharacterTab.WantsMateriaTabFocus is set by the

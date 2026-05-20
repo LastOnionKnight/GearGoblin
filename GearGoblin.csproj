@@ -4,38 +4,55 @@
     <Author>LastOnionKnight</Author>
     <Name>Tonberry Tactics</Name>
     <InternalName>GearGoblin</InternalName>
-    <AssemblyVersion>0.6.6.4</AssemblyVersion>
-    <FileVersion>0.6.6.4</FileVersion>
-    <Version>0.6.6.4</Version>
-    <!-- v0.6.6.4 — Materia tab merge (Fork 1, toggle treatment) + Current
-         Gear tab redundancy purge.
+    <AssemblyVersion>0.6.7</AssemblyVersion>
+    <FileVersion>0.6.7</FileVersion>
+    <Version>0.6.7</Version>
+    <!-- v0.6.7 — Track 2 era begins. First surface in the new
+         ember/frost-blue visual language that replaces TlfTheme
+         (gold/navy) over the v0.6.7 → v1.0 migration arc.
 
-         The Materia tab's three-radio sub-selector (Stat Sheet / Plan /
-         Audit) is gone. The default landing shows Current Substats and
-         Recommended Fills stacked on one scroll surface, with two small
-         toggles right-aligned in the header line: [Audit ▸] to swap the
-         body to the audit view, and [Pure math | Balance preset] to flip
-         the optimizer's weighting. The mode disclaimer is now an inline
-         italic caption directly above the Recommended Fills table.
+         Scope (per the split locked 2026-05-20):
+           v0.6.7 = visual rebuild only (Plan tab repaint).
+           v0.6.8 = injector deprecation banner + plan persistence.
 
-         The Current Gear tab is removed entirely. Its 4-column gear
-         table is fully subsumed by the Character tab's Equipped Gear
-         section that shipped in v0.6.6.0; the average-iLvl line is now
-         in the Character tab's right-rail pill. Zero information loss.
+         New module:
+           Theme/TtChrome.cs — Track 2 chrome helper. Palette tokens
+           lifted verbatim from RUNTIME_PORT.md §1.3 (the TLF HUD v0.1
+           design handoff). Doubled-frame card chrome via ImGui
+           drawlist channel-split (outer 2px frost-outline, inner 1px
+           hairline at 6px inset — the signature look).
 
-         Cross-tab signal: CharacterTab's "See full audit in Materia
-         tab →" link now sets both WantsMateriaTabFocus (focuses the
-         tab) AND MateriaTab.WantsAuditOnNextDraw (lands the user on
-         the Audit view directly). Single-click path from the
-         Character tab advisor card to the full audit view.
+         Updated:
+           Theme/FontAtlasManager.cs — adds five Track 2 font handles
+           (Cormorant Garamond Regular/Italic, JetBrains Mono
+           Regular/Bold, Eorzea rune). All optional via the existing
+           TryBuild pattern. No callers reference them yet — that's
+           v0.6.7.1's job. Brian can drop the .ttf files into
+           Assets/Fonts/ at any pace.
 
-         This closes the Character tab + Materia tab polish arc on
-         TlfTheme (gold/navy). v0.6.7 begins the ember/frost-blue
-         repaint with the new Plan tab paste UI as the first Track 2
-         surface. -->
+           UI/PlanTab.cs — repainted in TtChrome chrome. Three cards:
+           paste form (eyebrow + quip + URL input + Fetch/Clear),
+           empty state (when no BiS loaded), and diff (when loaded).
+           Status messages use TtChrome severity palette. Match/farm
+           status pills in HpGreen / Farm orange. Data flow
+           (StartFetch, BisFetcher, slot-by-slot diff) unchanged.
+
+           PlanTab.Draw signature changed from Draw(InventoryReader)
+           to Draw(Plugin) so it can reach plugin.Fonts. MainWindow.cs
+           line ~203 needs a one-line update — see CHANGELOG.
+
+         Both font tracks coexist during the migration:
+           - TlfTheme surfaces (Character, Materia, Quick Start,
+             About, Settings, Diagnostics, Feedback) use Track 1 fonts
+             (Cinzel + EB Garamond + Press Start 2P).
+           - TtChrome surfaces (Plan tab, future repaints) will use
+             Track 2 fonts (Cormorant Garamond + JetBrains Mono +
+             Eorzea) starting in v0.6.7.1.
+
+         Core and Web at v0.6.7 lockstep (version-only). -->
     <MinimumDalamudVersion>15.0.0</MinimumDalamudVersion>
     <Punchline>BiS planner, Materia Advisor, and round-trip optimizer for FFXIV. The in-game half of Tonberry Tactics; coexists with CharacterPanelRefined.</Punchline>
-    <Description>In-game half of Tonberry Tactics. v0.6.6.4 merges the Materia tab's Stat Sheet + Plan into one default landing per Fork 1 (toggle treatment) — small [Audit ▸] and [Pure math / Balance preset] toggles right-aligned in the header, no more sub-tab radio strip. The Current Gear tab is removed; its content was already fully redundant with the Character tab. CharacterTab's "See full audit" link now lands users directly on the Audit view via a one-frame cross-tab signal. Core and Web at v0.6.6.4 lockstep (version-only).</Description>
+    <Description>In-game half of Tonberry Tactics. v0.6.7 begins the Track 2 (ember/frost-blue) visual era with the Plan tab repainted as the first surface. New Theme/TtChrome.cs module provides the doubled-frame card chrome (outer 2px frost-outline + inner 1px hairline at 6px inset) plus the ember/frost-blue palette lifted from the TLF HUD v0.1 design handoff. FontAtlasManager gains five Track 2 font handles (Cormorant Garamond, JetBrains Mono, Eorzea rune) — all optional, no callers wired yet. Plan tab data flow unchanged; only the chrome changes. Core and Web at v0.6.7 lockstep (version-only).</Description>
     <RepoUrl>https://github.com/LastOnionKnight/GearGoblin</RepoUrl>
     <Tags>gear;bis;materia;etro;xivgear;raid;advisor;cpr;character-panel;tonberry-tactics</Tags>
 

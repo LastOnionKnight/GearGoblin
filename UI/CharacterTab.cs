@@ -81,7 +81,7 @@ public static class CharacterTab
         ImGui.Spacing();
         ImGui.Spacing();
 
-        DrawGearTable(equipped);
+        DrawGearTable(plugin, equipped);
     }
 
     // ─── § 4.1 Hero region ─────────────────────────────────────────────────
@@ -637,24 +637,22 @@ public static class CharacterTab
 
     // ─── § 4.4 Gear table ──────────────────────────────────────────────────
     //
-    // SKELETON: identical to MainWindow.DrawCurrentGear() — same columns,
-    // same row construction, same data source. Lifted verbatim so the
-    // Character tab is functionally complete from day one. The existing
-    // "Current Gear" tab still works; this is a parallel rendering, not
-    // a replacement of DrawCurrentGear yet.
+    // v0.6.6.5 — polish pass. The TODO list from v0.6.6.0's skeleton:
+    //   ✅ Row stripes: alternate InkPanel / InkPanelAlt via per-row
+    //      TableSetBgColor(RowBg0). (We don't use ImGuiTableFlags.RowBg
+    //      because its default light-grey alternation clashes with TlfTheme.)
+    //   ✅ HQ ★ inline with item name in GoldBright (via SameLine).
+    //   ✅ Slot column in pixel font, GoldDim, uppercased.
+    //   ✅ Item column in Cinzel (CinzelEmphasis 16px) + Frost.
+    //   ✅ iLvl column right-aligned in default mono-feeling font + Knife.
+    //   ✅ Materia column: each meld + faint "·" separator dots in FrostFaint.
+    //   — (Soul Crystal divider deferred: EquippedPiece doesn't model the
+    //      soul-crystal slot — the InventoryReader skips it. Revisit if/when
+    //      soul-crystal data lands in the equipped list.)
     //
-    // TODO (visual polish — port from GearTable.jsx):
-    //   - Row stripes: alternate --ink-panel / --ink-panel-alt via
-    //     ImGuiTableFlags.RowBg + TableSetBgColor per row.
-    //   - HQ ★ inline with item name in --gold-bright.
-    //   - Soul Crystal row gets a darker background and a 1px top border
-    //     (drawList.AddLine after the table renders).
-    //   - Slot column in pixel font 9px, --gold-dim.
-    //   - Item column in Cinzel.
-    //   - iLvl column right-aligned in mono.
-    //   - Materia column: each meld in mono with "·" separator dots in
-    //     --frost-faint.
-    private static void DrawGearTable(IReadOnlyList<EquippedPiece> equipped)
+    // The header row is omitted — the section head supplies context and
+    // the column header text was visual noise on the dark TlfTheme surface.
+    private static void DrawGearTable(Plugin plugin, IReadOnlyList<EquippedPiece> equipped)
     {
         DrawSectionHead("Equipped Gear", $"{equipped.Count} slots");
 
@@ -664,33 +662,79 @@ public static class CharacterTab
             return;
         }
 
-        if (ImGui.BeginTable("##chartabgear", 4,
-                ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInner | ImGuiTableFlags.SizingStretchProp))
-        {
-            ImGui.TableSetupColumn("Slot",    ImGuiTableColumnFlags.WidthFixed, 90);
-            ImGui.TableSetupColumn("Item",    ImGuiTableColumnFlags.WidthStretch);
-            ImGui.TableSetupColumn("iLvl",    ImGuiTableColumnFlags.WidthFixed, 50);
-            ImGui.TableSetupColumn("Materia", ImGuiTableColumnFlags.WidthStretch);
-            ImGui.TableHeadersRow();
+        // Pre-pack stripe colors once. ImGui.GetColorU32(Vector4) is the
+        // canonical conversion from TlfTheme palette entries to the U32 the
+        // bg-color setter wants.
+        uint stripeEven = ImGui.GetColorU32(TlfTheme.InkPanel);
+        uint stripeOdd  = ImGui.GetColorU32(TlfTheme.InkPanelAlt);
 
-            foreach (var piece in equipped)
+        if (ImGui.BeginTable("##chartabgear", 4,
+                ImGuiTableFlags.BordersInner | ImGuiTableFlags.SizingStretchProp))
+        {
+            ImGui.TableSetupColumn("Slot",    ImGuiTableColumnFlags.WidthFixed, 96);
+            ImGui.TableSetupColumn("Item",    ImGuiTableColumnFlags.WidthStretch);
+            ImGui.TableSetupColumn("iLvl",    ImGuiTableColumnFlags.WidthFixed, 56);
+            ImGui.TableSetupColumn("Materia", ImGuiTableColumnFlags.WidthStretch);
+            // No TableHeadersRow() — see comment above.
+
+            for (int i = 0; i < equipped.Count; i++)
             {
+                var piece = equipped[i];
                 ImGui.TableNextRow();
-                ImGui.TableNextColumn(); ImGui.Text(piece.Slot.ToString());
+
+                // Row stripe — even rows InkPanel, odd rows InkPanelAlt.
+                ImGui.TableSetBgColor(
+                    ImGuiTableBgTarget.RowBg0,
+                    (i & 1) == 0 ? stripeEven : stripeOdd);
+
+                // ── Slot col: Press Start 2P 10px, GoldDim, UPPERCASED ────
                 ImGui.TableNextColumn();
-                ImGui.Text(piece.IsHighQuality ? $"{piece.Name} ★" : piece.Name);
-                ImGui.TableNextColumn(); ImGui.Text(piece.ItemLevel.ToString());
+                using (plugin.Fonts.Pixel.PushOrNull())
+                {
+                    ImGui.TextColored(TlfTheme.GoldDim, piece.Slot.ToString().ToUpperInvariant());
+                }
+
+                // ── Item col: Cinzel SemiBold 16px in Frost, ★ in GoldBright ─
+                ImGui.TableNextColumn();
+                using (plugin.Fonts.CinzelEmphasis.PushOrNull())
+                {
+                    ImGui.TextColored(TlfTheme.Frost, piece.Name);
+                    if (piece.IsHighQuality)
+                    {
+                        ImGui.SameLine(0, 6);
+                        ImGui.TextColored(TlfTheme.GoldBright, "★");
+                    }
+                }
+
+                // ── iLvl col: default font, Knife (steel), right-aligned ──
+                ImGui.TableNextColumn();
+                var ilvlStr   = piece.ItemLevel.ToString();
+                var ilvlWidth = ImGui.CalcTextSize(ilvlStr).X;
+                var availW    = ImGui.GetContentRegionAvail().X;
+                if (availW > ilvlWidth)
+                {
+                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + availW - ilvlWidth);
+                }
+                ImGui.TextColored(TlfTheme.Knife, ilvlStr);
+
+                // ── Materia col: Frost + " · " separator in FrostFaint ────
                 ImGui.TableNextColumn();
                 if (piece.Materia.Count == 0)
                 {
-                    ImGui.TextDisabled("—");
+                    ImGui.TextColored(TlfTheme.FrostFaint, "—");
                 }
                 else
                 {
-                    foreach (var m in piece.Materia)
+                    for (int m = 0; m < piece.Materia.Count; m++)
                     {
-                        ImGui.TextUnformatted($"+{m.StatValue} {m.StatName}");
-                        if (m.SlotIndex < piece.Materia.Count - 1) ImGui.SameLine();
+                        var meld = piece.Materia[m];
+                        ImGui.TextColored(TlfTheme.Frost, $"+{meld.StatValue} {meld.StatName}");
+                        if (m < piece.Materia.Count - 1)
+                        {
+                            ImGui.SameLine(0, 4);
+                            ImGui.TextColored(TlfTheme.FrostFaint, "·");
+                            ImGui.SameLine(0, 4);
+                        }
                     }
                 }
             }
