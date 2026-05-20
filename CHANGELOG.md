@@ -1,3 +1,25 @@
+## [0.6.7.2] — About panel backfill + clean-rebuild ship
+
+### Added
+- **About panel narrative entries** for v0.6.6.1 through v0.6.7.1. The "TLF Gear Division · Operations Brief" history block in `DrawAbout()` had been stale since v0.6.6 — no entries existed for any of the v0.6.6.x polish-arc releases (v0.6.6.1 StatsStrip cards, v0.6.6.2 CharacterHero, v0.6.6.3 Materia Advisor rows, v0.6.6.4 Materia tab merge, v0.6.6.5 gear table polish), nor for v0.6.7 (Track 2 era begin) or v0.6.7.1 (tab reorder hotfix). v0.6.7.2 backfills three entries above the existing v0.6.6 block:
+  - **v0.6.7.1** — Tab reorder hotfix (3 bullets).
+  - **v0.6.7** — Track 2 era begins · Plan tab repainted in ember/frost-blue (6 bullets).
+  - **v0.6.6.1 – v0.6.6.5** — Consolidated polish arc (5 bullets, one per .x release).
+
+### Why this version
+v0.6.7.1's commit was supposed to land the tab reorder, but in-game testing showed `Character` still leading the tab bar after Dalamud updated to v0.6.7.1 — the source file had `Quick Start` first (confirmed via `Select-String` post-build), but the loaded DLL behaved as if it didn't. The likely culprit is MSBuild's incremental-build cache: the build log showed `Build succeeded in 1.1s` with no `Compiling …` lines visible, suggesting MainWindow.cs was treated as "already up to date" and not recompiled into the DLL even though the source had changed.
+
+v0.6.7.2 mitigates this with an explicit `dotnet clean` + `bin/obj` wipe before the build, which guarantees a fresh compilation. Bundling that with the About-panel narrative backfill (one ship, one risk surface).
+
+### Build-gate risks
+- **About panel layout overflow.** Three new entries add roughly 20 bullets to the About scroll surface. Existing scroll behavior should accommodate; if not, the scroll bar handles it.
+- **Clean rebuild is the safety net, not a fix.** If v0.6.7.2's tab order *also* shows wrong after a clean install, the issue isn't build caching — it's somewhere else (Dalamud's plugin-DLL caching, GitHub release artifact mismatch, etc.) and we need to investigate further.
+
+### Verify in-game (`/xlplugins` → uninstall → restart Dalamud → reinstall from Custom Repo)
+1. Version pill reads `v0.6.7.2`.
+2. **Tab order:** `Quick Start | Character | Plan | Materia | Settings | Diagnostics | Feedback | About`.
+3. About panel — scroll the "TLF Gear Division · Operations Brief" section. Top three version entries are now v0.6.7.1, v0.6.7, v0.6.6.1–v0.6.6.5. The v0.6.6 BUG-001 entry sits below them.
+
 ## [0.6.7] — Track 2 era begins · Plan tab repainted in ember/frost-blue
 
 ### Added

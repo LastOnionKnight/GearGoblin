@@ -1,4 +1,4 @@
-# release.ps1 - Unified release script for GearGoblin and Tonberry Tactics
+﻿# release.ps1 - Unified release script for GearGoblin and Tonberry Tactics
 # ASCII only (PowerShell 5.1 chokes on UTF-8 BOM).
 #
 # What it does:
@@ -9,7 +9,7 @@
 #       bails on failure. Catches typos, unclosed tags, broken imports
 #       locally instead of letting them reach origin/main.
 #   4. Pulls the CHANGELOG entry for this version (if CHANGELOG.md exists).
-#   5. Commits with that message (now BOM-free under v0.4.6 + v0.4.7 — uses
+#   5. Commits with that message (now BOM-free under v0.4.6 + v0.4.7 â€” uses
 #      [System.IO.File]::WriteAllText with UTF8Encoding(false) instead of
 #      Set-Content -Encoding UTF8 which emits a BOM under PS 5.1).
 #   6. Tags vX.Y.Z.
@@ -106,7 +106,7 @@ Write-Host "  Branch:   $branch" -ForegroundColor White
 # Fetch and rebase before staging. Without this step, any commits on
 # origin/main that we don't have locally (most commonly the
 # github-actions[bot] repo.json bumps that fire after every tag push) will
-# cause the final `git push` to be rejected as non-fast-forward — exactly
+# cause the final `git push` to be rejected as non-fast-forward â€” exactly
 # the failure mode that derailed the v0.6.5.1 ship.
 #
 # --autostash handles the working-tree dropin changes during the rebase:
@@ -158,7 +158,7 @@ Write-Host ""
 # instead of reaching origin/main and only failing in CI / Cloudflare's
 # build queue (which is how the v0.4.5 era TT hotfix friction happened).
 #
-# Configuration is Release by default — same build flavor that ships to
+# Configuration is Release by default â€” same build flavor that ships to
 # users. Output goes through Out-Host so the build log is visible in the
 # console; we capture the exit code to decide whether to bail.
 
@@ -240,8 +240,8 @@ if ($LASTEXITCODE -ne 0) { Write-Host "git add failed" -ForegroundColor Red; exi
 
 Write-Host "Committing..." -ForegroundColor Cyan
 # v0.4.6+: write the commit message with NO BOM. PS 5.1's `Set-Content -Encoding UTF8`
-# emits a UTF-8 BOM, which git then preserves verbatim — the result is commit
-# subjects that look like '﻿GearGoblin 0.4.5' (invisible BOM prefix). The
+# emits a UTF-8 BOM, which git then preserves verbatim â€” the result is commit
+# subjects that look like 'ï»¿GearGoblin 0.4.5' (invisible BOM prefix). The
 # explicit [System.Text.UTF8Encoding]::new($false) constructor disables BOM
 # emission and gives us clean ASCII/UTF-8 messages.
 $msgFile = [System.IO.Path]::GetTempFileName()
@@ -277,3 +277,48 @@ Write-Host ""
 Write-Host "==================================================" -ForegroundColor Green
 Write-Host "  Release complete: $projectName $tag" -ForegroundColor Green
 Write-Host "==================================================" -ForegroundColor Green
+
+# ── Dropin artifact pruning (added 2026-05-20) ──────────────────────
+# Keep the last $Keep dropin zips + extracted folders in ~/Downloads
+# for rollback. Runs at end-of-script so a failed release leaves the
+# rollback artifacts untouched.
+
+function Invoke-DropinPrune {
+    [CmdletBinding()]
+    param(
+        [int]    $Keep         = 3,
+        [string] $DownloadsDir = "$env:USERPROFILE\Downloads",
+        [string] $Pattern      = "GearGoblin-v*-dropin"
+    )
+
+    Write-Host ""
+    Write-Host "── Dropin cleanup (keep last $Keep for rollback) ──" -ForegroundColor Cyan
+
+    $zips = @(Get-ChildItem -Path $DownloadsDir -Filter "$Pattern.zip" -File -ErrorAction SilentlyContinue |
+              Sort-Object LastWriteTime -Descending)
+    $dirs = @(Get-ChildItem -Path $DownloadsDir -Filter $Pattern -Directory -ErrorAction SilentlyContinue |
+              Sort-Object LastWriteTime -Descending)
+
+    if ($zips.Count -gt $Keep) {
+        foreach ($file in ($zips | Select-Object -Skip $Keep)) {
+            Write-Host "  Removing $($file.Name) ($($file.LastWriteTime.ToString('yyyy-MM-dd')))" -ForegroundColor DarkGray
+            Remove-Item $file.FullName -Force
+        }
+    }
+
+    if ($dirs.Count -gt $Keep) {
+        foreach ($dir in ($dirs | Select-Object -Skip $Keep)) {
+            Write-Host "  Removing $($dir.Name)/" -ForegroundColor DarkGray
+            Remove-Item $dir.FullName -Recurse -Force
+        }
+    }
+
+    $kept = $zips | Select-Object -First $Keep | ForEach-Object { $_.Name }
+    if ($kept) {
+        Write-Host "  Retained: $($kept -join ', ')" -ForegroundColor Green
+    } else {
+        Write-Host "  Nothing to retain (no dropins found)" -ForegroundColor DarkGray
+    }
+}
+
+Invoke-DropinPrune

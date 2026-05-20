@@ -831,6 +831,35 @@ public sealed class MainWindow : Window, IDisposable
         // "fixed in version X" narrative. Real wins from those versions
         // (brand pills, release-infra hardening, HQ-crafted fix from v0.6.5)
         // are preserved. Older entries collapsed to a CHANGELOG.md pointer.
+        //
+        // v0.6.7.2: backfilled v0.6.6.1-v0.6.6.5, v0.6.7, v0.6.7.1 entries.
+        // The About narrative had been stale since v0.6.6; this is the catch-up.
+
+        // ── v0.6.7.1 ──────────────────────────────────────────────────────
+        ImGui.Spacing();
+        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.7.1 — Tab reorder hotfix:");
+        ImGui.BulletText("Quick Start now leads the tab bar for new-user onboarding; Character moves to position 2");
+        ImGui.BulletText("The swap was scoped into v0.6.7 but applied from an earlier dropin draft missing the MainWindow.cs change — v0.6.7.1 lands the actual edit");
+        ImGui.BulletText("All other tabs unchanged in position (Plan, Materia, Settings, Diagnostics, Feedback, About)");
+
+        // ── v0.6.7 ────────────────────────────────────────────────────────
+        ImGui.Spacing();
+        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.7 — Track 2 era begins · Plan tab repainted in ember/frost-blue:");
+        ImGui.BulletText("New Theme/TtChrome.cs module: doubled-frame card chrome (outer 2px frost-outline + inner 1px hairline at 6px inset) — the signature Track 2 look");
+        ImGui.BulletText("Plan tab is the first Track 2 surface — three cards (paste form, empty state, diff table); ember/frost-blue palette; data flow preserved verbatim from v0.6.x");
+        ImGui.BulletText("Palette tokens lifted verbatim from design_handoff_tlf_hud_v01/RUNTIME_PORT.md §1.3");
+        ImGui.BulletText("FontAtlasManager gains 5 optional Track 2 font handles (Cormorant Garamond, JetBrains Mono, Eorzea rune) — loaded but not wired to callers yet, that's v0.6.7.3+ work");
+        ImGui.BulletText("Also ships v0.6.6.5's changes (Equipped Gear table polish + section eyebrow glyph fix) — v0.6.6.5 was built locally but never separately released");
+        ImGui.BulletText("TlfTheme stays untouched for Character / Materia / Quick Start / About / Settings / Diagnostics / Feedback; both themes coexist through v0.7.x");
+
+        // ── v0.6.6.1 – v0.6.6.5 (consolidated polish arc) ─────────────────
+        ImGui.Spacing();
+        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.6.1 – v0.6.6.5 — Character tab polish arc on TlfTheme:");
+        ImGui.BulletText("v0.6.6.1: StatsStrip cards — three-card layout for Crit / Det / DH substats");
+        ImGui.BulletText("v0.6.6.2: CharacterHero portrait frame + identity column with job badge");
+        ImGui.BulletText("v0.6.6.3: Materia Advisor ranked recommendation rows with severity pills");
+        ImGui.BulletText("v0.6.6.4: Materia tab merge (Stat Sheet + Plan in one view) + Current Gear tab purge");
+        ImGui.BulletText("v0.6.6.5: Equipped Gear table polish (striped rows, pixel slot labels, gold ★ HQ, materia · separators) + section eyebrow glyph fix");
 
         // ── v0.6.6 ──────────────────────────────────────────────────────
         ImGui.Spacing();
