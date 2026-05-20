@@ -69,7 +69,7 @@ public static class CharacterTab
         var equipped = plugin.Inventory.ReadEquipped();
         var ilvl     = equipped.Count > 0 ? plugin.Inventory.CalculateAverageItemLevel(equipped) : 0;
 
-        DrawHero(player, profile, ilvl);
+        DrawHero(plugin, player, profile, ilvl);
         ImGui.Spacing();
         ImGui.Spacing();
 
@@ -77,7 +77,7 @@ public static class CharacterTab
         ImGui.Spacing();
         ImGui.Spacing();
 
-        DrawMateriaAdvisor(s, profile, mod, equipped);
+        DrawMateriaAdvisor(plugin, s, profile, mod, equipped);
         ImGui.Spacing();
         ImGui.Spacing();
 
@@ -105,20 +105,136 @@ public static class CharacterTab
     //     font label + serif value.
     //   - Bottom gold divider (drawList.AddLine in --gold-dim).
     //   - World/DC strip below: pixel font 8px, --frost-faint.
-    private static void DrawHero(IPlayerCharacter player, JobProfile profile, int ilvl)
+    // ─── § 4.1 Hero region ─────────────────────────────────────────────────
+    //
+    // v0.6.6.2: portrait frame + identity column per Claude Design v0.2.0.
+    // Left column: 148×166 framed region (InkPanel bg, BorderPixelLite
+    // border, four 6×6 Lantern-gold corner brackets inset 2px from the
+    // corners). When no Adventurer Plate portrait is available — which is
+    // currently always, since Dalamud doesn't expose Plate textures — the
+    // frame's centered glyph is the 3-letter jobAbbr in Press Start 2P
+    // at 32px (the new PixelDisplay font handle, added in this version).
+    // Right column: player name (Cinzel 22px, GoldBright), class line
+    // (default font, FrostSoft), world (Pixel 10px uppercased, FrostDim),
+    // and an optional FC tag pill (Pixel 10px, TonberryBright) when the
+    // player is in a Free Company.
+    //
+    // All player-data accessors that reach into Lumina row references
+    // (HomeWorld, ClassJob.Abbreviation, CompanyTag) go through Safe*
+    // helpers below — local players are normally guaranteed to have
+    // valid refs, but loading screens / between-zone moments can
+    // briefly return RowId == 0, so we degrade gracefully rather than
+    // throw at the first frame after a class change.
+
+    private static void DrawHero(Plugin plugin, IPlayerCharacter player, JobProfile profile, int ilvl)
     {
         DrawSectionHead("Adventurer Plate", $"iLvl {ilvl}");
 
-        var name = player.Name.ToString();
-        var lvl  = player.Level;
-        ImGui.Text(name);
-        ImGui.SameLine();
-        ImGui.TextDisabled($"— {profile.Name} Lv {lvl}");
+        var drawList   = ImGui.GetWindowDrawList();
+        var topLeft    = ImGui.GetCursorScreenPos();
+        var portraitSz = new Vector2(148f, 166f);
+        var portraitBR = new Vector2(topLeft.X + portraitSz.X, topLeft.Y + portraitSz.Y);
 
-        // World/DC display (placeholder — IClientState has world info
-        // via player.CurrentWorld and player.HomeWorld but we'll wire
-        // those in the polish pass).
-        // FC tag also pending — Dalamud surfaces this via player object.
+        // Portrait frame: filled background + 1px border.
+        drawList.AddRectFilled(topLeft, portraitBR, ColorToU32(TlfTheme.InkPanel));
+        drawList.AddRect(topLeft, portraitBR, ColorToU32(TlfTheme.BorderPixelLite));
+
+        // Four lantern-gold corner brackets — 6×6 filled squares, inset 2px.
+        var lantern = ColorToU32(TlfTheme.Lantern);
+        DrawCornerSquare(drawList, topLeft.X + 2f,                   topLeft.Y + 2f,           lantern);
+        DrawCornerSquare(drawList, portraitBR.X - 2f - 6f,           topLeft.Y + 2f,           lantern);
+        DrawCornerSquare(drawList, topLeft.X + 2f,                   portraitBR.Y - 2f - 6f,   lantern);
+        DrawCornerSquare(drawList, portraitBR.X - 2f - 6f,           portraitBR.Y - 2f - 6f,   lantern);
+
+        // Centered jobAbbr fallback glyph.
+        var jobAbbr = SafeJobAbbr(player);
+        using (plugin.Fonts.PixelDisplay.PushOrNull())
+        {
+            var ts  = ImGui.CalcTextSize(jobAbbr);
+            var pos = new Vector2(
+                topLeft.X + (portraitSz.X - ts.X) * 0.5f,
+                topLeft.Y + (portraitSz.Y - ts.Y) * 0.5f);
+            drawList.AddText(pos, ColorToU32(TlfTheme.GoldDim), jobAbbr);
+        }
+
+        // Identity column to the right of the portrait, 18px gap.
+        ImGui.SetCursorScreenPos(new Vector2(portraitBR.X + 18f, topLeft.Y));
+        ImGui.BeginGroup();
+        {
+            // Player name — Cinzel Header
+            using (plugin.Fonts.CinzelHeader.PushOrNull())
+                ImGui.TextColored(TlfTheme.GoldBright, player.Name.ToString());
+
+            // Class line — default font, FrostSoft
+            ImGui.TextColored(TlfTheme.FrostSoft, $"{profile.Name} · Lv {player.Level}");
+
+            ImGui.Spacing();
+            ImGui.Spacing();
+
+            // World — Pixel uppercased, FrostDim
+            var world = SafeWorld(player);
+            if (!string.IsNullOrEmpty(world))
+            {
+                using (plugin.Fonts.Pixel.PushOrNull())
+                    ImGui.TextColored(TlfTheme.FrostDim, world.ToUpperInvariant());
+            }
+
+            // FC tag — Pixel, TonberryBright, surrounded by guillemets
+            var fc = SafeFcTag(player);
+            if (!string.IsNullOrEmpty(fc))
+            {
+                ImGui.Spacing();
+                using (plugin.Fonts.Pixel.PushOrNull())
+                    ImGui.TextColored(TlfTheme.TonberryBright, $"« {fc.ToUpperInvariant()} »");
+            }
+        }
+        ImGui.EndGroup();
+
+        // Advance cursor below the portrait (taller of the two columns wins;
+        // we conservatively use the portrait height since identity column
+        // varies with FC presence).
+        ImGui.SetCursorScreenPos(new Vector2(topLeft.X, portraitBR.Y + 8f));
+    }
+
+    // Small 6×6 filled square — corner-bracket primitive for the portrait frame.
+    private static void DrawCornerSquare(ImDrawListPtr drawList, float x, float y, uint color)
+    {
+        drawList.AddRectFilled(
+            new Vector2(x,       y),
+            new Vector2(x + 6f,  y + 6f),
+            color);
+    }
+
+    // Vector4 (linear RGBA, 0..1) → packed uint (ABGR, 0..255).
+    // Manual conversion avoids version-dependent ImGui.GetColorU32 /
+    // ImGui.ColorConvertFloat4ToU32 ambiguity across binding generations.
+    private static uint ColorToU32(Vector4 c)
+    {
+        static byte B(float f) => (byte)Math.Clamp(f * 255f, 0f, 255f);
+        return ((uint)B(c.W) << 24)
+             | ((uint)B(c.Z) << 16)
+             | ((uint)B(c.Y) << 8)
+             |  (uint)B(c.X);
+    }
+
+    // Lumina-row accessors — defensive against RowId == 0 transients
+    // around loading screens and class swaps.
+    private static string SafeJobAbbr(IPlayerCharacter player)
+    {
+        try { return player.ClassJob.Value.Abbreviation.ExtractText(); }
+        catch { return "???"; }
+    }
+
+    private static string SafeWorld(IPlayerCharacter player)
+    {
+        try { return player.HomeWorld.Value.Name.ExtractText(); }
+        catch { return ""; }
+    }
+
+    private static string SafeFcTag(IPlayerCharacter player)
+    {
+        try { return player.CompanyTag.ToString(); }
+        catch { return ""; }
     }
 
     // ─── § 4.2 Stats strip ─────────────────────────────────────────────────
@@ -150,6 +266,12 @@ public static class CharacterTab
     // 420 baseline (the level-100 sub-floor); a more nuanced job-aware
     // heuristic ("BLM melds away from speed", "RDM wants 2.45 GCD") lands
     // in v0.6.6.x once we have per-job speed-meld profiles.
+
+    // v0.6.6.3: cross-tab focus signal — DrawMateriaAdvisor sets this to true when
+    // the user clicks the "See full audit in Materia tab" footer link. MainWindow.cs
+    // reads it in the next frame's BeginTabItem call and passes ImGuiTabItemFlags.SetSelected
+    // to the Materia tab, then resets the flag.
+    internal static bool WantsMateriaTabFocus;
 
     private readonly record struct StatCardModel(
         string Label,
@@ -336,7 +458,32 @@ public static class CharacterTab
     //     the Materia tab — wire via setting an ImGui tab focus flag or a
     //     static "wantsMateriaTabFocus" hint that MainWindow picks up next
     //     frame.
+    // ─── § 4.3 Materia advisor (ranked rows + gain badges) ────────────────
+    //
+    // v0.6.6.3: replaces v0.6.6.0's plain-text rank-prefix dump with a card
+    // layout per Claude Design v0.2.0's MateriaAdvisorCard.jsx spec. The card
+    // has three states: empty (italic ◆ message), populated (1-3 ranked rows
+    // with rank prefix + slot + arrow glyph + materia/replacement + gain
+    // badge), and errored (preserves v0.6.6.0's defensive try/catch path).
+    // Footer is a Selectable styled to look like a link — clicking it sets
+    // WantsMateriaTabFocus, which MainWindow.cs reads on the next frame to
+    // pass SetSelected to the Materia tab's BeginTabItem.
+    //
+    // The candidate-build logic itself is unchanged from v0.6.6.0:
+    // top-3 audits by gain (Critical/Warning, with a SuggestedReplacement);
+    // fall back to PlanRecommendations to fill the remaining row count.
+    // Mirrors StatusPanelInjector.UpdateAdvisor so users see the same
+    // recommendations in both surfaces during the transition.
+
+    private readonly record struct AdvisorRecModel(
+        int    Rank,
+        string Slot,
+        string Direction,   // "→" for audit, "←" for plan
+        string Materia,
+        string GainBadge);  // pre-formatted "+0.42%" string or empty
+
     private static void DrawMateriaAdvisor(
+        Plugin                             plugin,
         StatSnapshot                       s,
         JobProfile                         profile,
         LevelMod                           mod,
@@ -349,16 +496,9 @@ public static class CharacterTab
             return;
         }
 
-        // Use PureMath as the skeleton default. The Mode toggle (PureMath
-        // vs BalancePreset) lives in MateriaTab today and we'll add a
-        // mirrored selector here in a polish pass, or accept that the
-        // Character tab uses one default and the Materia tab is the place
-        // to A/B between modes.
         OptimizerResult opt;
         try
         {
-            // Convert EquippedPiece (inventory layer) → MeldablePiece (optimizer layer).
-            // Same pattern StatusPanelInjector.UpdateAdvisor uses (Services/StatusPanelInjector.cs ~line 678).
             var pieces = equipped.Select(MeldSlotsBuilder.FromEquipped).ToList();
             opt = MeldOptimizer.Optimize(pieces, s, mod, profile, WeightMode.PureMath);
         }
@@ -371,47 +511,127 @@ public static class CharacterTab
             return;
         }
 
-        // Mirror StatusPanelInjector.UpdateAdvisor's candidate-list build —
-        // top 3 audits by gain, fall back to PlanRecommendations to fill 3.
-        var candidates = new List<string>();
+        // Build the candidate list — same logic as StatusPanelInjector.UpdateAdvisor.
+        var recs = new List<AdvisorRecModel>();
 
         var topAudits = opt.Audits
             .Where(a => a.Severity is AuditSeverity.Critical or AuditSeverity.Warning)
             .Where(a => a.SuggestedReplacement is not null)
             .OrderByDescending(a => a.GainIfReplaced)
-            .Take(3);
+            .Take(3)
+            .ToList();
         foreach (var audit in topAudits)
         {
-            candidates.Add($"{audit.Piece} #{audit.SlotIndex + 1} → {audit.SuggestedReplacement!.Value.Display()}");
+            recs.Add(new AdvisorRecModel(
+                Rank:      recs.Count + 1,
+                Slot:      $"{audit.Piece} #{audit.SlotIndex + 1}",
+                Direction: "→",
+                Materia:   audit.SuggestedReplacement!.Value.Display(),
+                GainBadge: FormatGain(audit.GainIfReplaced)));
         }
-        if (candidates.Count < 3)
+        if (recs.Count < 3)
         {
             var topPlans = opt.PlanRecommendations
                 .OrderByDescending(r => r.ScoreGain)
-                .Take(3 - candidates.Count);
+                .Take(3 - recs.Count);
             foreach (var rec in topPlans)
             {
-                candidates.Add($"{rec.Piece} #{rec.SlotIndex + 1} ← {rec.Materia.Display()}");
+                recs.Add(new AdvisorRecModel(
+                    Rank:      recs.Count + 1,
+                    Slot:      $"{rec.Piece} #{rec.SlotIndex + 1}",
+                    Direction: "←",
+                    Materia:   rec.Materia.Display(),
+                    GainBadge: FormatGain(rec.ScoreGain)));
             }
         }
 
-        var rightRail = candidates.Count == 0
+        var rightRail = recs.Count == 0
             ? "all slots optimal"
-            : $"{candidates.Count} of {opt.Audits.Count} suggested";
-
+            : $"{recs.Count} of {opt.Audits.Count} suggested";
         DrawSectionHead("Materia Advisor", rightRail);
 
-        if (candidates.Count == 0)
+        // ── Card chrome ─────────────────────────────────────────────────
+        ImGui.PushStyleColor(ImGuiCol.ChildBg, TlfTheme.InkPanelAlt);
+        ImGui.PushStyleColor(ImGuiCol.Border,  TlfTheme.FrostFaint);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(16f, 14f));
+
+        var cardHeight = recs.Count == 0 ? 96f : 50f + (recs.Count * 30f) + 50f;
+        if (ImGui.BeginChild("##advisor_card", new Vector2(0f, cardHeight), true))
         {
-            ImGui.TextDisabled("◆ All guaranteed slots filled · no upgrades suggested");
-        }
-        else
-        {
-            for (var i = 0; i < candidates.Count; i++)
+            if (recs.Count == 0)
             {
-                ImGui.Text($"{i + 1:00}  {candidates[i]}");
+                // Empty state — ◆ glyph in Ship green, italic Garamond message
+                ImGui.TextColored(TlfTheme.Ship, "◆");
+                ImGui.SameLine();
+                using (plugin.Fonts.GaramondItalic.PushOrNull())
+                    ImGui.TextColored(TlfTheme.FrostSoft,
+                        "All guaranteed slots filled · no upgrades suggested");
             }
+            else
+            {
+                if (ImGui.BeginTable("##advisor_rows", 2,
+                    ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.PadOuterX))
+                {
+                    ImGui.TableSetupColumn("desc", ImGuiTableColumnFlags.WidthStretch);
+                    ImGui.TableSetupColumn("gain", ImGuiTableColumnFlags.WidthFixed, 78f);
+
+                    foreach (var r in recs)
+                    {
+                        ImGui.TableNextRow();
+
+                        // Left: rank + slot + arrow + materia
+                        ImGui.TableNextColumn();
+                        using (plugin.Fonts.Pixel.PushOrNull())
+                            ImGui.TextColored(TlfTheme.GoldDim, $"{r.Rank:00}");
+                        ImGui.SameLine();
+                        ImGui.TextColored(TlfTheme.Knife, r.Slot);
+                        ImGui.SameLine();
+                        ImGui.TextColored(TlfTheme.Lantern, r.Direction);
+                        ImGui.SameLine();
+                        ImGui.TextColored(TlfTheme.Frost, r.Materia);
+
+                        // Right: gain badge in pixel font, Ice color
+                        ImGui.TableNextColumn();
+                        if (!string.IsNullOrEmpty(r.GainBadge))
+                        {
+                            using (plugin.Fonts.Pixel.PushOrNull())
+                                ImGui.TextColored(TlfTheme.Ice, r.GainBadge);
+                        }
+                    }
+                    ImGui.EndTable();
+                }
+            }
+
+            // ── Footer: separator + clickable link ───────────────────────
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+
+            // Selectable styled as a link: text in Lantern color, hover/active
+            // background suppressed so it doesn't read as a button.
+            ImGui.PushStyleColor(ImGuiCol.Text,          TlfTheme.Lantern);
+            ImGui.PushStyleColor(ImGuiCol.HeaderHovered, new Vector4(0f, 0f, 0f, 0f));
+            ImGui.PushStyleColor(ImGuiCol.HeaderActive,  new Vector4(0f, 0f, 0f, 0f));
+            if (ImGui.Selectable("See full audit in Materia tab →"))
+            {
+                WantsMateriaTabFocus = true;
+            }
+            ImGui.PopStyleColor(3);
         }
+        ImGui.EndChild();
+
+        ImGui.PopStyleVar();
+        ImGui.PopStyleColor(2);
+    }
+
+    // Format a raw optimizer score as a human-readable percentage badge.
+    // The optimizer's score is "weighted marginal percentage gain" so it's
+    // already roughly a fraction — multiplying by 100 gives a calibrated %.
+    // Negative or zero scores render empty so we never display "+0.00%".
+    private static string FormatGain(double score)
+    {
+        if (score <= 0) return "";
+        return $"+{score * 100d:F2}%";
     }
 
     // ─── § 4.4 Gear table ──────────────────────────────────────────────────

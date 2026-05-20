@@ -4,31 +4,36 @@
     <Author>LastOnionKnight</Author>
     <Name>Tonberry Tactics</Name>
     <InternalName>GearGoblin</InternalName>
-    <AssemblyVersion>0.6.6.1</AssemblyVersion>
-    <FileVersion>0.6.6.1</FileVersion>
-    <Version>0.6.6.1</Version>
-    <!-- v0.6.6.1 — first polish pass on the Character tab introduced in
-         v0.6.6.0. Replaces the plain-text StatsStrip with the card-based
-         layout per Claude Design v0.2.0: horizontal grid, per-stat cards
-         with label / value / derived-effect lines, border swap on speed
-         stats above the 420 baseline, Cinzel + Press Start 2P typography
-         pulled from the existing FontAtlasManager. Crafter / Gatherer
-         classes now render a "Battle stats not applicable" line instead
-         of the misleading 420/420 placeholder values the game returns.
-         Bundles BUG-003 closeout — MeldOptimizer.cs now skips audits for
-         materia with unrecognized stat types (Substat.None) instead of
-         throwing KeyNotFoundException on the totals lookup. Defensive
-         try/catch in CharacterTab.DrawMateriaAdvisor still wraps the
-         call as belt-and-suspenders.
+    <AssemblyVersion>0.6.6.3</AssemblyVersion>
+    <FileVersion>0.6.6.3</FileVersion>
+    <Version>0.6.6.3</Version>
+    <!-- v0.6.6.3 — third polish pass on the Character tab. Materia Advisor
+         section rebuilt as a card with ranked rows. Each row carries a
+         rank prefix (00–02 in Press Start 2P pixel font, GoldDim), slot
+         label (Knife color), direction arrow (Lantern — → for audit
+         replacements, ← for plan additions), materia/replacement spec
+         (Frost color), and a gain badge (right-aligned in pixel font,
+         Ice color) showing the calibrated marginal percentage gain
+         (FormatGain(score) → "+0.42%"). Empty state renders the
+         ◆ Ship-green glyph + italic Garamond message. Footer adds a
+         clickable "See full audit in Materia tab →" link styled as a
+         hyperlink (Lantern text, no hover background) that sets
+         CharacterTab.WantsMateriaTabFocus; MainWindow.cs's tab strip
+         reads the flag in the next frame and passes
+         ImGuiTabItemFlags.SetSelected to the Materia tab's BeginTabItem
+         for one frame.
 
-         Visual polish work continues across v0.6.6.x — CharacterHero
-         portrait/bracket treatment in v0.6.6.2, ranked advisor rows
-         with gain badges in v0.6.6.3, striped gear table in v0.6.6.4.
-         StatusPanelInjector remains shipped through the v0.6.6.x line
-         for backward compat — deprecation in v0.6.7, removal in v0.7.0. -->
+         This closes the Character tab's three large-surface polish
+         passes (StatsStrip cards in v0.6.6.1, CharacterHero in v0.6.6.2,
+         Materia Advisor in v0.6.6.3). v0.6.6.4 polishes the gear table —
+         striped rows, gold-tier highlight, HQ star, Soul Crystal divider.
+         The full Track 1 (gold/navy) visual treatment lands then, and
+         v0.6.7 begins the Track 2 (ember/frost-blue) work with the new
+         Plan tab paste UI as the first surface in the v1.0 design
+         language. -->
     <MinimumDalamudVersion>15.0.0</MinimumDalamudVersion>
     <Punchline>BiS planner, Materia Advisor, and round-trip optimizer for FFXIV. The in-game half of Tonberry Tactics; coexists with CharacterPanelRefined.</Punchline>
-    <Description>In-game half of Tonberry Tactics. v0.6.6.1 lands the first Character-tab polish pass — card-based StatsStrip per the Claude Design v0.2.0 spec, with per-stat cards (label / value / derived effect / optional next-tier hint), Cinzel + Press Start 2P typography from the existing font atlas, border swap on speed stats above the 420 baseline, and a "Battle stats not applicable" path for Crafter / Gatherer classes. Closes BUG-003 (MeldOptimizer KeyNotFoundException on materia with unrecognized stat types — now skipped quietly instead of throwing). Visual polish continues incrementally across v0.6.6.x: CharacterHero next, then advisor rows, then gear table. Core and Web at v0.6.6.1 lockstep (version-only).</Description>
+    <Description>In-game half of Tonberry Tactics. v0.6.6.3 lands the third Character-tab polish pass — Materia Advisor section is now a card with ranked rows. Each row has a pixel-font rank prefix, slot label, direction arrow, materia/replacement spec, and a calibrated percentage-gain badge. Empty state uses the ◆ Ship glyph and an italic Garamond message. Footer link "See full audit in Materia tab →" focuses the Materia tab when clicked, wired via a one-frame ImGuiTabItemFlags.SetSelected signal. v0.6.6.4 closes the Character tab polish arc with the gear table; v0.6.7 begins the v1.0 design language with the new Plan tab paste UI. Core and Web at v0.6.6.3 lockstep (version-only).</Description>
     <RepoUrl>https://github.com/LastOnionKnight/GearGoblin</RepoUrl>
     <Tags>gear;bis;materia;etro;xivgear;raid;advisor;cpr;character-panel;tonberry-tactics</Tags>
 
@@ -37,11 +42,6 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
-  <!-- v0.4.7.1: brand artwork shipped alongside the DLL. Dalamud's SDK
-       picks these up automatically via the Content glob and includes them
-       in the plugin's install directory; runtime resolves via
-       PluginInterface.AssemblyLocation.Directory + "Assets/" (see
-       Services/BrandResources.cs). -->
   <ItemGroup>
     <Content Include="Assets\**\*.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -49,10 +49,6 @@
     </Content>
   </ItemGroup>
 
-  <!-- v0.6.0: custom .ttf fonts for IFontAtlas Phase 2. Same copy
-       discipline as the brand artwork — runtime resolves the directory
-       via PluginInterface.AssemblyLocation.Directory + "Assets/Fonts/"
-       (see Theme/FontAtlasManager.cs). -->
   <ItemGroup>
     <Content Include="Assets\Fonts\*.ttf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -60,14 +56,6 @@
     </Content>
   </ItemGroup>
 
-  <!--
-    v0.6.3: ProjectReference to the shared GearGoblin.Core library.
-    Path assumes the standard sibling-of-grandparent layout:
-
-        D:\GearGoblin-Core-v0.1\GearGoblin.Core\        (Core, this reference's target)
-        D:\GearGoblin-v0.1\GearGoblin\                  (this project)
-        D:\TonberryTactics-workspace\TonberryTactics\   (web, mirrors this same reference)
-  -->
   <ItemGroup>
     <ProjectReference Include="..\..\GearGoblin-Core-v0.1\GearGoblin.Core\GearGoblin.Core.csproj" />
   </ItemGroup>

@@ -211,7 +211,17 @@ public sealed class MainWindow : Window, IDisposable
                 PlanTab.Draw(plugin.Inventory);
                 ImGui.EndTabItem();
             }
-            if (ImGui.BeginTabItem("Materia"))
+            // v0.6.6.3: CharacterTab.WantsMateriaTabFocus is set by the
+            // "See full audit in Materia tab →" link on the advisor card.
+            // Read+consume the flag here so the next BeginTabItem call
+            // receives SetSelected for exactly one frame, then resets.
+            var materiaFlags = ImGuiTabItemFlags.None;
+            if (CharacterTab.WantsMateriaTabFocus)
+            {
+                materiaFlags = ImGuiTabItemFlags.SetSelected;
+                CharacterTab.WantsMateriaTabFocus = false;
+            }
+            if (ImGui.BeginTabItem("Materia", materiaFlags))
             {
                 MateriaTab.Draw(plugin.Inventory);
                 ImGui.EndTabItem();

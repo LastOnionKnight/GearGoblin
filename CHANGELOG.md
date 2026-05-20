@@ -1,3 +1,31 @@
+## [0.6.6.3] — Character tab polish pass 3: Materia Advisor ranked rows
+
+### Added
+- **Materia Advisor card** — section 4.3 rebuilt per Claude Design v0.2.0's `MateriaAdvisorCard.jsx`. Three states:
+  - **Populated** — up to 3 ranked rows, each with a pixel-font rank prefix (`00`/`01`/`02` in GoldDim), slot label in Knife color, direction arrow in Lantern (`→` for audit replacements, `←` for plan additions), materia/replacement spec in Frost, and a right-aligned gain badge in pixel font + Ice color showing the calibrated marginal percentage gain (e.g. `+0.42%`).
+  - **Empty** — ◆ Ship-green glyph + italic Garamond message: "All guaranteed slots filled · no upgrades suggested".
+  - **Errored** — defensive fallback preserved from v0.6.6.0 (shows exception type + `/xllog` hint).
+- **Cross-tab focus link** — the advisor card's footer now contains a clickable "See full audit in Materia tab →" link (Lantern text, hover-background suppressed so it reads as a hyperlink, not a button). Clicking it sets `CharacterTab.WantsMateriaTabFocus`; `MainWindow.cs`'s tab strip consumes the flag in the next frame and passes `ImGuiTabItemFlags.SetSelected` to the Materia tab's `BeginTabItem` for one frame.
+- **`FormatGain(double score)` helper** — converts the optimizer's weighted marginal percentage score into a human-readable badge string. Negative or zero scores render empty (never shows "+0.00%").
+- **`AdvisorRecModel` record** — strongly-typed candidate row replaces the v0.6.6.0 `List<string>` formatting. Same build logic (top-3 audits by `GainIfReplaced`, falling back to `PlanRecommendations` by `ScoreGain` to fill 3 rows), now produces structured data for the renderer.
+
+### Changed
+- `DrawMateriaAdvisor` signature now takes `Plugin plugin` as its first parameter (needed for `plugin.Fonts.Pixel` / `plugin.Fonts.GaramondItalic` access). Call site in `CharacterTab.Draw()` updated accordingly.
+- Card uses `BeginChild` with calculated height (`96f` empty, `50f + recCount*30f + 50f` populated) so the card doesn't gobble vertical space when there's nothing to recommend.
+
+### Why this version
+Closes the Character tab's three large-surface polish arc:
+- v0.6.6.1 — StatsStrip cards
+- v0.6.6.2 — CharacterHero portrait frame + identity column
+- v0.6.6.3 — Materia Advisor ranked rows ← this ship
+
+v0.6.6.4 polishes the gear table (striped rows, gold-tier highlight, HQ ★, Soul Crystal divider) to close the Character tab's TlfTheme era. v0.6.7 begins the Track 2 (ember/frost-blue) repaint with the new Plan tab paste UI as the first surface in the v1.0 design language; the Character tab itself is repainted in v0.7.0 alongside the StatusPanelInjector removal.
+
+### Build-gate risks
+- **`ImGui.BeginTabItem(string, ImGuiTabItemFlags)`** — first use of the 2-arg overload in this codebase. If it fails to resolve, fallback is the 3-arg form `BeginTabItem(string, ref bool, ImGuiTabItemFlags)` with a `bool open = true` shim.
+- **`ImGui.Selectable` returning `true` on click** — standard ImGui pattern, low risk.
+- **`cardHeight` dynamic sizing of `BeginChild`** — verified pattern from v0.6.6.1 StatsStrip cards.
+
 # Changelog
 
 All notable changes to Tonberry Tactics (the in-game plugin, formerly
@@ -10,6 +38,106 @@ follows [Semantic Versioning](https://semver.org/).
 the product bump together at every release going forward. Versions prior
 to v0.5.5 used independent semver tracks — the plugin's v0.4.x line and
 the web's v0.5.x line. v0.5.5 is the moment they re-align.
+## [0.6.6.2] — 2026-05-19  (Character tab polish II: CharacterHero portrait frame + identity column)
+
+> **Status:** Released. Second polish pass on the Character tab introduced
+> in v0.6.6.0 and partially polished in v0.6.6.1. The Adventurer Plate
+> aesthetic now reaches the hero region — portrait frame, corner brackets,
+> jobAbbr fallback glyph, and a real identity column with name / world /
+> FC tag.
+
+### New — CharacterHero portrait region (`UI/CharacterTab.cs`)
+
+`DrawHero` is rebuilt. The old plain-text `"{name} — {profile.Name} Lv {lvl}"`
+line is gone. In its place:
+
+- **Portrait frame.** 148px × 166px region anchored at the cursor on
+  the left side of the hero block. Filled background in `InkPanel`,
+  thin border in `BorderPixelLite`. Drawn via `drawList.AddRectFilled`
+  + `drawList.AddRect` against the window's foreground draw list — no
+  `BeginChild`, no nested layout, simple primitives.
+- **Four lantern-gold corner brackets.** 6×6 filled squares inset 2px
+  from each corner. Per the Claude Design v0.2.0 ImGui port flag #1:
+  "four 6×6 `--lantern` squares at the portrait corners ... draw four
+  solid filled rectangles in `ImGui.GetWindowDrawList()` after laying
+  out the portrait region." That's exactly what happens — small helper
+  `DrawCornerSquare` keeps the four calls readable.
+- **Centered jobAbbr fallback glyph.** Press Start 2P at 32px, drawn
+  via `drawList.AddText` at the geometric center of the frame
+  (`CalcTextSize` measured inside the font scope, then offset by half
+  the difference from the frame size). Color: `GoldDim`. Dalamud
+  doesn't expose Adventurer Plate portraits to plugins, so this is the
+  portrait surface for now. A future iteration could lookup the job's
+  stone icon via `ITextureProvider`'s GameIcon path and overlay it, but
+  the 32px text glyph reads cleanly on its own.
+- **Identity column** to the right of the portrait, 18px gap. Renders
+  player name in `CinzelHeader` (22px Cinzel Regular, `GoldBright`),
+  class line in default font (`"{profile.Name} · Lv {player.Level}"`,
+  `FrostSoft`), uppercased world string in `Pixel` font (`FrostDim`),
+  and — if the player is in a Free Company — the FC tag wrapped in
+  guillemets in `Pixel` (`TonberryBright`).
+
+### New — `PixelDisplay` font handle (`Theme/FontAtlasManager.cs`)
+
+`PixelDisplay` (Press Start 2P @ 32px) registered alongside the
+existing `Pixel` (10px) handle. Same .ttf file (`PressStart2P-Regular.ttf`
+already on disk in `Assets/Fonts/`), only a new atlas size. Loaded-font
+count goes 6 → 7. `Dispose` order updated (PixelDisplay disposed first,
+reverse construction). Startup log line updated to v0.6.6.2.
+
+### Defensive Lumina row access
+
+Three `Safe*` helpers wrap the Lumina-row accessor calls that reach
+into excel data via `RowRef<T>.Value`:
+
+```csharp
+SafeJobAbbr(player) → player.ClassJob.Value.Abbreviation.ExtractText()
+SafeWorld(player)   → player.HomeWorld.Value.Name.ExtractText()
+SafeFcTag(player)   → player.CompanyTag.ToString()
+```
+
+Each is try/catch-wrapped so a transient RowId == 0 state (loading
+screens, the first frame after a class swap, brief world-server hiccups)
+degrades to a fallback string instead of throwing a `NullReferenceException`
+on the player's first frame back. JobAbbr falls back to `"???"`; world
+and FC tag fall back to empty strings (and the corresponding lines are
+suppressed entirely when empty).
+
+### Color packing — manual `ColorToU32` helper
+
+The `drawList.AddRectFilled` / `AddRect` / `AddText` primitives take
+packed `uint` colors, but `TlfTheme`'s palette is in `Vector4` (linear
+RGBA 0..1). A private `ColorToU32(Vector4) → uint` helper does the
+conversion in-class. Manual rather than via `ImGui.GetColorU32` or
+`ImGui.ColorConvertFloat4ToU32` so the code is portable across binding
+generations — both methods exist in some ImGui.NET / Dalamud.Bindings.ImGui
+flavors, but their exact signatures and overload sets vary.
+
+### Pairing
+
+- **GearGoblin.Core v0.6.6.2** — version-only lockstep bump.
+- **TonberryTactics web v0.6.6.2** — version-only lockstep bump.
+
+### What's still deliberately deferred
+
+- **Adventurer Plate portrait texture access.** Would need a Dalamud
+  API surface we don't currently see — `IPluginInterface` exposes
+  `ITextureProvider` for GameIcons but not for Plate portraits. Could
+  be revisited if FFXIVClientStructs exposes the texture pointer.
+- **Job-stone icon overlay** inside the portrait frame. Would use
+  `ITextureProvider.GetFromGameIcon(jobStoneIconId).GetWrapOrEmpty()`
+  and then `ImGui.Image()` to render the icon above the jobAbbr
+  fallback. Punted because the jobAbbr-only path looks fine on its own
+  for now and adding image rendering touches a new API surface that
+  deserves its own polish pass.
+- **Materia Advisor ranked rows + gain badges** — v0.6.6.3.
+- **Gear table stripes + gold-tier highlight + HQ star + Soul Crystal divider** — v0.6.6.4.
+- **StatusPanelInjector deprecation surfacing** — v0.6.7.
+- **Plan tab paste UI + persistence** — v0.6.7 Theme 3.
+- **`repo.json` Name "GearGoblin" → "Tonberry Tactics" correction** — still queued, bundle with release.ps1 regex fix.
+
+---
+
 ## [0.6.6.1] — 2026-05-19  (Character tab polish I: StatsStrip cards + BUG-003)
 
 > **Status:** Released. First polish pass on the Character tab introduced

@@ -65,6 +65,9 @@ public sealed class FontAtlasManager : IDisposable
     /// <summary>Press Start 2P @ 10px — version pills, parsed-status badges, micro-labels.</summary>
     public IFontHandle? Pixel { get; }
 
+    /// <summary>Press Start 2P @ 32px - centered jobAbbr fallback glyph.</summary>
+    public IFontHandle? PixelDisplay { get; }
+
     // ── Construction ────────────────────────────────────────────────────
 
     public FontAtlasManager(IDalamudPluginInterface pi)
@@ -81,9 +84,10 @@ public sealed class FontAtlasManager : IDisposable
         GaramondBody   = TryBuild(atlas, dir, "EBGaramond-Regular.ttf",   15f, "GaramondBody");
         GaramondItalic = TryBuild(atlas, dir, "EBGaramond-Italic.ttf",    15f, "GaramondItalic");
         Pixel          = TryBuild(atlas, dir, "PressStart2P-Regular.ttf", 10f, "Pixel");
+        PixelDisplay   = TryBuild(atlas, dir, "PressStart2P-Regular.ttf", 32f, "PixelDisplay");
 
         DalamudServices.Log.Info(
-            $"[FontAtlasManager v0.6.0] Loaded {CountLoaded()}/6 custom fonts from {dir}");
+            $"[FontAtlasManager v0.6.0] Loaded {CountLoaded()}/7 custom fonts from {dir}");
     }
 
     /// <summary>
@@ -124,7 +128,8 @@ public sealed class FontAtlasManager : IDisposable
         (CinzelEmphasis is null ? 0 : 1) +
         (GaramondBody   is null ? 0 : 1) +
         (GaramondItalic is null ? 0 : 1) +
-        (Pixel          is null ? 0 : 1);
+        (Pixel          is null ? 0 : 1) +
+        (PixelDisplay   is null ? 0 : 1);
 
     // ── Disposal ────────────────────────────────────────────────────────
 
@@ -132,6 +137,7 @@ public sealed class FontAtlasManager : IDisposable
     {
         // Dispose handles in reverse construction order. Dalamud's atlas
         // itself is owned by UiBuilder; we only release our refcounts.
+        PixelDisplay?.Dispose();
         Pixel?.Dispose();
         GaramondItalic?.Dispose();
         GaramondBody?.Dispose();
