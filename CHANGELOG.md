@@ -1,3 +1,8 @@
+## [0.6.7.3] - 2026-05-20
+- Tab reorder finally ships: Quick Start leads the tab bar, Character is position 2.
+- The reorder has been in source since v0.6.7.1, but the released artifact / Dalamud client cache was stale and re-shipping the same version number could not dislodge it. This bump forces a fresh clean CI build and a clean client re-download.
+- No functional changes beyond the version bump. Core and Web bumped to 0.6.7.3 in lockstep (version-only).
+
 ## [0.6.7.2] — About panel backfill + clean-rebuild ship
 
 ### Added
