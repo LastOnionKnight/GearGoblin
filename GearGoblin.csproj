@@ -4,9 +4,9 @@
     <Author>LastOnionKnight</Author>
     <Name>Tonberry Tactics</Name>
     <InternalName>GearGoblin</InternalName>
-    <AssemblyVersion>0.6.7.3</AssemblyVersion>
-    <FileVersion>0.6.7.3</FileVersion>
-    <Version>0.6.7.3</Version>
+    <AssemblyVersion>0.6.7.4</AssemblyVersion>
+    <FileVersion>0.6.7.4</FileVersion>
+    <Version>0.6.7.4</Version>
     <!-- v0.6.7 — Track 2 era begins. First surface in the new
          ember/frost-blue visual language that replaces TlfTheme
          (gold/navy) over the v0.6.7 → v1.0 migration arc.
@@ -79,4 +79,10 @@
     <ProjectReference Include="..\..\GearGoblin-Core-v0.1\GearGoblin.Core\GearGoblin.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="*-dropin\**\*.cs" />
+    <Compile Remove="**\*-dropin\**\*.cs" />
+    <None Remove="*-dropin\**" />
+    <None Remove="**\*-dropin\**" />
+  </ItemGroup>
 </Project>

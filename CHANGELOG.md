@@ -1,3 +1,21 @@
+## [0.6.7.4] - 2026-05-22
+
+### Changed
+
+- Native Character panel: blanked the Materia Advisor header number cell (the command-hint glyph that rendered as a stray "= /tt" mark). Header label and click-to-open are unchanged. Cosmetic only; StatusPanelInjector retires at 0.7.0.
+
+## [0.6.7.4] - 2026-05-22
+
+### Changed
+
+- Native Character panel: blanked the Materia Advisor header number cell (the command-hint glyph that rendered as a stray "= /tt" mark). Header label and click-to-open are unchanged. Cosmetic only; StatusPanelInjector retires at 0.7.0.
+
+## [0.6.7.4] - 2026-05-22
+
+### Changed
+
+- Native Character panel: blanked the Materia Advisor header number cell (the command-hint glyph that rendered as a stray "= /tt" mark). Header label and click-to-open are unchanged. Cosmetic only; StatusPanelInjector retires at 0.7.0.
+
 ## [0.6.7.3] - 2026-05-20
 - Tab reorder finally ships: Quick Start leads the tab bar, Character is position 2.
 - The reorder has been in source since v0.6.7.1, but the released artifact / Dalamud client cache was stale and re-shipping the same version number could not dislodge it. This bump forces a fresh clean CI build and a clean client re-download.

@@ -762,7 +762,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
                 // header (the empty-state row renders "All guaranteed slots
                 // filled · no upgrades suggested"; the with-audits rows
                 // render the individual slot recommendations).
-                advisorHeader->SetText("▶ /tt");
+                advisorHeader->SetText("");
             }
         }
         catch (Exception ex)
@@ -793,7 +793,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         SetAdvisorRow(advisorRec1, "", placeholder);
         SetAdvisorRow(advisorRec2, "", "");
         SetAdvisorRow(advisorRec3, "", "");
-        if (advisorHeader != null) advisorHeader->SetText("▶ /tt");
+        if (advisorHeader != null) advisorHeader->SetText("");
     }
 
     // ── Header click → invoke /goblin ───────────────────────────────────
