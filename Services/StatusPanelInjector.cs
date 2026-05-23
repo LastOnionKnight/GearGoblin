@@ -1,22 +1,22 @@
 // Services/StatusPanelInjector.cs
 //
-// v0.4.6 â€” "Coexistence" release.
+// v0.4.6 Ã¢â‚¬â€ "Coexistence" release.
 // ============================================================================
 //
 // Inject GearGoblin's derived stat data and Materia Advisor directly into
 // FFXIV's native CharacterStatus addon. v0.4.6 reframes the v0.4.5 model:
 // instead of treating CPR detection as a fallback path, we treat coexistence
-// as the deployment. GG runs alongside CPR â€” CPR brings the substat
+// as the deployment. GG runs alongside CPR Ã¢â‚¬â€ CPR brings the substat
 // derivations, GG brings the Materia Advisor, real GCD (when CPR doesn't
 // supply a job-aware variant), breakpoint hints, and the /goblininfo
 // diagnostic surface. The override toggle for users who want GG-only is
 // still here, but the default mode is friendly cohabitation.
 //
 // Lineage:
-//   v0.4.0  first injection â€” breakpoint hints + GCD + Materia Advisor
+//   v0.4.0  first injection Ã¢â‚¬â€ breakpoint hints + GCD + Materia Advisor
 //   v0.4.1  /goblinexport + Dalamud SDK compat (AddonEventData signature)
 //   v0.4.2  4 bug fixes: footer off-panel, missing Crit hint, row overlap,
-//           empty-advisor blank rows; advisor consolidated 6â†’4 rows
+//           empty-advisor blank rows; advisor consolidated 6Ã¢â€ â€™4 rows
 //   v0.4.5  Full CPR-equivalent derivations, CPR coexistence detect-and-defer,
 //           role-gated Tenacity/Piety rows, per-section toggles
 //   v0.4.6  THIS RELEASE
@@ -27,7 +27,7 @@
 //             we track totalInjectedHeight across every AddStatRow call and
 //             grow characterStatusPtr->RootNode->Height by that amount after
 //             InjectAllRows completes.
-//           - Instrumented advisor logging â€” log lines now confirm what
+//           - Instrumented advisor logging Ã¢â‚¬â€ log lines now confirm what
 //             injected (header / rec1-3 / total height) and what updated
 //             (recommendation count / empty-state / errored). No more
 //             aspirational "will inject normally" messages.
@@ -39,10 +39,10 @@
 // adapted from CharacterPanelRefined (MIT). See LICENSES/CharacterPanelRefined-MIT.txt.
 //
 // Lifecycle:
-//   PostSetup            â†’ InjectAllRows (every time the addon opens)
+//   PostSetup            Ã¢â€ â€™ InjectAllRows (every time the addon opens)
 //                          then GrowAddonHeight(totalInjectedHeight)
-//   PostRequestedUpdate  â†’ UpdateAllValues (every game tick while open)
-//   PreFinalize          â†’ cleanup pointers; addon teardown frees memory
+//   PostRequestedUpdate  Ã¢â€ â€™ UpdateAllValues (every game tick while open)
+//   PreFinalize          Ã¢â€ â€™ cleanup pointers; addon teardown frees memory
 
 using System;
 using System.Collections.Generic;
@@ -60,7 +60,7 @@ namespace GearGoblin.Services;
 
 public sealed unsafe class StatusPanelInjector : IDisposable
 {
-    // â”€â”€ Node IDs verified by CharacterPanelRefined in-game inspection â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Node IDs verified by CharacterPanelRefined in-game inspection Ã¢â€â‚¬Ã¢â€â‚¬
     private const uint AttributesNodeId          = 26;
     private const uint OffensivePropertiesNodeId = 36;
     private const uint DefensivePropertiesNodeId = 44;
@@ -71,11 +71,11 @@ public sealed unsafe class StatusPanelInjector : IDisposable
 
     private const string AddonName = "CharacterStatus";
 
-    // v0.6.0 â€” Palette refresh on the native CharacterStatus injection.
+    // v0.6.0 Ã¢â‚¬â€ Palette refresh on the native CharacterStatus injection.
     // The plugin's own ImGui window gets custom Cinzel/Garamond/Pixel fonts
     // via IFontAtlas Phase 2, but the in-game text nodes are stuck on
     // FFXIV's bundled SE font (AtkTextNode can't accept plugin atlases).
-    // What we CAN tune is byte color â€” so derived rows pick up TLF's
+    // What we CAN tune is byte color Ã¢â‚¬â€ so derived rows pick up TLF's
     // FrostSoft body tone and the Materia Advisor accent shifts from
     // TLF Gold (matched the v0.4.7 chrome) to LanternHot, which reads
     // brighter against the native panel's blue background.
@@ -117,7 +117,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
     private IAddonEventHandle? footerClickHandle;
     private bool cprDetectedActive;
 
-    // â”€â”€ v0.4.6 instrumentation state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ v0.4.6 instrumentation state Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
     // Total height (in pixels) added across this addon's lifetime by
     // AddStatRow. Used to grow the addon's outer RootNode after injection
     // so trailing rows (advisor section) don't fall past the visible clip.
@@ -135,7 +135,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
 
     /// <summary>
     /// v0.4.6 diagnostic snapshot for the UI tab and /goblininfo command.
-    /// Plain immutable record â€” read at draw time, no locking needed since
+    /// Plain immutable record Ã¢â‚¬â€ read at draw time, no locking needed since
     /// the injector only mutates from the game thread.
     /// </summary>
     public readonly record struct DiagnosticSnapshot(
@@ -167,8 +167,8 @@ public sealed unsafe class StatusPanelInjector : IDisposable
     /// <summary>
     /// v0.4.6: force the advisor + derived rows to recompute their text
     /// without reopening the Character window. Used by the Diagnostics tab
-    /// "Force Reinject" button. We deliberately do NOT re-run AddStatRow â€”
-    /// that would duplicate the cloned nodes â€” only the value-update pass.
+    /// "Force Reinject" button. We deliberately do NOT re-run AddStatRow Ã¢â‚¬â€
+    /// that would duplicate the cloned nodes Ã¢â‚¬â€ only the value-update pass.
     /// </summary>
     public void ForceReinject()
     {
@@ -188,7 +188,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         }
     }
 
-    // â”€â”€ Construction / disposal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Construction / disposal Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     public StatusPanelInjector(Plugin plugin)
     {
@@ -244,7 +244,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         ClearPointers();
     }
 
-    // â”€â”€ Lifecycle handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Lifecycle handlers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     private void OnPostSetup(AddonEvent type, AddonArgs args)
         => RunInjection((AtkUnitBase*)args.Addon.Address);
@@ -259,11 +259,11 @@ public sealed unsafe class StatusPanelInjector : IDisposable
     private void BootInjectIfPanelOpen()
     {
         if (characterStatusPtr != null) return;
-        var addon = DalamudServices.GameGui.GetAddonByName(AddonName, 1);
-        if (addon == nint.Zero) return;
+        var addon = DalamudServices.GameGui.GetAddonByName<AtkUnitBase>(AddonName, 1);
+        if (addon == null) return;
         DalamudServices.Log.Info(
             "StatusPanelInjector: Character panel already open at injector load; running boot-time inject.");
-        RunInjection((AtkUnitBase*)addon);
+        RunInjection(addon);
     }
 
     private void RunInjection(AtkUnitBase* addon)
@@ -303,8 +303,8 @@ public sealed unsafe class StatusPanelInjector : IDisposable
             UpdateAllValues();
 
             lastInjectTime   = DateTime.UtcNow;
-            lastInjectResult = $"OK Â· CPR={cprDetectedActive} Â· derivations={WillInjectDerivations()} Â· " +
-                               $"advisor={advisorSectionPresent} Â· grewBy={totalInjectedHeight}px";
+            lastInjectResult = $"OK Ã‚Â· CPR={cprDetectedActive} Ã‚Â· derivations={WillInjectDerivations()} Ã‚Â· " +
+                               $"advisor={advisorSectionPresent} Ã‚Â· grewBy={totalInjectedHeight}px";
 
             if (!firstInjectLogged)
             {
@@ -320,7 +320,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         catch (Exception ex)
         {
             DalamudServices.Log.Error(ex, "StatusPanelInjector: PostSetup injection failed.");
-            lastInjectResult = $"FAILED Â· {ex.GetType().Name}: {ex.Message}";
+            lastInjectResult = $"FAILED Ã‚Â· {ex.GetType().Name}: {ex.Message}";
             ClearPointers();
         }
     }
@@ -357,7 +357,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         return true;
     }
 
-    // â”€â”€ Injection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Injection Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     private void InjectAllRows()
     {
@@ -375,7 +375,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
     /// <summary>
     /// Inject a compact derived-stat row under each of Crit / Det / DH.
     /// One row per substat, label cell empty, value cell carries the full
-    /// "chance Â· damage Â· DI Â· +Nâ†’tier" compact string.
+    /// "chance Ã‚Â· damage Ã‚Â· DI Ã‚Â· +NÃ¢â€ â€™tier" compact string.
     /// </summary>
     private void InjectOffensiveDerivations()
     {
@@ -541,26 +541,26 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         var avgIlvlComponent = (AtkComponentNode*)gear->ChildNode;
         var heightBeforeAdvisor = totalInjectedHeight;
 
-        // v0.6.5.3 â€” Advisor rows inject into the Gear / Average Item Level
+        // v0.6.5.3 Ã¢â‚¬â€ Advisor rows inject into the Gear / Average Item Level
         // component. Each row passes expandCollisionNode: false so the original
         // ILVL text node's bounds aren't stretched onto our injected rows.
         // v0.6.5.2 attempted to fix this by pre-padding the parent + collision
-        // node by 20px before the first AddStatRow â€” that approach grew the
+        // node by 20px before the first AddStatRow Ã¢â‚¬â€ that approach grew the
         // collision node which is exactly the thing the ghost-text bug needed
         // us to STOP doing. The pre-pad has been removed; the parameter on
         // each AddStatRow call is the correct intervention, matching the
         // upstream CharacterPanelRefined pattern (see AddStatRow comment).
-        // v0.6.6 â€” restored the em-dashed label. The v0.6.6 H6-A test
+        // v0.6.6 Ã¢â‚¬â€ restored the em-dashed label. The v0.6.6 H6-A test
         // (shorten label to "Materia Advisor") reduced the ghost text
         // visibly but didn't eliminate it, which proved the overflow
         // was coming from the NUMBER cell, not the label. With the
         // actual root cause now fixed in UpdateAdvisor (see SetText
-        // call further down â€” pill text shortened from the long
-        // "{crit}c Â· {warn}w Â· {empty}e   â–¶ /tt" format to just
-        // "â–¶ /tt" to match CharacterPanelRefined's short-number-cell
+        // call further down Ã¢â‚¬â€ pill text shortened from the long
+        // "{crit}c Ã‚Â· {warn}w Ã‚Â· {empty}e   Ã¢â€“Â¶ /tt" format to just
+        // "Ã¢â€“Â¶ /tt" to match CharacterPanelRefined's short-number-cell
         // discipline), the label aesthetic returns to the original
         // em-dashed form.
-        advisorHeader = AddStatRow(avgIlvlComponent, "â”€â”€ Materia Advisor â”€â”€", expandCollisionNode: false);
+        advisorHeader = AddStatRow(avgIlvlComponent, "Ã¢â€â‚¬Ã¢â€â‚¬ Materia Advisor Ã¢â€â‚¬Ã¢â€â‚¬", expandCollisionNode: false);
         advisorRec1   = AddStatRow(avgIlvlComponent, "",                        expandCollisionNode: false);
         advisorRec2   = AddStatRow(avgIlvlComponent, "",                        expandCollisionNode: false);
         advisorRec3   = AddStatRow(avgIlvlComponent, "",                        expandCollisionNode: false);
@@ -572,7 +572,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
 
         // v0.4.6: replace the v0.4.5 aspirational log with a real status line
         // that records exactly what happened. This is the line that should
-        // have existed in v0.4.5 â€” its absence is why we missed the bug.
+        // have existed in v0.4.5 Ã¢â‚¬â€ its absence is why we missed the bug.
         DalamudServices.Log.Info(
             $"StatusPanelInjector v0.4.6: Materia Advisor inject attempt. " +
             $"Rows OK: header={(advisorHeader != null)} rec1={(advisorRec1 != null)} " +
@@ -619,7 +619,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         catch { return null; }
     }
 
-    // â”€â”€ Update â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Update Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     private void UpdateAllValues()
     {
@@ -644,24 +644,24 @@ public sealed unsafe class StatusPanelInjector : IDisposable
             var rate    = Formulas.CritRate(s.Crit, mod);
             var derived = DerivedStatFormatter.CritCompact(s.Crit, mod);
             var delta   = rate.NextTier - s.Crit;
-            var hint    = delta > 0 ? $"+{delta}â†’tier" : "at cap";
-            critCompactValue->SetText($"{derived} Â· {hint}");
+            var hint    = delta > 0 ? $"+{delta}Ã¢â€ â€™tier" : "at cap";
+            critCompactValue->SetText($"{derived} Ã‚Â· {hint}");
         }
         if (detCompactValue != null)
         {
             var bd      = Formulas.Determination(s.Det, mod);
             var derived = DerivedStatFormatter.DetCompact(s.Det, mod);
             var delta   = bd.NextTier - s.Det;
-            var hint    = delta > 0 ? $"+{delta}â†’tier" : "at cap";
-            detCompactValue->SetText($"{derived} Â· {hint}");
+            var hint    = delta > 0 ? $"+{delta}Ã¢â€ â€™tier" : "at cap";
+            detCompactValue->SetText($"{derived} Ã‚Â· {hint}");
         }
         if (dhCompactValue != null)
         {
             var bd      = Formulas.DirectHit(s.DH, mod);
             var derived = DerivedStatFormatter.DhCompact(s.DH, mod);
             var delta   = bd.NextTier - s.DH;
-            var hint    = delta > 0 ? $"+{delta}â†’tier" : "at cap";
-            dhCompactValue->SetText($"{derived} Â· {hint}");
+            var hint    = delta > 0 ? $"+{delta}Ã¢â€ â€™tier" : "at cap";
+            dhCompactValue->SetText($"{derived} Ã‚Â· {hint}");
         }
     }
 
@@ -683,8 +683,8 @@ public sealed unsafe class StatusPanelInjector : IDisposable
             var bd    = Formulas.SpeedDamage(speed, mod);
             var dmg   = DerivedStatFormatter.SpeedDamage(speed, mod);
             var delta = bd.NextTier - speed;
-            var hint  = delta > 0 ? $"+{delta}â†’tier" : "at cap";
-            speedCompactValue->SetText($"{dmg} Â· {hint}");
+            var hint  = delta > 0 ? $"+{delta}Ã¢â€ â€™tier" : "at cap";
+            speedCompactValue->SetText($"{dmg} Ã‚Â· {hint}");
         }
     }
 
@@ -730,7 +730,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
                 var slot = audit.Piece;
                 var idx  = audit.SlotIndex + 1;
                 var repl = audit.SuggestedReplacement!.Value.Display();
-                candidates.Add($"{slot} #{idx} â†’ {repl}");
+                candidates.Add($"{slot} #{idx} Ã¢â€ â€™ {repl}");
             }
             if (candidates.Count < 3)
             {
@@ -742,7 +742,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
                     var slot = rec.Piece;
                     var idx  = rec.SlotIndex + 1;
                     var mat  = rec.Materia.Display();
-                    candidates.Add($"{slot} #{idx} â† {mat}");
+                    candidates.Add($"{slot} #{idx} Ã¢â€ Â {mat}");
                 }
             }
 
@@ -761,11 +761,11 @@ public sealed unsafe class StatusPanelInjector : IDisposable
                 $"Pieces: {pieces.Count}. Audits: crit={crit} warn={warn}. " +
                 $"PlanRecs: {result.PlanRecommendations.Count}. " +
                 $"Rendered: {candidates.Count} candidate(s)" +
-                (candidates.Count == 0 ? " â€” empty-state row shown." : "."));
+                (candidates.Count == 0 ? " Ã¢â‚¬â€ empty-state row shown." : "."));
 
             if (candidates.Count == 0)
             {
-                SetAdvisorRow(advisorRec1, "", "All guaranteed slots filled Â· no upgrades suggested");
+                SetAdvisorRow(advisorRec1, "", "All guaranteed slots filled Ã‚Â· no upgrades suggested");
                 SetAdvisorRow(advisorRec2, "", "");
                 SetAdvisorRow(advisorRec3, "", "");
             }
@@ -778,21 +778,21 @@ public sealed unsafe class StatusPanelInjector : IDisposable
 
             if (advisorHeader != null)
             {
-                // v0.6.6 â€” match CharacterPanelRefined's short-number-cell
+                // v0.6.6 Ã¢â‚¬â€ match CharacterPanelRefined's short-number-cell
                 // discipline. The cloned number cell here inherits "780"-sized
                 // geometry from the original ILVL value cell (~30px wide,
                 // right-aligned text). The previous text format
-                // `{crit}c Â· {warn}w Â· {empty}e   â–¶ /tt` is ~17 characters
+                // `{crit}c Ã‚Â· {warn}w Ã‚Â· {empty}e   Ã¢â€“Â¶ /tt` is ~17 characters
                 // wide; right-aligned, it overflows leftward into the label
                 // cell's render zone, producing BUG-001's visible ghost
                 // pattern. CPR's analogous ilvlSync injection only ever puts
                 // short numeric values in the cloned cell (e.g. "660",
-                // "12.4%") â€” values that fit the inherited geometry. Mirror
+                // "12.4%") Ã¢â‚¬â€ values that fit the inherited geometry. Mirror
                 // that approach: just the command hint, 5 chars, fits.
-                // Audit counts (crit/warn/empty) are not lost â€” they remain
+                // Audit counts (crit/warn/empty) are not lost Ã¢â‚¬â€ they remain
                 // visible in the rec rows injected immediately below this
                 // header (the empty-state row renders "All guaranteed slots
-                // filled Â· no upgrades suggested"; the with-audits rows
+                // filled Ã‚Â· no upgrades suggested"; the with-audits rows
                 // render the individual slot recommendations).
                 advisorHeader->SetText("");
             }
@@ -828,7 +828,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         if (advisorHeader != null) advisorHeader->SetText("");
     }
 
-    // â”€â”€ Header click â†’ invoke /goblin â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Header click Ã¢â€ â€™ invoke /goblin Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     private void OnAdvisorHeaderClick(AddonEventType type, AddonEventData data)
     {
@@ -842,7 +842,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         }
     }
 
-    // â”€â”€ AddStatRow primitive (adapted from CPR, MIT) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ AddStatRow primitive (adapted from CPR, MIT) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     /// <summary>
     /// Clone the existing label+number node pair beneath <paramref name="parentNode"/>
@@ -860,7 +860,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
     /// v0.4.6: was static in v0.4.5. Now instance-bound so it can track
     /// <see cref="totalInjectedHeight"/> across calls. The outer addon's
     /// RootNode is grown by that total after <see cref="InjectAllRows"/>
-    /// completes â€” without that step the trailing rows we inject into the
+    /// completes Ã¢â‚¬â€ without that step the trailing rows we inject into the
     /// gear section fall past the addon's visible clip and look invisible.
     /// </para>
     /// </summary>
@@ -878,20 +878,20 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         if (labelNode == null) return null;
 
         parentNode->AtkResNode.Height += 20;
-        // v0.6.5.3 â€” collisionNode growth is gated. Adapted from CharacterPanelRefined's
+        // v0.6.5.3 Ã¢â‚¬â€ collisionNode growth is gated. Adapted from CharacterPanelRefined's
         // AddStatRow signature (expandCollisionNode parameter). The Gear / Average Item
         // Level component and crafter-stats components have collision nodes that the
-        // game uses to bound the existing row's text rendering â€” growing them stretches
+        // game uses to bound the existing row's text rendering Ã¢â‚¬â€ growing them stretches
         // the original ILVL text node onto subsequent injected rows, producing the
         // ghost-text overlay seen on VPR/PLD/CRP panels through v0.6.5.2. Substat
         // sections (Crit/Det/DH/Speed/Tenacity/Piety) want the default true behavior so
         // their hit regions extend with the new rows; only advisor / ilvl-area rows
         // pass false. See CharacterPanelRefined CharacterStatusAugments.cs:246 for the
-        // original pattern (MIT, Kouzukii â€” LICENSES/CharacterPanelRefined-MIT.txt).
+        // original pattern (MIT, Kouzukii Ã¢â‚¬â€ LICENSES/CharacterPanelRefined-MIT.txt).
         if (expandCollisionNode)
             collisionNode->Height += 20;
         // v0.4.6: accumulate so we can grow the outer addon after injection.
-        // Always counted â€” the outer addon RootNode needs to grow for visible content
+        // Always counted Ã¢â‚¬â€ the outer addon RootNode needs to grow for visible content
         // regardless of whether the immediate parent's collision node grew.
         totalInjectedHeight = (ushort)(totalInjectedHeight + 20);
 
@@ -912,7 +912,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         NodeUtil.AllocateFreshTextBuffer(newLabelNode);
         newLabelNode->SetText(label);
 
-        // v0.6.6 [CANDIDATE FIX, PENDING VERIFICATION] â€” BUG-001, hypothesis H1
+        // v0.6.6 [CANDIDATE FIX, PENDING VERIFICATION] Ã¢â‚¬â€ BUG-001, hypothesis H1
         //
         // Previous versions had a bidirectional sibling-link patch here:
         //
@@ -933,7 +933,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         // by walking PrevSiblingNode only (one direction). With our extra
         // NextSibling patch, the new nodes are reachable through TWO traversal
         // paths instead of one. If the rebuild enumerates each reachable node
-        // once per path, our cloned labels end up in NodeList[] twice â€” and
+        // once per path, our cloned labels end up in NodeList[] twice Ã¢â‚¬â€ and
         // render twice per frame at slightly different draw priorities. That
         // matches the visible ghost-text signature exactly.
         //
@@ -948,7 +948,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         return newNumberNode;
     }
 
-    // â”€â”€ v0.4.6 addon-height grow â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ v0.4.6 addon-height grow Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     /// <summary>
     /// Grow the outer addon's RootNode (and its visible window-collision /
@@ -960,7 +960,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
     /// In FFXIV's UI system, AtkUnitBase has a root container whose Height
     /// defines the addon's visible / hit-test clip region. Section components
     /// inside (Offensive Properties, Gear, etc.) auto-flow when their height
-    /// changes â€” but the outer container does NOT auto-grow with them. With
+    /// changes Ã¢â‚¬â€ but the outer container does NOT auto-grow with them. With
     /// CPR coexisting, CPR adds ~12 rows above us in Offensive Properties +
     /// Speed; we then add 4 rows to the gear section (the LAST section). The
     /// combined ~320px extension exceeds the original window height, so the
@@ -970,7 +970,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
     ///
     /// <para>
     /// We don't restore on PreFinalize because the entire addon (and its
-    /// node tree) is torn down between opens â€” every PostSetup gets a
+    /// node tree) is torn down between opens Ã¢â‚¬â€ every PostSetup gets a
     /// fresh AtkUnitBase. The growth is per-instance, not persistent state.
     /// </para>
     /// </summary>
@@ -1004,7 +1004,7 @@ public sealed unsafe class StatusPanelInjector : IDisposable
         }
 
         DalamudServices.Log.Info(
-            $"StatusPanelInjector v0.4.6: outer addon grown {oldHeight}px â†’ {rootHeight}px " +
+            $"StatusPanelInjector v0.4.6: outer addon grown {oldHeight}px Ã¢â€ â€™ {rootHeight}px " +
             $"(+{pixels}px) to fit injected rows.");
     }
 
