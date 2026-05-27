@@ -1,4 +1,4 @@
-﻿# release.ps1 - Unified release script for GearGoblin and Tonberry Tactics
+# release.ps1 - Unified release script for GearGoblin and Tonberry Tactics
 # ASCII only (PowerShell 5.1 chokes on UTF-8 BOM).
 #
 # What it does:
@@ -276,6 +276,12 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host ""
 Write-Host "==================================================" -ForegroundColor Green
 Write-Host "  Release complete: $projectName $tag" -ForegroundColor Green
+Write-Host "==================================================" -ForegroundColor Green
+Write-Host ""
+Write-Host "⚠️  REMINDER: Do not leave Core and Web behind!" -ForegroundColor Yellow
+Write-Host "If this was a lockstep version bump, make sure to also bump and run release in:" -ForegroundColor Yellow
+Write-Host "  - GearGoblin.Core" -ForegroundColor Yellow
+Write-Host "  - TonberryTactics (Web)" -ForegroundColor Yellow
 Write-Host "==================================================" -ForegroundColor Green
 
 # ── Dropin artifact pruning (added 2026-05-20) ──────────────────────
