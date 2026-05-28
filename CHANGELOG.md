@@ -1,47 +1,30 @@
+## [1.0.0] - 2026-05-28
+- TlfTheme.cs deleted; every tab now on Track 2 (TtChrome doubled-frame cards + Eyebrow/Quip typography)
+- `/goblin*` aliases removed (use `/tt`, `/ttexport`, `/ttimport`, `/ttinfo`)
+- Display name locked: "Tonberry Tactics" (InternalName remains GearGoblin for save-state continuity)
+- Public Dalamud repo submission opened
+- Trinity 1.0.0 — plugin + Core + web in lockstep
+
+## [0.6.7.6] - 2026-05-27
+- Repair UTF-8 mojibake in injected text (PS ANSI read in 0.6.7.5 double-encoded non-ASCII)
+- Fix font packaging: Add missing Track 2 fonts to Assets/Fonts/
+- Add lockstep reminder to release script
+
+## [0.6.7.5] - 2026-05-27
+- Injector boot guard (inject when panel already open at load) + lockstep bump
+- Fix boot guard build - use generic GetAddonByName<AtkUnitBase> (AtkUnitBasePtr has no cast to AtkUnitBase*)
+
 ## [0.6.7.4] - 2026-05-22
-
-### Changed
-
-- Native Character panel: blanked the Materia Advisor header number cell (the command-hint glyph that rendered as a stray "= /tt" mark). Header label and click-to-open are unchanged. Cosmetic only; StatusPanelInjector retires at 0.7.0.
-
-## [0.6.7.4] - 2026-05-22
-
-### Changed
-
-- Native Character panel: blanked the Materia Advisor header number cell (the command-hint glyph that rendered as a stray "= /tt" mark). Header label and click-to-open are unchanged. Cosmetic only; StatusPanelInjector retires at 0.7.0.
-
-## [0.6.7.4] - 2026-05-22
-
-### Changed
-
-- Native Character panel: blanked the Materia Advisor header number cell (the command-hint glyph that rendered as a stray "= /tt" mark). Header label and click-to-open are unchanged. Cosmetic only; StatusPanelInjector retires at 0.7.0.
+- Blank native = /tt advisor glyph
 
 ## [0.6.7.3] - 2026-05-20
 - Tab reorder finally ships: Quick Start leads the tab bar, Character is position 2.
 - The reorder has been in source since v0.6.7.1, but the released artifact / Dalamud client cache was stale and re-shipping the same version number could not dislodge it. This bump forces a fresh clean CI build and a clean client re-download.
 - No functional changes beyond the version bump. Core and Web bumped to 0.6.7.3 in lockstep (version-only).
 
-## [0.6.7.2] — About panel backfill + clean-rebuild ship
-
-### Added
-- **About panel narrative entries** for v0.6.6.1 through v0.6.7.1. The "TLF Gear Division · Operations Brief" history block in `DrawAbout()` had been stale since v0.6.6 — no entries existed for any of the v0.6.6.x polish-arc releases (v0.6.6.1 StatsStrip cards, v0.6.6.2 CharacterHero, v0.6.6.3 Materia Advisor rows, v0.6.6.4 Materia tab merge, v0.6.6.5 gear table polish), nor for v0.6.7 (Track 2 era begin) or v0.6.7.1 (tab reorder hotfix). v0.6.7.2 backfills three entries above the existing v0.6.6 block:
-  - **v0.6.7.1** — Tab reorder hotfix (3 bullets).
-  - **v0.6.7** — Track 2 era begins · Plan tab repainted in ember/frost-blue (6 bullets).
-  - **v0.6.6.1 – v0.6.6.5** — Consolidated polish arc (5 bullets, one per .x release).
-
-### Why this version
-v0.6.7.1's commit was supposed to land the tab reorder, but in-game testing showed `Character` still leading the tab bar after Dalamud updated to v0.6.7.1 — the source file had `Quick Start` first (confirmed via `Select-String` post-build), but the loaded DLL behaved as if it didn't. The likely culprit is MSBuild's incremental-build cache: the build log showed `Build succeeded in 1.1s` with no `Compiling …` lines visible, suggesting MainWindow.cs was treated as "already up to date" and not recompiled into the DLL even though the source had changed.
-
-v0.6.7.2 mitigates this with an explicit `dotnet clean` + `bin/obj` wipe before the build, which guarantees a fresh compilation. Bundling that with the About-panel narrative backfill (one ship, one risk surface).
-
-### Build-gate risks
-- **About panel layout overflow.** Three new entries add roughly 20 bullets to the About scroll surface. Existing scroll behavior should accommodate; if not, the scroll bar handles it.
-- **Clean rebuild is the safety net, not a fix.** If v0.6.7.2's tab order *also* shows wrong after a clean install, the issue isn't build caching — it's somewhere else (Dalamud's plugin-DLL caching, GitHub release artifact mismatch, etc.) and we need to investigate further.
-
-### Verify in-game (`/xlplugins` → uninstall → restart Dalamud → reinstall from Custom Repo)
-1. Version pill reads `v0.6.7.2`.
-2. **Tab order:** `Quick Start | Character | Plan | Materia | Settings | Diagnostics | Feedback | About`.
-3. About panel — scroll the "TLF Gear Division · Operations Brief" section. Top three version entries are now v0.6.7.1, v0.6.7, v0.6.6.1–v0.6.6.5. The v0.6.6 BUG-001 entry sits below them.
+## [0.6.7.2] - 2026-05-20
+- About panel narrative entries for v0.6.6.1 through v0.6.7.1. The "TLF Gear Division · Operations Brief" history block in `DrawAbout()` had been stale since v0.6.6.
+- Explicit dotnet clean + bin/obj wipe before the build to fix caching issues causing tab order to revert.
 
 ## [0.6.7] — Track 2 era begins · Plan tab repainted in ember/frost-blue
 

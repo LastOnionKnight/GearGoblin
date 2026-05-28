@@ -118,10 +118,9 @@ public static class TtChrome
 
     // ── Style stack ─────────────────────────────────────────────────────
     //
-    // Push at the top of a *tab's* content area (NOT window-level). Pops
-    // back to whatever TlfTheme has already pushed for the window.
+    // v1.0: TtChrome takes over the entire window.
 
-    private const int StackDepth = 6;
+    private const int StackDepth = 12;
 
     /// <summary>
     /// Push a TtChrome style stack onto ImGui. Scoped: callers MUST call
@@ -129,12 +128,18 @@ public static class TtChrome
     /// </summary>
     public static void Push()
     {
-        ImGui.PushStyleColor(ImGuiCol.ChildBg,      InkSurface);
-        ImGui.PushStyleColor(ImGuiCol.FrameBg,      InkDark);
-        ImGui.PushStyleColor(ImGuiCol.Border,       FrostOutline);
-        ImGui.PushStyleColor(ImGuiCol.Separator,    FrostOutlineSoft);
-        ImGui.PushStyleColor(ImGuiCol.Text,         FrostText);
-        ImGui.PushStyleColor(ImGuiCol.TextDisabled, FrostFaint);
+        ImGui.PushStyleColor(ImGuiCol.WindowBg,         InkDark);
+        ImGui.PushStyleColor(ImGuiCol.ChildBg,          InkSurface);
+        ImGui.PushStyleColor(ImGuiCol.FrameBg,          InkDark);
+        ImGui.PushStyleColor(ImGuiCol.FrameBgHovered,   InkDeeper);
+        ImGui.PushStyleColor(ImGuiCol.FrameBgActive,    InkDeeper);
+        ImGui.PushStyleColor(ImGuiCol.TitleBg,          InkDark);
+        ImGui.PushStyleColor(ImGuiCol.TitleBgActive,    InkSurface);
+        ImGui.PushStyleColor(ImGuiCol.Tab,              InkSurface);
+        ImGui.PushStyleColor(ImGuiCol.TabActive,        InkDeeper);
+        ImGui.PushStyleColor(ImGuiCol.TabHovered,       InkDeeper);
+        ImGui.PushStyleColor(ImGuiCol.Separator,        FrostOutlineSoft);
+        ImGui.PushStyleColor(ImGuiCol.Text,             FrostText);
     }
 
     public static void Pop() => ImGui.PopStyleColor(StackDepth);

@@ -164,6 +164,26 @@ Write-Host ""
 
 if (-not $SkipBuild) {
     Write-Host "Running build gate: dotnet build --configuration Release..." -ForegroundColor Cyan
+
+    # Extract changelog for embedded resource
+    $changelogPath = Join-Path (Get-Location) "CHANGELOG.md"
+    if (Test-Path $changelogPath) {
+        $utf8 = New-Object System.Text.UTF8Encoding $false
+        $changelogContent = [System.IO.File]::ReadAllText($changelogPath, $utf8)
+        $parts = $changelogContent -split '(?m)^## \['
+        $numToTake = [Math]::Min(16, $parts.Length)
+        $extracted = $parts[0]
+        for ($i = 1; $i -lt $numToTake; $i++) {
+            $extracted += "## [" + $parts[$i]
+        }
+        $resourcePath = Join-Path (Get-Location) "Resources\about-changelog.txt"
+        $dir = Split-Path $resourcePath
+        if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+        $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+        [System.IO.File]::WriteAllText($resourcePath, $extracted.Trim(), $utf8NoBom)
+        Write-Host "Extracted $( $numToTake - 1 ) changelog entries to $resourcePath" -ForegroundColor Cyan
+    }
+
     Write-Host "----------------------------------------" -ForegroundColor DarkGray
     dotnet build --configuration Release --nologo
     $buildExit = $LASTEXITCODE
@@ -186,7 +206,8 @@ if (-not $SkipBuild) {
 if (-not $Message) {
     $changelogPath = Join-Path (Get-Location) "CHANGELOG.md"
     if (Test-Path $changelogPath) {
-        $changelog = Get-Content $changelogPath -Raw
+        $utf8 = New-Object System.Text.UTF8Encoding $false
+        $changelog = [System.IO.File]::ReadAllText($changelogPath, $utf8)
         # Match "## [X.Y.Z] - YYYY-MM-DD" through to the next "## [" or EOF.
         # Use [\s\S] for cross-line matching.
         $pattern = "## \[$([regex]::Escape($tagVersion))\][\s\S]*?(?=## \[|\z)"

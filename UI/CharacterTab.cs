@@ -136,11 +136,11 @@ public static class CharacterTab
         var portraitBR = new Vector2(topLeft.X + portraitSz.X, topLeft.Y + portraitSz.Y);
 
         // Portrait frame: filled background + 1px border.
-        drawList.AddRectFilled(topLeft, portraitBR, ColorToU32(TlfTheme.InkPanel));
-        drawList.AddRect(topLeft, portraitBR, ColorToU32(TlfTheme.BorderPixelLite));
+        drawList.AddRectFilled(topLeft, portraitBR, ColorToU32(Theme.TtChrome.InkDark));
+        drawList.AddRect(topLeft, portraitBR, ColorToU32(Theme.TtChrome.FrostOutline));
 
         // Four lantern-gold corner brackets — 6×6 filled squares, inset 2px.
-        var lantern = ColorToU32(TlfTheme.Lantern);
+        var lantern = ColorToU32(Theme.TtChrome.Ember);
         DrawCornerSquare(drawList, topLeft.X + 2f,                   topLeft.Y + 2f,           lantern);
         DrawCornerSquare(drawList, portraitBR.X - 2f - 6f,           topLeft.Y + 2f,           lantern);
         DrawCornerSquare(drawList, topLeft.X + 2f,                   portraitBR.Y - 2f - 6f,   lantern);
@@ -154,7 +154,7 @@ public static class CharacterTab
             var pos = new Vector2(
                 topLeft.X + (portraitSz.X - ts.X) * 0.5f,
                 topLeft.Y + (portraitSz.Y - ts.Y) * 0.5f);
-            drawList.AddText(pos, ColorToU32(TlfTheme.GoldDim), jobAbbr);
+            drawList.AddText(pos, ColorToU32(Theme.TtChrome.EmberDeep), jobAbbr);
         }
 
         // Identity column to the right of the portrait, 18px gap.
@@ -163,10 +163,10 @@ public static class CharacterTab
         {
             // Player name — Cinzel Header
             using (plugin.Fonts.CinzelHeader.PushOrNull())
-                ImGui.TextColored(TlfTheme.GoldBright, player.Name.ToString());
+                ImGui.TextColored(Theme.TtChrome.EmberBright, player.Name.ToString());
 
             // Class line — default font, FrostSoft
-            ImGui.TextColored(TlfTheme.FrostSoft, $"{profile.Name} · Lv {player.Level}");
+            ImGui.TextColored(Theme.TtChrome.FrostMuted, $"{profile.Name} · Lv {player.Level}");
 
             ImGui.Spacing();
             ImGui.Spacing();
@@ -176,7 +176,7 @@ public static class CharacterTab
             if (!string.IsNullOrEmpty(world))
             {
                 using (plugin.Fonts.Pixel.PushOrNull())
-                    ImGui.TextColored(TlfTheme.FrostDim, world.ToUpperInvariant());
+                    ImGui.TextColored(Theme.TtChrome.FrostFaint, world.ToUpperInvariant());
             }
 
             // FC tag — Pixel, TonberryBright, surrounded by guillemets
@@ -185,7 +185,7 @@ public static class CharacterTab
             {
                 ImGui.Spacing();
                 using (plugin.Fonts.Pixel.PushOrNull())
-                    ImGui.TextColored(TlfTheme.TonberryBright, $"« {fc.ToUpperInvariant()} »");
+                    ImGui.TextColored(Theme.TtChrome.HpGreenBright, $"« {fc.ToUpperInvariant()} »");
             }
         }
         ImGui.EndGroup();
@@ -381,8 +381,8 @@ public static class CharacterTab
     {
         // Border color swaps to Warning if the card is warn-flagged. Background
         // is always InkPanelAlt. Inner padding 12px via WindowPadding style var.
-        var border = m.Warn != null ? TlfTheme.Warning : TlfTheme.BorderPixelLite;
-        ImGui.PushStyleColor(ImGuiCol.ChildBg, TlfTheme.InkPanelAlt);
+        var border = m.Warn != null ? Theme.TtChrome.SeverityWarning : Theme.TtChrome.FrostOutline;
+        ImGui.PushStyleColor(ImGuiCol.ChildBg, Theme.TtChrome.InkDeeper);
         ImGui.PushStyleColor(ImGuiCol.Border,  border);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(12f, 12f));
 
@@ -396,7 +396,7 @@ public static class CharacterTab
             // Label — Press Start 2P 10px, GoldDim, uppercased
             using (plugin.Fonts.Pixel.PushOrNull())
             {
-                ImGui.TextColored(TlfTheme.GoldDim, m.Label.ToUpperInvariant());
+                ImGui.TextColored(Theme.TtChrome.EmberDeep, m.Label.ToUpperInvariant());
             }
 
             ImGui.Spacing();
@@ -404,13 +404,13 @@ public static class CharacterTab
             // Value — Cinzel Regular 22px, GoldBright
             using (plugin.Fonts.CinzelHeader.PushOrNull())
             {
-                ImGui.TextColored(TlfTheme.GoldBright, m.Value.ToString("N0"));
+                ImGui.TextColored(Theme.TtChrome.EmberBright, m.Value.ToString("N0"));
             }
 
             // Derived effect line — default font, FrostSoft
             if (!string.IsNullOrEmpty(m.Derived))
             {
-                ImGui.TextColored(TlfTheme.FrostSoft, m.Derived);
+                ImGui.TextColored(Theme.TtChrome.FrostMuted, m.Derived);
             }
 
             // Tier divider + tier text (only if tier line is populated)
@@ -418,7 +418,7 @@ public static class CharacterTab
             {
                 ImGui.Spacing();
                 ImGui.Separator();
-                ImGui.TextColored(TlfTheme.FrostDim, m.Tier);
+                ImGui.TextColored(Theme.TtChrome.FrostFaint, m.Tier);
             }
 
             // Warn chip — Press Start 2P 10px, Warning color
@@ -427,7 +427,7 @@ public static class CharacterTab
                 ImGui.Spacing();
                 using (plugin.Fonts.Pixel.PushOrNull())
                 {
-                    ImGui.TextColored(TlfTheme.Warning, $"⚠ {m.Warn.ToUpperInvariant()}");
+                    ImGui.TextColored(Theme.TtChrome.SeverityWarning, $"⚠ {m.Warn.ToUpperInvariant()}");
                 }
             }
         }
@@ -551,8 +551,8 @@ public static class CharacterTab
         DrawSectionHead("Materia Advisor", rightRail);
 
         // ── Card chrome ─────────────────────────────────────────────────
-        ImGui.PushStyleColor(ImGuiCol.ChildBg, TlfTheme.InkPanelAlt);
-        ImGui.PushStyleColor(ImGuiCol.Border,  TlfTheme.FrostFaint);
+        ImGui.PushStyleColor(ImGuiCol.ChildBg, Theme.TtChrome.InkDeeper);
+        ImGui.PushStyleColor(ImGuiCol.Border,  Theme.TtChrome.FrostFaint);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(16f, 14f));
 
         var cardHeight = recs.Count == 0 ? 96f : 50f + (recs.Count * 30f) + 50f;
@@ -561,10 +561,10 @@ public static class CharacterTab
             if (recs.Count == 0)
             {
                 // Empty state — ◆ glyph in Ship green, italic Garamond message
-                ImGui.TextColored(TlfTheme.Ship, "◆");
+                ImGui.TextColored(Theme.TtChrome.HpGreen, "◆");
                 ImGui.SameLine();
                 using (plugin.Fonts.GaramondItalic.PushOrNull())
-                    ImGui.TextColored(TlfTheme.FrostSoft,
+                    ImGui.TextColored(Theme.TtChrome.FrostMuted,
                         "All guaranteed slots filled · no upgrades suggested");
             }
             else
@@ -582,20 +582,20 @@ public static class CharacterTab
                         // Left: rank + slot + arrow + materia
                         ImGui.TableNextColumn();
                         using (plugin.Fonts.Pixel.PushOrNull())
-                            ImGui.TextColored(TlfTheme.GoldDim, $"{r.Rank:00}");
+                            ImGui.TextColored(Theme.TtChrome.EmberDeep, $"{r.Rank:00}");
                         ImGui.SameLine();
-                        ImGui.TextColored(TlfTheme.Knife, r.Slot);
+                        ImGui.TextColored(Theme.TtChrome.FrostOutline, r.Slot);
                         ImGui.SameLine();
-                        ImGui.TextColored(TlfTheme.Lantern, r.Direction);
+                        ImGui.TextColored(Theme.TtChrome.Ember, r.Direction);
                         ImGui.SameLine();
-                        ImGui.TextColored(TlfTheme.Frost, r.Materia);
+                        ImGui.TextColored(Theme.TtChrome.FrostText, r.Materia);
 
                         // Right: gain badge in pixel font, Ice color
                         ImGui.TableNextColumn();
                         if (!string.IsNullOrEmpty(r.GainBadge))
                         {
                             using (plugin.Fonts.Pixel.PushOrNull())
-                                ImGui.TextColored(TlfTheme.Ice, r.GainBadge);
+                                ImGui.TextColored(Theme.TtChrome.SeverityNote, r.GainBadge);
                         }
                     }
                     ImGui.EndTable();
@@ -609,7 +609,7 @@ public static class CharacterTab
 
             // Selectable styled as a link: text in Lantern color, hover/active
             // background suppressed so it doesn't read as a button.
-            ImGui.PushStyleColor(ImGuiCol.Text,          TlfTheme.Lantern);
+            ImGui.PushStyleColor(ImGuiCol.Text,          Theme.TtChrome.Ember);
             ImGui.PushStyleColor(ImGuiCol.HeaderHovered, new Vector4(0f, 0f, 0f, 0f));
             ImGui.PushStyleColor(ImGuiCol.HeaderActive,  new Vector4(0f, 0f, 0f, 0f));
             if (ImGui.Selectable("See full audit in Materia tab →"))
@@ -665,8 +665,8 @@ public static class CharacterTab
         // Pre-pack stripe colors once. ImGui.GetColorU32(Vector4) is the
         // canonical conversion from TlfTheme palette entries to the U32 the
         // bg-color setter wants.
-        uint stripeEven = ImGui.GetColorU32(TlfTheme.InkPanel);
-        uint stripeOdd  = ImGui.GetColorU32(TlfTheme.InkPanelAlt);
+        uint stripeEven = ImGui.GetColorU32(Theme.TtChrome.InkDark);
+        uint stripeOdd  = ImGui.GetColorU32(Theme.TtChrome.InkDeeper);
 
         if (ImGui.BeginTable("##chartabgear", 4,
                 ImGuiTableFlags.BordersInner | ImGuiTableFlags.SizingStretchProp))
@@ -691,18 +691,18 @@ public static class CharacterTab
                 ImGui.TableNextColumn();
                 using (plugin.Fonts.Pixel.PushOrNull())
                 {
-                    ImGui.TextColored(TlfTheme.GoldDim, piece.Slot.ToString().ToUpperInvariant());
+                    ImGui.TextColored(Theme.TtChrome.EmberDeep, piece.Slot.ToString().ToUpperInvariant());
                 }
 
                 // ── Item col: Cinzel SemiBold 16px in Frost, ★ in GoldBright ─
                 ImGui.TableNextColumn();
                 using (plugin.Fonts.CinzelEmphasis.PushOrNull())
                 {
-                    ImGui.TextColored(TlfTheme.Frost, piece.Name);
+                    ImGui.TextColored(Theme.TtChrome.FrostText, piece.Name);
                     if (piece.IsHighQuality)
                     {
                         ImGui.SameLine(0, 6);
-                        ImGui.TextColored(TlfTheme.GoldBright, "★");
+                        ImGui.TextColored(Theme.TtChrome.EmberBright, "★");
                     }
                 }
 
@@ -715,24 +715,24 @@ public static class CharacterTab
                 {
                     ImGui.SetCursorPosX(ImGui.GetCursorPosX() + availW - ilvlWidth);
                 }
-                ImGui.TextColored(TlfTheme.Knife, ilvlStr);
+                ImGui.TextColored(Theme.TtChrome.FrostOutline, ilvlStr);
 
                 // ── Materia col: Frost + " · " separator in FrostFaint ────
                 ImGui.TableNextColumn();
                 if (piece.Materia.Count == 0)
                 {
-                    ImGui.TextColored(TlfTheme.FrostFaint, "—");
+                    ImGui.TextColored(Theme.TtChrome.FrostFaint, "—");
                 }
                 else
                 {
                     for (int m = 0; m < piece.Materia.Count; m++)
                     {
                         var meld = piece.Materia[m];
-                        ImGui.TextColored(TlfTheme.Frost, $"+{meld.StatValue} {meld.StatName}");
+                        ImGui.TextColored(Theme.TtChrome.FrostText, $"+{meld.StatValue} {meld.StatName}");
                         if (m < piece.Materia.Count - 1)
                         {
                             ImGui.SameLine(0, 4);
-                            ImGui.TextColored(TlfTheme.FrostFaint, "·");
+                            ImGui.TextColored(Theme.TtChrome.FrostFaint, "·");
                             ImGui.SameLine(0, 4);
                         }
                     }

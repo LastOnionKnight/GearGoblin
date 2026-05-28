@@ -1,0 +1,763 @@
+## [1.0.0] - 2026-05-28
+- TlfTheme.cs deleted; every tab now on Track 2 (TtChrome doubled-frame cards + Eyebrow/Quip typography)
+- `/goblin*` aliases removed (use `/tt`, `/ttexport`, `/ttimport`, `/ttinfo`)
+- Display name locked: "Tonberry Tactics" (InternalName remains GearGoblin for save-state continuity)
+- Public Dalamud repo submission opened
+- Trinity 1.0.0 — plugin + Core + web in lockstep
+
+## [0.6.7.6] - 2026-05-27
+- Repair UTF-8 mojibake in injected text (PS ANSI read in 0.6.7.5 double-encoded non-ASCII)
+- Fix font packaging: Add missing Track 2 fonts to Assets/Fonts/
+- Add lockstep reminder to release script
+
+## [0.6.7.5] - 2026-05-27
+- Injector boot guard (inject when panel already open at load) + lockstep bump
+- Fix boot guard build - use generic GetAddonByName<AtkUnitBase> (AtkUnitBasePtr has no cast to AtkUnitBase*)
+
+## [0.6.7.4] - 2026-05-22
+- Blank native = /tt advisor glyph
+
+## [0.6.7.3] - 2026-05-20
+- Tab reorder finally ships: Quick Start leads the tab bar, Character is position 2.
+- The reorder has been in source since v0.6.7.1, but the released artifact / Dalamud client cache was stale and re-shipping the same version number could not dislodge it. This bump forces a fresh clean CI build and a clean client re-download.
+- No functional changes beyond the version bump. Core and Web bumped to 0.6.7.3 in lockstep (version-only).
+
+## [0.6.7.2] - 2026-05-20
+- About panel narrative entries for v0.6.6.1 through v0.6.7.1. The "TLF Gear Division · Operations Brief" history block in `DrawAbout()` had been stale since v0.6.6.
+- Explicit dotnet clean + bin/obj wipe before the build to fix caching issues causing tab order to revert.
+
+## [0.6.7] — Track 2 era begins · Plan tab repainted in ember/frost-blue
+
+### Added
+- **`Theme/TtChrome.cs`** (new module) — Track 2 chrome helper, the first piece of the ember/frost-blue visual language that replaces TlfTheme over the v0.6.7 → v1.0 migration arc. Lifts the palette tokens verbatim from `RUNTIME_PORT.md §1.3` (the TLF HUD v0.1 design handoff):
+  - **Ink** — `#14161C` (90% alpha) backdrop, slightly warmer than TlfTheme's `InkPanel` (`#0E1232`). Drops the navy cast.
+  - **Ember** — `#D67B3C` warm-orange accent. Replaces `Lantern` gold for Track 2. Used for eyebrow labels and severity-critical badges.
+  - **Frost** — `#F2F2F5` body text + `rgba(178, 178, 178, *)` frame outlines at three opacity stops (1.0, 0.45, 0.22). The doubled-frame chrome uses the 1.0 outer and 0.22 inner stops.
+  - **Severity ramp** — `SeverityCritical` ember `#D67B3C`, `SeverityWarning` yellow `#E2C36A`, `SeverityNote` frost-blue `#7FC9EE`. Plus `HpGreen #6FBF6A` for match-success and `Farm #FF9D4A` for mismatch.
+- **`TtChrome.BeginCard` / `EndCard`** — the signature doubled-frame chrome. Outer 2px frost-outline at 0 inset; inner 1px hairline at 6px inset. Implemented via `ImDrawList.ChannelsSplit(2)` so the frame draws on the background channel *behind* content rather than overlaying text. Card backdrop fill in `InkSurface`.
+- **`TtChrome.Eyebrow(fonts, label)` / `Quip(fonts, text)` / `Number(fonts, text, color)` / `Pill(text, color)`** — parallel API to TlfTheme's composite helpers. All accept the `FontAtlasManager` and gracefully fall back to default font when individual Track 2 font handles are null (which they will be until Brian drops the .ttf files into `Assets/Fonts/`).
+- **Five Track 2 font handles** in `FontAtlasManager`:
+  - `CormorantBody` — Cormorant Garamond Regular @ 15px (body quip prose)
+  - `CormorantItalic` — Cormorant Garamond Italic @ 15px (Stab. voice, italic emphasis)
+  - `JetBrainsMonoBody` — JetBrains Mono Regular @ 11px (numerics, iLvl, deltas)
+  - `JetBrainsMonoMeta` — JetBrains Mono Bold @ 10px (meta labels, severity counts)
+  - `EorzeaRune` — Eorzea.ttf @ 13px (ornamental rune accent, decorative only)
+  
+  All optional via the existing `TryBuild` pattern — null fallback if the .ttf is missing. **No callers reference them yet** — that wiring is v0.6.7.1 work. v0.6.7 ships the loader plumbing only so Brian can drop the fonts in at his own pace without breaking the build.
+
+### Changed
+- **`UI/PlanTab.cs` repainted** in TtChrome chrome. Three cards stack vertically:
+  - **Paste card** — eyebrow `» PLAN · BIS PASTE`, italic quip subtitle, URL input + Fetch + Clear buttons in one row, status message below (colored by severity: ember for errors, green for `Loaded:`, frost-blue for `Fetching…`).
+  - **Empty state card** — eyebrow `» NO BIS LOADED`, quip subtitle, bulleted example URLs in muted frost.
+  - **Diff card** — eyebrow `» BIS · {name}`, description quip (if any), 4-column diff table (Slot / Current / Target / Status). Match status renders as `[ ✓ match ]` pill in HpGreen; farm status as `[ ✗ farm ]` pill in Farm orange.
+- **`PlanTab.Draw` signature changed** from `Draw(InventoryReader inventory)` to `Draw(Plugin plugin)` so it can reach `plugin.Fonts` for the Track 2 typography. The data flow (StartFetch, BisFetcher.FetchAsync, slot-by-slot diff via InventoryReader.ReadEquipped) is preserved verbatim — only the chrome wraps it.
+- **`MainWindow.cs` line ~203** — caller updated from `PlanTab.Draw(plugin.Inventory)` to `PlanTab.Draw(plugin)`. One-line edit.
+- **Tab bar reordered** — `Quick Start` now leads, `Character` moves to position 2. Rationale: first-time users land on onboarding rather than the meatiest content surface. Existing users muscle-memory-shifts one slot. Other tabs unchanged: `Plan / Materia / Settings / Diagnostics / Feedback / About`.
+
+### Why this version
+First surface in the new ember/frost-blue visual language (Track 2) that gradually replaces TlfTheme (gold/navy) over the v0.6.7 → v1.0 migration. The Plan tab was the natural starting point because it's a contained surface with stable data flow — the chrome can change without disturbing the fetch/diff logic underneath.
+
+**Also ships v0.6.6.5's changes** (Equipped Gear table polish + section eyebrow glyph fix). v0.6.6.5 was built on disk but never separately released to the Custom Repo — Brian switched to the Custom Repo install path before pushing it, so its changes carry forward in the v0.6.7 build. The [0.6.6.5] entry below in this CHANGELOG documents what's in those changes; the build that ships to Custom Repo with the v0.6.7 tag includes both sets atomically.
+
+Per the v0.6.7 vs v0.6.8 split locked 2026-05-20:
+- **v0.6.7** = visual rebuild only (this ship)
+- **v0.6.8** = StatusPanelInjector deprecation banner + plan persistence (behavioral)
+
+This keeps one risk surface per release. v0.6.7 introduces a new theme module and repaints one tab; v0.6.8 will add a deprecation banner and Configuration-keyed persistence for the paste field. Cohabitation rules: TlfTheme.cs is untouched and continues to chrome the Character, Materia, Quick Start, About, Settings, Diagnostics, and Feedback tabs. TtChrome and TlfTheme push their style stacks independently — TtChrome.Push() is scoped to the Plan tab's content area, layered on top of TlfTheme's window-level chrome.
+
+Lockstep: GearGoblin.Core v0.6.7 + tonberrytactics.pages.dev v0.6.7 (version-only bump on both).
+
+### Build-gate risks
+- **`ImDrawList.ChannelsSplit(2)` + `ChannelsSetCurrent(0/1)` + `ChannelsMerge()`** — first use of drawlist channel-split in this codebase. Standard Dear ImGui pattern (see issue #4530); should resolve in the Dalamud bindings. Failure mode would be CS errors at compile or a no-op merge at runtime (frame draws on top of content). Fallback if needed: drop the channel-split and accept that the inner hairline draws over content at the card edges (with the 10px content padding this is barely visible).
+- **`PlanTab.Draw(Plugin)` signature change** — call site in MainWindow.cs needs one-line update (see CHANGELOG above). If missed, build fails immediately with `CS1503: cannot convert from 'InventoryReader' to 'Plugin'`. Fix is mechanical.
+- **`GearGoblin.Theme` namespace import in PlanTab.cs** — added at the top. The file previously only needed `GearGoblin.Planning` and `GearGoblin.Services`.
+
+### Verify in-game (`/xlplugins` toggle off/on)
+1. **Plan tab renders without errors** (no exception in `/xllog`).
+2. **Paste card** — doubled frame visible: outer frost-grey rectangle, inner faint frost-grey hairline inset ~6px. Ember-colored eyebrow `» PLAN · BIS PASTE` at top.
+3. **Paste card contents** — italic-feeling subtitle quip below the eyebrow, then URL input + Fetch + Clear buttons in one row.
+4. **Empty state card** (with no BiS loaded) — second card below the paste form, eyebrow `» NO BIS LOADED`, bulleted example URLs.
+5. **Fetch a real BiS** (paste `https://etro.gg/gearset/<any valid uuid>`) — status changes from `Fetching…` (frost-blue) to `Loaded: <name>` (green).
+6. **Diff card appears** — eyebrow `» BIS · <name>`, description quip if any, 4-column table.
+7. **Match / farm pills** — items that match show `[ ✓ match ]` in HpGreen; items to farm show `[ ✗ farm ]` in Farm orange.
+8. **Plugin loads even if Track 2 .ttf files are missing** — `/xllog` shows `[FontAtlasManager v0.6.7] Loaded 7/12 custom fonts` (the 5 Track 2 fonts not loaded, but Track 1 still works and Plan tab still renders with default-font fallback for the new font helpers).
+9. **TlfTheme surfaces unchanged** — Character tab, Materia tab, About, Quick Start, Settings, Diagnostics, Feedback all look exactly the same as v0.6.6.5 (no chrome bleed from Track 2).
+
+### Brian's manual work to apply this dropin
+1. Apply the five files (`Theme/TtChrome.cs`, `Theme/FontAtlasManager.cs`, `UI/PlanTab.cs`, `GearGoblin.csproj`, `CHANGELOG.md`).
+2. **Update MainWindow.cs line ~203** — change `PlanTab.Draw(plugin.Inventory);` to `PlanTab.Draw(plugin);` (search for the `if (ImGui.BeginTabItem("Plan"))` block).
+3. **Optional but recommended:** download Track 2 .ttf files from Google Fonts into `D:\GearGoblin-v0.1\GearGoblin\Assets\Fonts\`:
+   - `CormorantGaramond-Regular.ttf` (https://fonts.google.com/specimen/Cormorant+Garamond)
+   - `CormorantGaramond-Italic.ttf` (same family)
+   - `JetBrainsMono-Regular.ttf` (https://fonts.google.com/specimen/JetBrains+Mono)
+   - `JetBrainsMono-Bold.ttf` (same family)
+   - `Eorzea.ttf` (copy from `D:\TonberryLiberationFront\design_handoff_tlf_hud_v01\fonts\Eorzea.ttf`)
+4. `dotnet build -c Release` from `D:\GearGoblin-v0.1\GearGoblin\` to verify clean compile.
+5. `.\release.ps1 0.6.7` to push to Custom Repo. (Dev plugin path was removed per the 2026-05-20 decision; Custom Repo flow is exclusive going forward.)
+6. `/xlplugins` → Tonberry Tactics → Update. Verify the 9 in-game points above.
+
+## [0.6.6.5] — Gear table polish + section eyebrow glyph fix
+
+### Changed
+- **Equipped Gear table polished** per the v0.6.6.0 `DrawGearTable` TODO block:
+  - **Striped rows** — alternating `InkPanel` / `InkPanelAlt` backgrounds via per-row `TableSetBgColor(RowBg0)`. Removes `ImGuiTableFlags.RowBg`'s default light-gray stripe which clashed with the dark TlfTheme navy.
+  - **Slot column** — Press Start 2P 10px in `GoldDim`, uppercased (e.g. `MAINHAND`, `RINGLEFT`).
+  - **Item column** — Cinzel SemiBold 16px in `Frost`. HQ items get a trailing `★` in `GoldBright` rendered inline via `SameLine(0, 6)`.
+  - **iLvl column** — default ImGui font in `Knife` (steel), right-aligned via `SetCursorPosX(currentX + availW - textWidth)` rather than a hardcoded offset.
+  - **Materia column** — each meld in `Frost`, with a faint `·` separator in `FrostFaint` between melds for visual hierarchy. Fixed an edge case in the original where `m.SlotIndex` was used as the "last meld" predicate (worked when slots were 0,1,2,3 but unsafe if a slot were skipped); now uses the loop index against the list count.
+- **Header row removed** from the gear table — the section head supplies context; the column headers were visual noise on the dark TlfTheme surface.
+- **`DrawGearTable` signature** now takes `Plugin plugin` as its first parameter (needed for `plugin.Fonts.Pixel` / `plugin.Fonts.CinzelEmphasis` access). Matches the pattern already established for `DrawHero`, `DrawStatsStrip`, and `DrawMateriaAdvisor`. The only call site (`Draw()`) updated accordingly.
+
+### Fixed
+- **Section eyebrow glyph rendering as `?`** in the About and Quick Start tabs (`? TLF GEAR DIVISION · OPERATIONS BRIEF`, `? TLF MANIFESTO`, etc.). Root cause: `TlfTheme.GlyphSection` was `"◇"` (U+25C7 WHITE DIAMOND), which is not in Dalamud's default font glyph range. The two filled-shape glyphs (`▶` U+25B6, `◆` U+25C6) work; the outlined variant (`◇`) does not. Swapped to `»` (U+00BB, RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK), which lives in Latin-1 Supplement and is universally available. Affects all eight `TlfTheme.Eyebrow(...)` call sites in `MainWindow.cs` — seven on the Quick Start tab (`TLF MANIFESTO`, `WHAT THIS PLUGIN DOES`, `THE LOOP`, `SLASH COMMANDS`, `WHAT YOU'LL SEE IN THE CHARACTER WINDOW`, `WHEN SOMETHING LOOKS WRONG`, `TIPS`) and one on the About tab (`TLF GEAR DIVISION · OPERATIONS BRIEF`).
+
+### Why this version
+Closes the Character tab's v0.6.6.x polish arc on the TlfTheme (gold/navy) era:
+- v0.6.6.1 — StatsStrip cards
+- v0.6.6.2 — CharacterHero portrait frame + identity column
+- v0.6.6.3 — Materia Advisor ranked rows
+- v0.6.6.4 — Materia tab merge + Current Gear purge
+- v0.6.6.5 — Gear table polish + glyph fix  ← this ship
+
+This is the last v0.6.6.x release on TlfTheme. v0.6.7 begins the Track 2 (ember/frost-blue) repaint with the new Plan tab paste UI as the first surface in the v1.0 design language; v0.7.0 repaints the Character tab itself, removes the StatusPanelInjector, and lifts MeldOptimizer into GearGoblin.Core.
+
+Note: the original v0.6.6.0 TODO mentioned a "Soul Crystal divider" item. Deferred — `EquippedPiece` doesn't model the soul-crystal slot (the `InventoryReader` reads MainHand through RingRight only, no soul crystal). Revisit if/when soul-crystal data lands in the equipped list.
+
+### Build-gate risks
+- **`ImGui.TableSetBgColor(ImGuiTableBgTarget.RowBg0, uint)`** — first explicit per-row stripe in this codebase. Existing usage uses the `ImGuiTableFlags.RowBg` flag for auto-striping. The explicit pattern is canonical Dear ImGui usage so the binding should resolve.
+- **`Plugin` parameter added to `DrawGearTable`** — matches the `Plugin plugin` parameter pattern established for `DrawHero`, `DrawStatsStrip`, and `DrawMateriaAdvisor`. Only one call site, updated atomically with the signature change.
+- **`»` glyph rendering** — Latin-1 Supplement is in every modern font including Dalamud's bundled default; the `·` (also Latin-1 Supplement) already renders correctly throughout, so this is a safe range. If somehow `»` fails to render, fallback is `>>` or `>`.
+
+### Verify in-game (`/xlplugins` toggle off/on)
+1. **Character tab → Equipped Gear** — rows alternate dark navy (`InkPanel`) and slightly lighter navy (`InkPanelAlt`).
+2. **Slot column** — pixel-font, dim-gold, uppercased: `MAINHAND`, `HEAD`, `BODY`, etc.
+3. **Item column** — Cinzel SemiBold serif. HQ items show a gold `★` after the name.
+4. **iLvl column** — right-aligned, steel-colored number.
+5. **Materia column** — each meld in soft-cream color; multiple melds separated by faded `·` dots in muted purple-grey.
+6. **No header row** above the gear table — the `── Equipped Gear · {N} slots` section head replaces it.
+7. **About tab** — section eyebrows now read `» TLF GEAR DIVISION · OPERATIONS BRIEF` (not `? TLF GEAR DIVISION...`).
+8. **Quick Start tab** — all seven section eyebrows (`TLF MANIFESTO`, `WHAT THIS PLUGIN DOES`, `THE LOOP`, `SLASH COMMANDS`, `WHAT YOU'LL SEE IN THE CHARACTER WINDOW`, `WHEN SOMETHING LOOKS WRONG`, `TIPS`) show the `»` prefix instead of `?`.
+
+## [0.6.6.4] — Materia tab merge (Fork 1) + Current Gear tab purge
+
+### Changed
+- **Materia tab default landing now merges Stat Sheet + Plan** on one scroll surface. The three-radio sub-tab selector (`Stat Sheet` / `Plan` / `Audit`) is gone. The default view stacks `Current Substats` (4-col table) above `Recommended Fills` (4-col table), with the Pure-math mode disclaimer rendered as an inline italic caption above the fills.
+- **Two small toggles right-aligned in the header line:**
+  - `[Audit ▸]` / `[◀ Back to gear]` — swaps the body to the Audit view (severity counts + 4-col audit table) and back. Active state renders in Lantern color so the user can see the toggle is "armed."
+  - `[Pure math]` / `[Balance preset]` — flips the optimizer's weighting; re-renders the Plan (or Audit) in place. Pure math is default; Balance preset persists for the session.
+- **Cross-tab focus signal expanded.** CharacterTab's `See full audit in Materia tab →` link now sets BOTH `CharacterTab.WantsMateriaTabFocus` (tab focus) and `MateriaTab.WantsAuditOnNextDraw` (view selection). Single-click from the Character tab's Materia Advisor footer now lands the user directly in the Audit view. `WantsAuditOnNextDraw` is consumed on the next Draw and resets to false the same frame.
+
+### Removed
+- **`Current Gear` tab** — fully subsumed by the Character tab's `Equipped Gear` section (shipped in v0.6.6.0). Both render the same Slot / Item / iLvl / Materia table; the Current Gear tab's `Average Item Level: XXX` header line is already shown in the Character tab's right-rail pill (`iLvl 777`). Zero information loss. The `DrawCurrentGear()` method is deleted; the file-header tab-list comment in `MainWindow.cs` is updated.
+
+### Why this version
+Closes the v0.6.6.x Character-tab + Materia-tab polish arc on the TlfTheme (gold/navy) era. The four-pass character tab polish (StatsStrip v0.6.6.1, CharacterHero v0.6.6.2, Materia Advisor v0.6.6.3, gear-table polish deferred to v0.6.6.5) and now the Materia tab merge are all that's left of the Track 1 visual language. v0.6.7 begins the Track 2 (ember/frost-blue) era with the new Plan tab paste UI as the first surface in the unified design language.
+
+### Build-gate risks
+- **`MateriaTab.WantsAuditOnNextDraw` is `internal static`** — same access level pattern as `CharacterTab.WantsMateriaTabFocus`. CharacterTab can set it because they're in the same assembly (`GearGoblin.UI` namespace). If access fails, change to `public static`.
+- **`ImGui.SameLine(float positionX)` for right-aligning the toggle pair** — confirmed pattern from v0.6.6.1's StatsStrip cards. Falls back gracefully to a new line via the explicit `ImGui.NewLine()` branch when the window is too narrow.
+
+### Verify in-game (`/xlplugins` toggle off/on)
+1. **Tab strip** — `Character | Quick Start | Plan | Materia | Settings | Diagnostics | Feedback | About`. No `Current Gear` tab.
+2. **Materia tab default view** — opens to Stat Sheet table on top, Recommended Fills below. No radio buttons at top.
+3. **Right-aligned toggles** — `[Pure math]` and `[Audit ▸]` (smaller, on the same line as `{Job} Lv {Lv} ({Role})`).
+4. **Click `[Audit ▸]`** — body swaps to severity counts + audit table. Toggle label flips to `[◀ Back to gear]` and turns gold (Lantern color). Click again to return.
+5. **Click `[Pure math]`** — flips to `[Balance preset]`, the mode disclaimer caption above the fills table changes to the Balance preset version, and the Plan table re-orders by the new weighting.
+6. **Cross-tab path** — switch to Character tab, click `See full audit in Materia tab →` on the Materia Advisor card footer. Should land directly on the Audit view (not the default Stat Sheet + Plan view).
+
+## [0.6.6.3] — Character tab polish pass 3: Materia Advisor ranked rows
+
+### Added
+- **Materia Advisor card** — section 4.3 rebuilt per Claude Design v0.2.0's `MateriaAdvisorCard.jsx`. Three states:
+  - **Populated** — up to 3 ranked rows, each with a pixel-font rank prefix (`00`/`01`/`02` in GoldDim), slot label in Knife color, direction arrow in Lantern (`→` for audit replacements, `←` for plan additions), materia/replacement spec in Frost, and a right-aligned gain badge in pixel font + Ice color showing the calibrated marginal percentage gain (e.g. `+0.42%`).
+  - **Empty** — ◆ Ship-green glyph + italic Garamond message: "All guaranteed slots filled · no upgrades suggested".
+  - **Errored** — defensive fallback preserved from v0.6.6.0 (shows exception type + `/xllog` hint).
+- **Cross-tab focus link** — the advisor card's footer now contains a clickable "See full audit in Materia tab →" link (Lantern text, hover-background suppressed so it reads as a hyperlink, not a button). Clicking it sets `CharacterTab.WantsMateriaTabFocus`; `MainWindow.cs`'s tab strip consumes the flag in the next frame and passes `ImGuiTabItemFlags.SetSelected` to the Materia tab's `BeginTabItem` for one frame.
+- **`FormatGain(double score)` helper** — converts the optimizer's weighted marginal percentage score into a human-readable badge string. Negative or zero scores render empty (never shows "+0.00%").
+- **`AdvisorRecModel` record** — strongly-typed candidate row replaces the v0.6.6.0 `List<string>` formatting. Same build logic (top-3 audits by `GainIfReplaced`, falling back to `PlanRecommendations` by `ScoreGain` to fill 3 rows), now produces structured data for the renderer.
+
+### Changed
+- `DrawMateriaAdvisor` signature now takes `Plugin plugin` as its first parameter (needed for `plugin.Fonts.Pixel` / `plugin.Fonts.GaramondItalic` access). Call site in `CharacterTab.Draw()` updated accordingly.
+- Card uses `BeginChild` with calculated height (`96f` empty, `50f + recCount*30f + 50f` populated) so the card doesn't gobble vertical space when there's nothing to recommend.
+
+### Why this version
+Closes the Character tab's three large-surface polish arc:
+- v0.6.6.1 — StatsStrip cards
+- v0.6.6.2 — CharacterHero portrait frame + identity column
+- v0.6.6.3 — Materia Advisor ranked rows ← this ship
+
+v0.6.6.4 polishes the gear table (striped rows, gold-tier highlight, HQ ★, Soul Crystal divider) to close the Character tab's TlfTheme era. v0.6.7 begins the Track 2 (ember/frost-blue) repaint with the new Plan tab paste UI as the first surface in the v1.0 design language; the Character tab itself is repainted in v0.7.0 alongside the StatusPanelInjector removal.
+
+### Build-gate risks
+- **`ImGui.BeginTabItem(string, ImGuiTabItemFlags)`** — first use of the 2-arg overload in this codebase. If it fails to resolve, fallback is the 3-arg form `BeginTabItem(string, ref bool, ImGuiTabItemFlags)` with a `bool open = true` shim.
+- **`ImGui.Selectable` returning `true` on click** — standard ImGui pattern, low risk.
+- **`cardHeight` dynamic sizing of `BeginChild`** — verified pattern from v0.6.6.1 StatsStrip cards.
+
+# Changelog
+
+All notable changes to Tonberry Tactics (the in-game plugin, formerly
+"GearGoblin") are documented here. Format based on
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning loosely
+follows [Semantic Versioning](https://semver.org/).
+
+**Versioning note (from v0.5.5 onward):** the plugin and the web app
+(`tonberrytactics.pages.dev`) ship at the same version. Both halves of
+the product bump together at every release going forward. Versions prior
+to v0.5.5 used independent semver tracks — the plugin's v0.4.x line and
+the web's v0.5.x line. v0.5.5 is the moment they re-align.
+## [0.6.6.2] — 2026-05-19  (Character tab polish II: CharacterHero portrait frame + identity column)
+
+> **Status:** Released. Second polish pass on the Character tab introduced
+> in v0.6.6.0 and partially polished in v0.6.6.1. The Adventurer Plate
+> aesthetic now reaches the hero region — portrait frame, corner brackets,
+> jobAbbr fallback glyph, and a real identity column with name / world /
+> FC tag.
+
+### New — CharacterHero portrait region (`UI/CharacterTab.cs`)
+
+`DrawHero` is rebuilt. The old plain-text `"{name} — {profile.Name} Lv {lvl}"`
+line is gone. In its place:
+
+- **Portrait frame.** 148px × 166px region anchored at the cursor on
+  the left side of the hero block. Filled background in `InkPanel`,
+  thin border in `BorderPixelLite`. Drawn via `drawList.AddRectFilled`
+  + `drawList.AddRect` against the window's foreground draw list — no
+  `BeginChild`, no nested layout, simple primitives.
+- **Four lantern-gold corner brackets.** 6×6 filled squares inset 2px
+  from each corner. Per the Claude Design v0.2.0 ImGui port flag #1:
+  "four 6×6 `--lantern` squares at the portrait corners ... draw four
+  solid filled rectangles in `ImGui.GetWindowDrawList()` after laying
+  out the portrait region." That's exactly what happens — small helper
+  `DrawCornerSquare` keeps the four calls readable.
+- **Centered jobAbbr fallback glyph.** Press Start 2P at 32px, drawn
+  via `drawList.AddText` at the geometric center of the frame
+  (`CalcTextSize` measured inside the font scope, then offset by half
+  the difference from the frame size). Color: `GoldDim`. Dalamud
+  doesn't expose Adventurer Plate portraits to plugins, so this is the
+  portrait surface for now. A future iteration could lookup the job's
+  stone icon via `ITextureProvider`'s GameIcon path and overlay it, but
+  the 32px text glyph reads cleanly on its own.
+- **Identity column** to the right of the portrait, 18px gap. Renders
+  player name in `CinzelHeader` (22px Cinzel Regular, `GoldBright`),
+  class line in default font (`"{profile.Name} · Lv {player.Level}"`,
+  `FrostSoft`), uppercased world string in `Pixel` font (`FrostDim`),
+  and — if the player is in a Free Company — the FC tag wrapped in
+  guillemets in `Pixel` (`TonberryBright`).
+
+### New — `PixelDisplay` font handle (`Theme/FontAtlasManager.cs`)
+
+`PixelDisplay` (Press Start 2P @ 32px) registered alongside the
+existing `Pixel` (10px) handle. Same .ttf file (`PressStart2P-Regular.ttf`
+already on disk in `Assets/Fonts/`), only a new atlas size. Loaded-font
+count goes 6 → 7. `Dispose` order updated (PixelDisplay disposed first,
+reverse construction). Startup log line updated to v0.6.6.2.
+
+### Defensive Lumina row access
+
+Three `Safe*` helpers wrap the Lumina-row accessor calls that reach
+into excel data via `RowRef<T>.Value`:
+
+```csharp
+SafeJobAbbr(player) → player.ClassJob.Value.Abbreviation.ExtractText()
+SafeWorld(player)   → player.HomeWorld.Value.Name.ExtractText()
+SafeFcTag(player)   → player.CompanyTag.ToString()
+```
+
+Each is try/catch-wrapped so a transient RowId == 0 state (loading
+screens, the first frame after a class swap, brief world-server hiccups)
+degrades to a fallback string instead of throwing a `NullReferenceException`
+on the player's first frame back. JobAbbr falls back to `"???"`; world
+and FC tag fall back to empty strings (and the corresponding lines are
+suppressed entirely when empty).
+
+### Color packing — manual `ColorToU32` helper
+
+The `drawList.AddRectFilled` / `AddRect` / `AddText` primitives take
+packed `uint` colors, but `TlfTheme`'s palette is in `Vector4` (linear
+RGBA 0..1). A private `ColorToU32(Vector4) → uint` helper does the
+conversion in-class. Manual rather than via `ImGui.GetColorU32` or
+`ImGui.ColorConvertFloat4ToU32` so the code is portable across binding
+generations — both methods exist in some ImGui.NET / Dalamud.Bindings.ImGui
+flavors, but their exact signatures and overload sets vary.
+
+### Pairing
+
+- **GearGoblin.Core v0.6.6.2** — version-only lockstep bump.
+- **TonberryTactics web v0.6.6.2** — version-only lockstep bump.
+
+### What's still deliberately deferred
+
+- **Adventurer Plate portrait texture access.** Would need a Dalamud
+  API surface we don't currently see — `IPluginInterface` exposes
+  `ITextureProvider` for GameIcons but not for Plate portraits. Could
+  be revisited if FFXIVClientStructs exposes the texture pointer.
+- **Job-stone icon overlay** inside the portrait frame. Would use
+  `ITextureProvider.GetFromGameIcon(jobStoneIconId).GetWrapOrEmpty()`
+  and then `ImGui.Image()` to render the icon above the jobAbbr
+  fallback. Punted because the jobAbbr-only path looks fine on its own
+  for now and adding image rendering touches a new API surface that
+  deserves its own polish pass.
+- **Materia Advisor ranked rows + gain badges** — v0.6.6.3.
+- **Gear table stripes + gold-tier highlight + HQ star + Soul Crystal divider** — v0.6.6.4.
+- **StatusPanelInjector deprecation surfacing** — v0.6.7.
+- **Plan tab paste UI + persistence** — v0.6.7 Theme 3.
+- **`repo.json` Name "GearGoblin" → "Tonberry Tactics" correction** — still queued, bundle with release.ps1 regex fix.
+
+---
+
+## [0.6.6.1] — 2026-05-19  (Character tab polish I: StatsStrip cards + BUG-003)
+
+> **Status:** Released. First polish pass on the Character tab introduced
+> in v0.6.6.0. Card-based StatsStrip lands per the Claude Design v0.2.0
+> spec; BUG-003 (latent `KeyNotFoundException` in MeldOptimizer on
+> materia with unrecognized stat types) is now closed.
+
+### New — StatsStrip card layout (`UI/CharacterTab.cs`)
+
+The plain `ImGui.Text` row dump from v0.6.6.0's skeleton is replaced
+with a horizontal card grid. Each substat renders as its own vertical
+card with four content layers:
+
+- **Label** — Press Start 2P @ 10px (`Pixel` font handle from
+  `FontAtlasManager`), GoldDim, uppercased. Matches the design
+  deliverable's `.stat-card .lbl` styling.
+- **Value** — Cinzel Regular @ 22px (`CinzelHeader` handle),
+  GoldBright. Slightly smaller than the design's 28px spec — closest
+  size already registered in the font atlas. JetBrains Mono / larger
+  Cinzel sizes deferred to a later atlas pass if appetite emerges.
+- **Derived effect line** — default Dalamud font, FrostSoft. Pulls
+  from existing `DerivedStatFormatter` (`CritCompact`, `DetCompact`,
+  `DhCompact`, `TenacityCompact`, `PietyMpPerTick`) so the per-stat
+  effect strings match what the StatusPanelInjector renders on the
+  native panel — single source of truth for the math.
+- **Tier / breakpoint hint** — placeholder for now ("min substat (job
+  baseline)" on speed cards, empty on others). The "next tier: +N stat
+  → +X% rate (at YYYY)" breakpoint math from the design spec lands in
+  a v0.6.6.x polish pass once we settle the rendering convention.
+
+Cards are laid out via `ImGui.BeginTable("##stats_strip", N,
+SizingStretchSame)` — one row, N columns, each column an equal share
+of the available width. Card chrome (background, border, padding) comes
+from `BeginChild` with `ChildBg = InkPanelAlt`, `Border = BorderPixelLite`,
+`WindowPadding = 12px`. All color tokens pulled from existing
+`Theme/TlfTheme.cs` constants — no new tokens introduced.
+
+#### Warn-chip on speed stats
+
+Cards display a warn-chip footer (Press Start 2P, Warning color,
+bordered) when the corresponding speed stat exceeds the 420 baseline
+(level-100 sub-floor). The card's border also swaps to Warning,
+matching the design's `.stat-card.has-warn` rule. Heuristic is
+deliberately crude — flags ANY value above 420, regardless of job.
+A more nuanced per-job behavior ("BLM melds heavily into SpS for
+2.45s GCD targets; RDM does not; tank GNB melds away from SkS")
+lands in v0.6.6.x once we have a job-aware speed-meld profile.
+
+#### Crafter / Gatherer handling
+
+The role-gated code from v0.6.6.0 (which already dropped the speed-stat
+and Tenacity/Piety rows for `Role.Crafter` / `Role.Gatherer`) is
+augmented with an explicit early-return path: when no relevant battle
+stats apply, the StatsStrip renders a single disabled-text line —
+`"Battle stats not applicable for this class."` — instead of three
+near-meaningless 420 placeholder values. The Character tab as a whole
+still renders the hero, advisor (empty-state), and gear table sections
+for crafters, which remains useful for confirming what's equipped.
+
+#### Signature change
+
+`CharacterTab.Draw(InventoryReader, IPlayerCharacter)` → `Draw(Plugin,
+IPlayerCharacter)`. The tab now pulls inventory from `plugin.Inventory`
+internally and gains access to `plugin.Fonts` for the font-stack push.
+Single call site in `UI/MainWindow.cs` updated.
+
+### Closed — BUG-003 (MeldOptimizer KeyNotFoundException)
+
+Three-line guard in `Materia/MeldOptimizer.cs` `GenerateAudits`:
+
+```csharp
+if (current.Stat == Substat.None) continue;
+```
+
+inserted immediately after the existing `IsEmpty || Current is null`
+short-circuit. `MateriaCatalog.StatNameToSubstat()` returns
+`Substat.None` for materia whose game-side stat-name strings don't map
+to any of the seven substats the advisor reasons about (CriticalHit,
+Determination, DirectHit, SkillSpeed, SpellSpeed, Tenacity, Piety).
+Without the guard, `AuditSingleMeld`'s downstream lookup at
+`totals[current.Stat]` throws on missing-key — `totals` is initialized
+with the seven recognized substats only.
+
+The defensive `try/catch` around `MeldOptimizer.Optimize` in
+`CharacterTab.DrawMateriaAdvisor` (added in v0.6.6.0) was the immediate
+safety net; this fix removes the root cause. The catch block stays as
+belt-and-suspenders for any future optimizer crashes from unrelated
+paths.
+
+### Pairing
+
+- **GearGoblin.Core v0.6.6.1** — version-only lockstep bump.
+- **TonberryTactics web v0.6.6.1** — version-only lockstep bump.
+
+### What's still deliberately deferred
+
+- **Next-tier breakpoint math** in StatCard `Tier` field. The design's
+  "next tier: +N stat → +X% rate (at YYYY)" rendering needs decisions
+  about which breakpoint to surface (rate floor, damage floor, GCD
+  step) and how to weight cross-stat trade-offs. v0.6.6.x.
+- **Per-job speed-meld profile** for a smarter warn-chip. Requires
+  augmenting `JobProfile` with a "speed posture" field
+  (`MeldsInto` / `MeldsAwayFrom` / `TargetsGcd`). v0.6.6.x.
+- **JetBrains Mono** font atlas registration for derived/tier lines.
+  The design spec wants it; we're using the default font for those
+  rows. Will land if the visual mismatch becomes a real complaint.
+- **CharacterHero portrait + corner brackets** — v0.6.6.2.
+- **Advisor ranked rows + gain badges** — v0.6.6.3.
+- **Gear table stripes + gold-tier highlight** — v0.6.6.4.
+
+---
+
+## [0.6.6.0] — 2026-05-19  (Character tab introduction; BUG-001/002 closeouts)
+
+> **Status:** Released. v0.6.6.0 is the first tagged release of the new
+> Character-tab era and the formal closeout of the BUG-001 / BUG-002
+> saga that dominated the v0.6.5.x patch stream. The Character tab
+> ships in skeleton form — live data wired through, visual polish
+> layered in across the v0.6.6.x line.
+
+> **Strategic pivot:** v0.6.6 begins the migration away from the
+> StatusPanelInjector approach. Months of injection-related bugs
+> (BUG-001 cloned-cell text overflow, BUG-002 right-aligned-overflow on
+> long advisor strings, CharacterPanelRefined incompatibility, addon
+> lifecycle event misses) all share the same root cause: we do not own
+> the native Character panel's node tree, so every coercion of it into
+> displaying our data hits a new edge case in cell geometry, alignment
+> inheritance, or initialization timing. The pivot replaces that
+> approach with a dedicated Character tab inside our own ImGui window,
+> where we control every pixel. The injection codepath remains shipped
+> in this version for backward compatibility and side-by-side validation;
+> v0.6.7 marks it deprecated in `/ttinfo`; v0.7.0 removes it entirely.
+
+### Closed — BUG-001 (Materia Advisor header ghost text)
+
+**Verified dead in in-game testing on 2026-05-18 (and reconfirmed
+2026-05-19).** Refia Rakkiri on Gunbreaker, iLvl 780, CPR disabled.
+The Materia Advisor row injected below "Average Item Level: 780"
+renders cleanly: `── Materia Advisor` label on the left, `▶ /tt` pill
+on the right, no ghost characters, no overflow. Two independent
+screenshot captures across two sessions.
+
+Root cause confirmation: H6 was right. The cloned label cell inherits
+geometry from the original ILVL row's number cell (sized for "780",
+~30px wide), then the existing `advisorHeader->SetText()` call wrote a
+~17-char pill string into that narrow cell with right-alignment. The
+right-aligned text overflowed *leftward* past the cell boundary, into
+the label cell's render zone, producing the visible "ghost." The fix
+that landed in `Services/StatusPanelInjector.cs`: both the with-audits
+and empty-state branches of `advisorHeader->SetText()` now write just
+`"▶ /tt"` (5 chars), which fits the cell without overflowing.
+
+H1 (bidirectional sibling-link patch, v0.6.5.3a) was a real artifact
+of cloning AtkResNode sibling pointers but did not cause the ghost.
+H2 (collision-node parameter, v0.6.5.3) was the right structural
+change for cell collision detection but unrelated to text overflow.
+H6-A (label shortening, v0.6.5.4) confirmed the direction by shrinking
+the ghost dramatically but mis-attributed the overflow source as the
+label cell rather than the number cell.
+
+Eight months. Three wrong hypotheses. One screenshot confirms the kill.
+
+### Closed — BUG-002 (Empty-state and candidate row overflow)
+
+A second symptom of the same architectural flaw, hidden behind
+BUG-001's worse rendering. The 51-character empty-state string
+`"All guaranteed slots filled · no upgrades suggested"` was being
+written into `advisorRec1`'s number cell (right-aligned, ~30px wide).
+After BUG-001 went away, BUG-002 became visible: the empty-state
+sentence spilled leftward past the entire Character panel boundary.
+
+The structural rule established: **descriptive payload belongs in the
+left-aligned label cell, short tags belong in the right-aligned
+number cell.** Codified in `Services/StatusPanelInjector.cs`:
+
+- `SetAdvisorRow(numberNode, numberText, labelText)` — new signature
+  with optional `labelText` parameter. When provided, walks the
+  number cell's `PrevSiblingNode` chain (with a defensive
+  `NodeType.Text` guard) and `SetText`s the label cell. Old
+  signature's implicit `?? "—"` em-dash fallback removed; callers
+  now explicitly pass `""` for empty cells.
+- Empty state: descriptive sentence in label cell, number cells empty.
+- Candidate state: each candidate string in label cell, number cells
+  empty. Same rule applies whether candidates come from audits
+  (`"{slot} #{idx} → {repl}"`) or plan recommendations
+  (`"{slot} #{idx} ← {mat}"`).
+- `ClearAdvisorRows()`: placeholder text routed to label cell.
+
+Verified dead in the same in-game tests that closed BUG-001.
+
+### New — Character tab (`UI/CharacterTab.cs`)
+
+Brand new file. The first iteration of what becomes the StatusPanel
+Injector's replacement. Registered in `MainWindow.cs` as the first
+tab in `BeginTabBar("##goblintabs")`, positioned ahead of Quick Start.
+
+Four sections wired to live data:
+
+- **Hero region**: player name, class line, iLvl. Skeleton renders
+  plain text. Visual polish (portrait frame, Adventurer Plate
+  aesthetic, FC tag, world/DC strip) comes in subsequent passes.
+- **Stats strip**: substat values displayed one-per-line. Role-gated
+  (Sks vs Sps based on job's primary speed stat; Tenacity for tanks).
+  Skeleton is plain `ImGui.Text` rows. Visual polish (4-5 stat cards
+  in a horizontal grid, derived-effect math display, next-tier
+  breakpoint hints, warning chip on speed for jobs that meld away
+  from it) comes next.
+- **Materia advisor inline**: top 3 recommendations or empty-state
+  line. Logic mirrors `StatusPanelInjector.UpdateAdvisor`'s
+  candidate-build (audits-by-gain, plan-recs fallback) so users see
+  the same recommendations in both surfaces during the transition.
+  Skeleton renders as plain text rows. Visual polish (ranked rows,
+  gain-badge, "See full audit in Materia tab →" link) comes next.
+- **Gear table**: lifted verbatim from `DrawCurrentGear()`. Same
+  columns, same data source, parallel rendering. The existing
+  "Current Gear" tab still works; this duplicates it for now until
+  Current Gear is removed (or repurposed) in a later pass.
+
+Defensive: `MeldOptimizer.Optimize()` is wrapped in try/catch so a
+single bad meld (BUG-003 dormant — `KeyNotFoundException` on
+`Substat.None` materia lookups) doesn't crash the whole tab. The
+catch renders an "Advisor errored: {ExceptionType}" line with a
+pointer to `/xllog`. BUG-003's actual guard fix lands in v0.6.6.1.
+
+Design source: `character-tab/` (Claude Design deliverable v0.2.0),
+which lives outside this repo but is referenced in each section's
+TODO block. The deliverable's README enumerates 12 explicit ImGui
+port flags — those are the spec for the polish passes.
+
+### Pairing
+
+- **GearGoblin.Core v0.6.6.0** — version-only lockstep bump. The
+  optimizer logic the new tab calls is already in Core; no API
+  changes.
+- **TonberryTactics web v0.6.6.0** — version-only lockstep bump. The
+  web app's existing Adventurer card design in `Pages/Index.razor`
+  remains the visual reference target for the plugin port.
+
+### What's deliberately deferred to v0.6.6.x
+
+- BUG-003 guard (`Substat.None` lookup skip in
+  `MeldOptimizer.AuditSingleMeld`). Dormant — only fires on
+  unrecognized materia types, which Refia's GNB loadout doesn't
+  trigger. Lands in v0.6.6.1 alongside the StatsStrip visual polish.
+- CharacterPanelRefined coexistence skip in StatusPanelInjector. Not
+  blocking now that the Character tab works independently of CPR.
+- Crafter/Gatherer class handling in the new tab's StatsStrip and
+  Materia Advisor sections. DoH/DoL classes don't have meaningful
+  battle substats; the skeleton currently shows the placeholder
+  values the game returns. A "Battle stats not applicable for crafter
+  classes" render path lands in v0.6.6.1.
+- Removal/deprecation of Quick Start tab. Stays in the tab strip
+  through v0.6.6.x; absorbed into About in a later pass.
+- Removal of duplicate "Current Gear" tab. The Character tab's gear
+  section duplicates it; consolidation lands once Character tab
+  visual polish is locked.
+
+---
+
+## [0.6.5.4] — 2026-05-18  (H6 candidate — BUG-001 attempt #4)
+
+> **Status:** Released to test hypothesis H6. Whether this actually
+> resolves BUG-001 is pending in-game verification. The prior three
+> swings (v0.6.5.2, v0.6.5.3, v0.6.5.3a) each tested a hypothesis that
+> turned out to be wrong; this is attempt #4. Awaiting Brian's thumbs
+> up on the panel render before we declare done.
+
+> **Versioning note:** Pure numeric versioning going forward. The
+> letter-suffix experiment (v0.6.5.3a) is closed — caused friction with
+> release.ps1's tag-from-csproj-Version flow and the github-actions
+> repo.json bot's semver parsing. The `<InformationalVersion>` property
+> has been removed from GearGoblin.csproj. `UI/MainWindow.cs
+> ResolveVersion()` retains the InformationalVersion-preferring code
+> path as dormant infrastructure for future use but it is not actively
+> populated.
+
+**Targets:** BUG-001 (Materia Advisor header ghost text).
+
+### Hypothesis (H6)
+
+The cloned label cell in our `AddStatRow` inherits the original ILVL
+row's `TextAlignment` and `Width` properties (we clone byte-for-byte,
+allocate a fresh string buffer, but never touch the geometry fields).
+The original label is "Average Item Level" — fits its allotted cell.
+Our injected label "── Materia Advisor ──" (with em-dashes) may be
+wider than that cell, causing rightward text overflow into the number
+cell's render zone. Both cells render at the same Y; their texts
+collide visually. CharacterPanelRefined's `ilvlSync` injection works
+fine because their text fits the inherited cell geometry. Our use
+case puts longer content in a cell sized for shorter content.
+
+### Intervention (H6-A test)
+
+Single change:
+
+- **`Services/StatusPanelInjector.cs InjectAdvisorSection`** —
+  shortened the advisor header label argument passed to
+  `AddStatRow`. Was `"── Materia Advisor ──"` (21 chars, em-dashes);
+  now `"Materia Advisor"` (15 chars, no decorations).
+
+If H6 is correct, the ghost text on the advisor header should go away
+or shrink dramatically. If the ghost persists with the shorter label,
+H6 is wrong and we move to the next hypothesis (likely H7: explicit
+width-setting or buffer zero-initialization).
+
+### Bonus consistency fix
+
+- **`Plugin.cs BuildGoblinInfoString`** — `/ttinfo`'s "Plugin version"
+  line now reads through `UI.MainWindow.ResolveVersion()` instead of
+  duplicating the version-formatter logic locally. Surfaces the same
+  display version everywhere (header pill, About tab, `/ttinfo`).
+  Discovered during v0.6.5.3a testing — the header pill correctly
+  showed "v0.6.5.3a" while `/ttinfo` printed "v0.6.5.4" (the underlying
+  numeric AssemblyVersion) because the two read from different code
+  paths. `ResolveVersion()`'s visibility changed from `private static`
+  to `internal static` to enable the shared call.
+
+### Pairing
+
+- **GearGoblin.Core v0.6.5.4** — version-only lockstep bump.
+- **TonberryTactics web v0.6.5.4** — version-only lockstep bump.
+
+### If this doesn't work
+
+This CHANGELOG entry gets an addendum noting H6's result, and v0.6.5.5
+tries the next hypothesis. Most likely H7 (zero-init fresh buffers in
+`NodeUtil.AllocateFreshTextBuffer`) or H8 (explicit Width-setting on
+cloned cells — the H6-B "proper fix" path if H6-A confirms but the
+short label is felt to be a design regression).
+
+### Out of scope (still deferred)
+
+- Mobile site work — slides to v0.6.6 from the original v0.6.5.4 slot
+- Round-trip closure (Plan tab paste UI, persistence, checklist)
+- README refreshes across the three GitHub repos
+- Stale `/goblin*` references in StatusPanelInjector.cs code comments
+
+---
+
+## [0.6.5.3a] — 2026-05-17  "H1 candidate"  *(superseded by 0.6.5.4)*
+
+> **Outcome:** Pushed for in-game verification on 2026-05-17. In-game
+> test on 2026-05-18 confirmed the ghost text PERSISTS after the H1
+> fix — bidirectional sibling-link patch was not the cause. Bug pattern
+> changed slightly (different garbage characters in the overlap) but
+> the bug remained. H1 ELIMINATED from the hypothesis ranking. The
+> AddStatRow change (removing the bidirectional patch) is RETAINED
+> in v0.6.5.4 — it aligns our code with CharacterPanelRefined's
+> upstream pattern verbatim and didn't break anything we can identify.
+
+**Pushed to origin/main** via manual git tag (skipped release.ps1 to
+allow the letter-suffix tag). Letter-suffix versioning was deprecated
+on the same day (Option 3): v0.6.5.4 is the next iteration, numeric.
+
+> **Status:** This entry documents a candidate build staged for testing.
+> It has not been released. The fix proposed below has NOT yet been
+> verified to resolve BUG-001 in-game. Do not treat this as a shipped
+> release until Brian gives an explicit thumbs-up and the version is
+> formally tagged on origin/main. The "UNRELEASED" date placeholder
+> will be replaced with the actual release date upon verification.
+
+> **Versioning note:** The "a" suffix signals a contained patch on top
+> of v0.6.5.3, distinct from a regular x-bump. v0.6.5.4 is reserved for
+> the Tonberry Tactics mobile site (see scoping doc). AssemblyVersion
+> ticks forward numerically to 0.6.5.4 because .NET AssemblyVersion
+> cannot carry letter suffixes (CS7034); the human-facing string
+> "0.6.5.3a" lives in `<InformationalVersion>` and `ResolveVersion()`
+> reads from there for all user-visible display.
+
+**Targets:** BUG-001 (Materia Advisor header ghost text) — the same
+character-panel rendering bug that v0.6.5.2 ("Panel Polish") and
+v0.6.5.3 ("Collision Fix") both attempted and missed. This is attempt
+three. See `BUG_HUNT_AND_ROADMAP.md` for the experiment-plan context.
+
+### Intervention
+
+A single change, applied with single-intervention discipline (no
+opportunistic items in this candidate):
+
+- **`Services/StatusPanelInjector.cs` AddStatRow** — removed the
+  two-line bidirectional sibling-link patch:
+  ```csharp
+  if (prevSiblingBeforeLabel != null)
+      prevSiblingBeforeLabel->NextSiblingNode = (AtkResNode*)newLabelNode;
+  ```
+  This patch had been in place since v0.4.0 to keep the new node's
+  `NextSibling` chain consistent with its `PrevSibling` chain after
+  insertion. It is not present in CharacterPanelRefined, the upstream
+  reference implementation we adapted `AddStatRow` from.
+
+### Plumbing changes (related but separate from the bug fix)
+
+- **`GearGoblin.csproj`** — added `<InformationalVersion>0.6.5.3a</InformationalVersion>`
+  and `<IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>`.
+  AssemblyVersion / FileVersion / Version remain numeric at 0.6.5.4.
+- **`UI/MainWindow.cs ResolveVersion()`** — now prefers
+  `AssemblyInformationalVersionAttribute.InformationalVersion` when set,
+  falls back to AssemblyVersion-based formatting otherwise. Strips any
+  `+SourceRevisionId` suffix the SDK might append (belt-and-suspenders
+  alongside the csproj setting above).
+
+### Hypothesis (H1 from CPR_DEEP_DIVE.md)
+
+`UldManager.UpdateDrawNodeList()` rebuilds the component's draw-order
+NodeList by walking sibling chains. If it walks PrevSibling and
+NextSibling separately and enumerates nodes from both directions, our
+bidirectional patch makes cloned label nodes reachable through two
+paths. Each clone enters NodeList twice, gets rendered twice per frame
+at slightly different draw priorities. The visible ghost-text on the
+Materia Advisor header (visible since the section was added; misdiagnosed
+twice as collision-node / pre-pad issues) matches this signature.
+
+CPR's `AddStatRow` only updates PrevSibling. Aligning our code with
+CPR's pattern verbatim should resolve the bug — if H1 is correct.
+
+### Verification gate (definition of done)
+
+This candidate ships as v0.6.5.3a only when all six criteria from
+BUG-001's definition of done are met:
+
+1. Character-panel advisor header renders cleanly on VPR, no ghost text
+2. The fix is a single intervention (this is — only AddStatRow touched)
+3. Root cause is articulable (yes — H1 documented in code comment + CPR_DEEP_DIVE.md)
+4. Tested on combat job (VPR/PLD) AND crafter job (CRP)
+5. Tested with CharacterPanelRefined both enabled and disabled
+6. `/ttinfo` reports clean inject state with no warnings or errors
+
+Additional v0.6.5.3a-specific verification:
+
+7. In-game header version pill renders as `v0.6.5.3a` (not `v0.6.5.4`)
+   — validates the InformationalVersion plumbing
+8. About-tab footer reads `in-game plugin · v0.6.5.3a`
+9. `/ttinfo` output's version line reads `v0.6.5.3a`
+
+### If this doesn't work
+
+This CHANGELOG entry gets revised with a "didn't work" note, the patch
+is restored, and we move to H2 (Gear section repositioning). The
+experiment plan in BUG_HUNT_AND_ROADMAP.md drives next steps.
+
+### Pairing
+
+- **GearGoblin.Core** stays at v0.6.5.3 until this fix is verified.
+  Lockstep ship happens only on confirmed-working v0.6.5.3a.
+- **TonberryTactics web** stays at v0.6.5.3 for the same reason.
+
+### Explicitly NOT in this candidate
+
+- Stale `/goblin*` references in `StatusPanelInjector.cs` code comments
+  (deferred — comment cleanup is risk-free but expands the diff, which
+  muddies the experiment signal)
+- README refreshes (v0.6.6)
+- Any non-AddStatRow code path changes
+- Mobile site work (scoped for v0.6.5.4 — see TT_MOBILE_SCOPE.md)
+
+---

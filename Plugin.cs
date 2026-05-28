@@ -39,12 +39,6 @@ public sealed class Plugin : IDalamudPlugin
     private const string InfoCommandName   = "/ttinfo";
     private const string ImportCommandName = "/ttimport";
 
-    // Deprecated aliases. Still work, still print to /xlhelp, but the help
-    // text flags them as legacy so users migrate organically.
-    private const string LegacyCommandName       = "/goblin";
-    private const string LegacyExportCommandName = "/goblinexport";
-    private const string LegacyInfoCommandName   = "/goblininfo";
-    private const string LegacyImportCommandName = "/goblinimport";
 
     public Configuration Configuration { get; }
     public WindowSystem  WindowSystem  { get; } = new("GearGoblin");
@@ -107,23 +101,6 @@ public sealed class Plugin : IDalamudPlugin
             HelpMessage = "Import a GG-PLAN:v1: plan string from clipboard. Pair with /ttexport."
         });
 
-        // Commands — legacy /goblin* aliases (deprecated; removed at v1.0).
-        DalamudServices.CommandManager.AddHandler(LegacyCommandName, new CommandInfo(OnCommand)
-        {
-            HelpMessage = "(deprecated alias of /tt) Open Tonberry Tactics."
-        });
-        DalamudServices.CommandManager.AddHandler(LegacyExportCommandName, new CommandInfo(OnExportCommand)
-        {
-            HelpMessage = "(deprecated alias of /ttexport) Export your gearset."
-        });
-        DalamudServices.CommandManager.AddHandler(LegacyInfoCommandName, new CommandInfo(OnInfoCommand)
-        {
-            HelpMessage = "(deprecated alias of /ttinfo) Print diagnostics."
-        });
-        DalamudServices.CommandManager.AddHandler(LegacyImportCommandName, new CommandInfo(OnImportCommand)
-        {
-            HelpMessage = "(deprecated alias of /ttimport) Import a plan string."
-        });
 
         DalamudServices.Log.Info($"Tonberry Tactics (formerly GearGoblin) v{GetType().Assembly.GetName().Version} loaded.");
     }
@@ -147,12 +124,6 @@ public sealed class Plugin : IDalamudPlugin
         DalamudServices.CommandManager.RemoveHandler(ExportCommandName);
         DalamudServices.CommandManager.RemoveHandler(InfoCommandName);
         DalamudServices.CommandManager.RemoveHandler(ImportCommandName);
-
-        // Legacy aliases.
-        DalamudServices.CommandManager.RemoveHandler(LegacyCommandName);
-        DalamudServices.CommandManager.RemoveHandler(LegacyExportCommandName);
-        DalamudServices.CommandManager.RemoveHandler(LegacyInfoCommandName);
-        DalamudServices.CommandManager.RemoveHandler(LegacyImportCommandName);
 
         WindowSystem.RemoveAllWindows();
         mainWindow.Dispose();

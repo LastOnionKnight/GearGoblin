@@ -45,6 +45,7 @@ public sealed class MainWindow : Window, IDisposable
     // instance per plugin load; lives at class scope so the fade survives
     // across draw frames without needing a per-instance field.
     private static DateTime s_lastRefreshTime = DateTime.MinValue;
+    private static string? _aboutChangelog = null;
 
     // v0.4.7 Feedback tab state. Persistent across frames so typing isn't lost.
     // Buffer is byte[] (not string) to match Dalamud.Bindings.ImGui's
@@ -99,17 +100,15 @@ public sealed class MainWindow : Window, IDisposable
             return;
         }
 
-        // v0.4.7 — TLF Lite palette wraps the entire window so child
-        // backgrounds, tab chrome, frames, separators, and body text
-        // all read in the TLF Gear Division visual language.
-        Theme.TlfTheme.Push();
+        // v1.0 — TtChrome wraps the entire window
+        Theme.TtChrome.Push();
         try
         {
             DrawBody(player);
         }
         finally
         {
-            Theme.TlfTheme.Pop();
+            Theme.TtChrome.Pop();
         }
     }
 
@@ -181,7 +180,7 @@ public sealed class MainWindow : Window, IDisposable
         {
             badgeWidth = ImGui.CalcTextSize(badgeText).X + 12;
             ImGui.SameLine(ImGui.GetCursorPosX() + avail.X - badgeWidth);
-            ImGui.TextColored(Theme.TlfTheme.GoldBright, badgeText);
+            ImGui.TextColored(Theme.TtChrome.EmberBright, badgeText);
         }
 
         ImGui.Separator();
@@ -222,7 +221,7 @@ public sealed class MainWindow : Window, IDisposable
             }
             if (ImGui.BeginTabItem("Materia", materiaFlags))
             {
-                MateriaTab.Draw(plugin.Inventory);
+                MateriaTab.Draw(plugin);
                 ImGui.EndTabItem();
             }
             if (ImGui.BeginTabItem("Settings"))
@@ -260,26 +259,16 @@ public sealed class MainWindow : Window, IDisposable
 
     private void DrawQuickStart()
     {
-        ImGui.TextColored(Theme.TlfTheme.GoldBright, "The export–optimize–import loop, in plain English.");
+        Theme.TtChrome.BeginCard();
+        Theme.TtChrome.Eyebrow(this.plugin.Fonts, "Quick Start · The Loop");
+        ImGui.Spacing();
+        Theme.TtChrome.Quip(this.plugin.Fonts, "The export–optimize–import loop, in plain English.");
         ImGui.TextDisabled("In-game plugin · web app · same product, two halves.");
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
 
-        // TLF manifesto opener — sets the voice up front
-        Theme.TlfTheme.Eyebrow("TLF MANIFESTO");
-        Theme.TlfTheme.Credo(
-            "We carry the lantern. We carry the knife. We do not run.");
-        Theme.TlfTheme.Credo(
-            "We step forward, one slot at a time, until the math is done.");
-        ImGui.Spacing();
-        ImGui.SameLine(); Theme.TlfTheme.Pill("offline",       Theme.TlfTheme.Ice);
-        ImGui.SameLine(); Theme.TlfTheme.Pill("no backend",    Theme.TlfTheme.Ice);
-        ImGui.SameLine(); Theme.TlfTheme.Pill("round-trip v1", Theme.TlfTheme.Gold);
-        ImGui.Spacing();
-        ImGui.Spacing();
-
-        Theme.TlfTheme.Eyebrow("WHAT THIS PLUGIN DOES");
+        Theme.TtChrome.Eyebrow(this.plugin.Fonts, "WHAT THIS PLUGIN DOES");
         ImGui.TextWrapped(
             "The Tonberry Tactics in-game plugin reads your equipped gear, gives you derived stats and " +
             "breakpoint hints in the Character window, and exports your gearset to a copy-pasteable string. " +
@@ -290,11 +279,11 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.Spacing();
         ImGui.Spacing();
 
-        Theme.TlfTheme.Eyebrow("THE LOOP");
+        Theme.TtChrome.Eyebrow(this.plugin.Fonts, "THE LOOP");
         ImGui.Spacing();
 
         // Step 1: EXPORT
-        Theme.TlfTheme.Advisor("1. EXPORT");
+        ImGui.TextColored(Theme.TtChrome.EmberBright, $"{Theme.TtChrome.GlyphForward} 1. EXPORT");
         ImGui.Indent();
         ImGui.TextUnformatted("In-game:  /ttexport");
         ImGui.TextWrapped(
@@ -305,7 +294,7 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.Spacing();
 
         // Step 2: OPTIMIZE
-        Theme.TlfTheme.Advisor("2. OPTIMIZE");
+        ImGui.TextColored(Theme.TtChrome.EmberBright, $"{Theme.TtChrome.GlyphForward} 2. OPTIMIZE");
         ImGui.Indent();
         ImGui.TextUnformatted("In your browser:  https://tonberrytactics.pages.dev");
         ImGui.TextWrapped(
@@ -316,21 +305,34 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.Spacing();
 
         // Step 3: IMPORT
-        Theme.TlfTheme.Advisor("3. IMPORT");
+        ImGui.TextColored(Theme.TtChrome.EmberBright, $"{Theme.TtChrome.GlyphForward} 3. IMPORT");
         ImGui.Indent();
         ImGui.TextUnformatted("In-game:  /ttimport");
         ImGui.TextWrapped(
             "Reads the GG-PLAN:v1: string from your clipboard and turns it into an active plan with a " +
             "meld checklist (\"Diamond Earring slot 1 ← Savage Aim XII\"). Tick boxes as you meld.");
         ImGui.Spacing();
-        ImGui.TextColored(Theme.TlfTheme.Warning,
+        ImGui.TextColored(Theme.TtChrome.SeverityWarning,
             "v0.6.5: command parses + validates plan strings successfully. In-game persistence + checklist UI ship in v0.6.6.");
         ImGui.Unindent();
         ImGui.Spacing();
         ImGui.Spacing();
 
+        // TLF manifesto opener — sets the voice up front
+        Theme.TtChrome.Eyebrow(this.plugin.Fonts, "TLF MANIFESTO");
+        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TtChrome.FrostMuted);
+        ImGui.TextUnformatted("    We carry the lantern. We carry the knife. We do not run.");
+        ImGui.TextUnformatted("    We step forward, one slot at a time, until the math is done.");
+        ImGui.PopStyleColor();
+        ImGui.Spacing();
+        ImGui.SameLine(); Theme.TtChrome.Pill("offline",       Theme.TtChrome.FrostMuted);
+        ImGui.SameLine(); Theme.TtChrome.Pill("no backend",    Theme.TtChrome.FrostMuted);
+        ImGui.SameLine(); Theme.TtChrome.Pill("round-trip v1", Theme.TtChrome.Ember);
+        ImGui.Spacing();
+        ImGui.Spacing();
+
         // Slash commands cheat sheet
-        Theme.TlfTheme.Eyebrow("SLASH COMMANDS");
+        Theme.TtChrome.Eyebrow(this.plugin.Fonts, "SLASH COMMANDS");
         ImGui.Separator();
         if (ImGui.BeginTable("##slashcmds", 2,
                 ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInner | ImGuiTableFlags.SizingStretchProp))
@@ -342,8 +344,6 @@ public sealed class MainWindow : Window, IDisposable
             CmdRow("/ttexport",  "Export equipped gear to clipboard as GG-EXPORT:v1:...");
             CmdRow("/ttimport",  "Import a plan from clipboard. Pair with /ttexport + Tonberry Tactics.");
             CmdRow("/ttinfo",    "Print diagnostic state to chat. Use this when reporting bugs.");
-            ImGui.Spacing();
-            CmdRow("/goblin*",   "(deprecated aliases — /goblin, /goblinexport, /goblinimport, /goblininfo still work, removed at v1.0)");
 
             ImGui.EndTable();
         }
@@ -351,7 +351,7 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.Spacing();
 
         // What you see in the Character window
-        Theme.TlfTheme.Eyebrow("WHAT YOU'LL SEE IN THE CHARACTER WINDOW");
+        Theme.TtChrome.Eyebrow(this.plugin.Fonts, "WHAT YOU'LL SEE IN THE CHARACTER WINDOW");
         ImGui.Separator();
         ImGui.TextWrapped(
             "Below \"Average Item Level\" in the Gear section, Tonberry Tactics injects a Materia Advisor: " +
@@ -367,7 +367,7 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.Spacing();
 
         // Bug report flow
-        Theme.TlfTheme.Eyebrow("WHEN SOMETHING LOOKS WRONG");
+        Theme.TtChrome.Eyebrow(this.plugin.Fonts, "WHEN SOMETHING LOOKS WRONG");
         ImGui.Separator();
         ImGui.BulletText("Open the Diagnostics tab. Confirm \"Materia Advisor injected: Yes\".");
         ImGui.BulletText("Run /ttinfo in-game. Copy the chat block (or use the button on Diagnostics).");
@@ -376,7 +376,7 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.Spacing();
 
         // Tips
-        Theme.TlfTheme.Eyebrow("TIPS");
+        Theme.TtChrome.Eyebrow(this.plugin.Fonts, "TIPS");
         ImGui.Separator();
         ImGui.BulletText("Plan tab: paste an Etro or XIVGear URL and diff it against your equipped gear slot-by-slot.");
         ImGui.BulletText("Materia tab: shows current melds with overcap and tier audits.");
@@ -384,13 +384,23 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.BulletText("Diagnostics tab: \"Force Reinject\" re-runs the advisor without closing the Character window.");
         ImGui.Spacing();
 
-        Theme.TlfTheme.StandingReadyFooter(s_versionString);
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TtChrome.EmberDeep);
+        ImGui.TextUnformatted($"  {Theme.TtChrome.GlyphCorner}  The Onion Knight stands ready  {Theme.TtChrome.GlyphCorner}");
+        ImGui.PopStyleColor();
+        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TtChrome.FrostFaint);
+        ImGui.TextUnformatted($"  TONBERRY TACTICS · v{s_versionString} · NO GEAR · NO HOPE · NO PANTS · JUST ONIONS");
+        ImGui.PopStyleColor();
+
+        Theme.TtChrome.EndCard();
     }
 
     private static void CmdRow(string cmd, string desc)
     {
         ImGui.TableNextRow();
-        ImGui.TableNextColumn(); ImGui.TextColored(Theme.TlfTheme.GoldBright, cmd);
+        ImGui.TableNextColumn(); ImGui.TextColored(Theme.TtChrome.EmberBright, cmd);
         ImGui.TableNextColumn(); ImGui.TextUnformatted(desc);
     }
 
@@ -398,12 +408,12 @@ public sealed class MainWindow : Window, IDisposable
 
     private void DrawSettings()
     {
+        Theme.TtChrome.BeginCard();
         var cfg  = plugin.Configuration;
         var diag = plugin.StatusPanel.GetDiagnostics();
         var dirty = false;
 
-        ImGui.TextColored(Theme.TlfTheme.GoldBright, "Native Character-window injection");
-        ImGui.Separator();
+        Theme.TtChrome.Eyebrow(this.plugin.Fonts, "Native Character-window injection");
         ImGui.Spacing();
 
         var nativeOn = cfg.EnableNativeStatPanel;
@@ -416,11 +426,11 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.Spacing();
 
         // CPR coexistence section.
-        ImGui.TextColored(Theme.TlfTheme.Lantern, "CharacterPanelRefined coexistence");
-        ImGui.Separator();
+        ImGui.Spacing();
+        Theme.TtChrome.Eyebrow(this.plugin.Fonts, "CharacterPanelRefined coexistence");
         if (diag.CprDetected)
         {
-            ImGui.TextColored(Theme.TlfTheme.ShipBright,
+            ImGui.TextColored(Theme.TtChrome.HpGreenBright,
                 "✓ CPR detected — derivation rows deferred to CPR by default.");
         }
         else
@@ -445,8 +455,8 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.Spacing();
 
         // Per-stat toggles.
-        ImGui.TextColored(Theme.TlfTheme.Lantern, "Per-stat derivation rows");
-        ImGui.Separator();
+        ImGui.Spacing();
+        Theme.TtChrome.Eyebrow(this.plugin.Fonts, "Per-stat derivation rows");
         var disabled = diag.CprDetected && !cfg.ForceDerivationsOverCpr;
         if (disabled)
         {
@@ -501,8 +511,7 @@ public sealed class MainWindow : Window, IDisposable
         if (disabled) ImGui.EndDisabled();
 
         ImGui.Spacing();
-        ImGui.TextColored(Theme.TlfTheme.Lantern, "Logging");
-        ImGui.Separator();
+        Theme.TtChrome.Eyebrow(this.plugin.Fonts, "Logging");
         var verbose = cfg.EnableVerboseInjectorLogging;
         if (ImGui.Checkbox("Verbose injector logging (Materia Advisor per-update lines)", ref verbose))
         {
@@ -519,16 +528,18 @@ public sealed class MainWindow : Window, IDisposable
         {
             cfg.Save();
         }
+
+        Theme.TtChrome.EndCard();
     }
 
     // ── v0.4.6 Diagnostics tab ──────────────────────────────────────────
 
     private void DrawDiagnostics()
     {
+        Theme.TtChrome.BeginCard();
         var diag = plugin.StatusPanel.GetDiagnostics();
 
-        ImGui.TextColored(Theme.TlfTheme.GoldBright, "StatusPanelInjector — live state");
-        ImGui.Separator();
+        Theme.TtChrome.Eyebrow(this.plugin.Fonts, "StatusPanelInjector — live state");
         ImGui.Spacing();
 
         if (ImGui.BeginTable("##diag", 2,
@@ -582,14 +593,14 @@ public sealed class MainWindow : Window, IDisposable
 
         ImGui.Spacing();
         ImGui.Spacing();
-        ImGui.TextColored(Theme.TlfTheme.Lantern, "How to read this");
-        ImGui.Separator();
+        Theme.TtChrome.Eyebrow(this.plugin.Fonts, "How to read this");
         ImGui.TextWrapped(
             "• 'Materia Advisor injected: Yes' + 'recommendations: 0' + 'empty-state: Yes' is the healthy near-BiS " +
             "state — the panel shows an 'All guaranteed slots filled' row.\n" +
             "• 'Outer-addon height growth' near zero with CPR active suggests the v0.4.6 fix isn't running — " +
             "verify v0.4.6 is actually loaded (/xllog should have 'StatusPanelInjector v0.4.6').\n" +
             "• 'Advisor errored: Yes' means the optimizer threw on your gearset — paste the /xllog stack trace into a bug report.");
+        Theme.TtChrome.EndCard();
     }
 
     private static void Row(string label, string value)
@@ -615,12 +626,11 @@ public sealed class MainWindow : Window, IDisposable
 
     private void DrawFeedback()
     {
-        ImGui.TextColored(Theme.TlfTheme.GoldBright,
-            "Tell Refia what's working and what isn't.");
-        ImGui.TextDisabled(
-            "GearGoblin is in beta. Feedback genuinely shapes what ships next.");
+        Theme.TtChrome.BeginCard();
+        Theme.TtChrome.Eyebrow(this.plugin.Fonts, "Feedback");
         ImGui.Spacing();
-        ImGui.Separator();
+        Theme.TtChrome.Quip(this.plugin.Fonts, "GearGoblin is in beta. Feedback genuinely shapes what ships next.");
+        ImGui.Spacing();
         ImGui.Spacing();
 
         ImGui.TextUnformatted("Category");
@@ -687,13 +697,12 @@ public sealed class MainWindow : Window, IDisposable
 
         if (!string.IsNullOrEmpty(feedbackLastAction))
         {
-            ImGui.TextColored(Theme.TlfTheme.ShipBright, feedbackLastAction);
+            ImGui.TextColored(Theme.TtChrome.HpGreenBright, feedbackLastAction);
         }
 
         ImGui.Spacing();
-        ImGui.Separator();
         ImGui.Spacing();
-        ImGui.TextColored(Theme.TlfTheme.Lantern, "Where does this go?");
+        Theme.TtChrome.Eyebrow(this.plugin.Fonts, "Where does this go?");
         ImGui.TextWrapped(
             "GitHub issues at " + FeedbackRepoUrl + "/issues. If you don't have a " +
             "GitHub account, the Copy button gives you the same payload to paste " +
@@ -703,6 +712,7 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.TextDisabled(
             "No analytics, no telemetry, no auto-submit. Nothing leaves your " +
             "machine unless you click one of those buttons.");
+        Theme.TtChrome.EndCard();
     }
 
     /// <summary>
@@ -754,12 +764,10 @@ public sealed class MainWindow : Window, IDisposable
 
     private void DrawAbout()
     {
+        Theme.TtChrome.BeginCard();
         // v0.6.0 — eyebrow in Press Start 2P @ 10px to match the web's
         // .brand-eyebrow micro-label treatment.
-        using (plugin.Fonts.Pixel.PushOrNull())
-        {
-            Theme.TlfTheme.Eyebrow("TLF GEAR DIVISION · OPERATIONS BRIEF");
-        }
+        Theme.TtChrome.Eyebrow(plugin.Fonts, "TLF GEAR DIVISION · OPERATIONS BRIEF");
         ImGui.Spacing();
 
         // v0.4.7.1: brand header — circle-logo + wordmark side by side,
@@ -778,7 +786,7 @@ public sealed class MainWindow : Window, IDisposable
             ImGui.BeginGroup();
             using (plugin.Fonts.CinzelDisplay.PushOrNull())
             {
-                ImGui.TextColored(Theme.TlfTheme.GoldBright, "TONBERRY TACTICS");
+                ImGui.TextColored(Theme.TtChrome.EmberBright, "TONBERRY TACTICS");
             }
             using (plugin.Fonts.Pixel.PushOrNull())
             {
@@ -790,7 +798,7 @@ public sealed class MainWindow : Window, IDisposable
         {
             using (plugin.Fonts.CinzelDisplay.PushOrNull())
             {
-                ImGui.TextColored(Theme.TlfTheme.GoldBright, "TONBERRY TACTICS");
+                ImGui.TextColored(Theme.TtChrome.EmberBright, "TONBERRY TACTICS");
             }
             ImGui.SameLine();
             using (plugin.Fonts.Pixel.PushOrNull())
@@ -823,108 +831,30 @@ public sealed class MainWindow : Window, IDisposable
             ImGui.TextDisabled("Refia Rakkiri — the Last Onion Knight (Aisling O'Callaghan, Cork)");
         }
 
-        // What's New — restructured in v0.6.6 for honesty. BUG-001 (panel
-        // ghost text) has been the subject of four iterations: v0.6.5.2, .3,
-        // .3a, and now .4. Each prior swing claimed a fix that didn't hold up
-        // under in-game test. We now show all four iterations side-by-side
-        // with honest framing rather than rewriting history into a tidy
-        // "fixed in version X" narrative. Real wins from those versions
-        // (brand pills, release-infra hardening, HQ-crafted fix from v0.6.5)
-        // are preserved. Older entries collapsed to a CHANGELOG.md pointer.
-        //
-        // v0.6.7.2: backfilled v0.6.6.1-v0.6.6.5, v0.6.7, v0.6.7.1 entries.
-        // The About narrative had been stale since v0.6.6; this is the catch-up.
-
-        // ── v0.6.7.1 ──────────────────────────────────────────────────────
+        // What's New — auto-generated from CHANGELOG.md via release.ps1
         ImGui.Spacing();
-        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.7.1 — Tab reorder hotfix:");
-        ImGui.BulletText("Quick Start now leads the tab bar for new-user onboarding; Character moves to position 2");
-        ImGui.BulletText("The swap was scoped into v0.6.7 but applied from an earlier dropin draft missing the MainWindow.cs change — v0.6.7.1 lands the actual edit");
-        ImGui.BulletText("All other tabs unchanged in position (Plan, Materia, Settings, Diagnostics, Feedback, About)");
-
-        // ── v0.6.7 ────────────────────────────────────────────────────────
-        ImGui.Spacing();
-        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.7 — Track 2 era begins · Plan tab repainted in ember/frost-blue:");
-        ImGui.BulletText("New Theme/TtChrome.cs module: doubled-frame card chrome (outer 2px frost-outline + inner 1px hairline at 6px inset) — the signature Track 2 look");
-        ImGui.BulletText("Plan tab is the first Track 2 surface — three cards (paste form, empty state, diff table); ember/frost-blue palette; data flow preserved verbatim from v0.6.x");
-        ImGui.BulletText("Palette tokens lifted verbatim from design_handoff_tlf_hud_v01/RUNTIME_PORT.md §1.3");
-        ImGui.BulletText("FontAtlasManager gains 5 optional Track 2 font handles (Cormorant Garamond, JetBrains Mono, Eorzea rune) — loaded but not wired to callers yet, that's v0.6.7.3+ work");
-        ImGui.BulletText("Also ships v0.6.6.5's changes (Equipped Gear table polish + section eyebrow glyph fix) — v0.6.6.5 was built locally but never separately released");
-        ImGui.BulletText("TlfTheme stays untouched for Character / Materia / Quick Start / About / Settings / Diagnostics / Feedback; both themes coexist through v0.7.x");
-
-        // ── v0.6.6.1 – v0.6.6.5 (consolidated polish arc) ─────────────────
-        ImGui.Spacing();
-        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.6.1 – v0.6.6.5 — Character tab polish arc on TlfTheme:");
-        ImGui.BulletText("v0.6.6.1: StatsStrip cards — three-card layout for Crit / Det / DH substats");
-        ImGui.BulletText("v0.6.6.2: CharacterHero portrait frame + identity column with job badge");
-        ImGui.BulletText("v0.6.6.3: Materia Advisor ranked recommendation rows with severity pills");
-        ImGui.BulletText("v0.6.6.4: Materia tab merge (Stat Sheet + Plan in one view) + Current Gear tab purge");
-        ImGui.BulletText("v0.6.6.5: Equipped Gear table polish (striped rows, pixel slot labels, gold ★ HQ, materia · separators) + section eyebrow glyph fix");
-
-        // ── v0.6.6 ──────────────────────────────────────────────────────
-        ImGui.Spacing();
-        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.6 — BUG-001 attempt #4 (H6 test):");
-        ImGui.BulletText("Character-panel ghost text on Materia Advisor header — testing hypothesis H6 (text overflow)");
-        ImGui.Indent();
-        ImGui.BulletText("Prior swings (v0.6.5.2 pre-pad, v0.6.5.3 collision-node param, v0.6.5.3a sibling-link patch removal) all missed");
-        ImGui.BulletText("H6 theory: cloned label cell inherits the original ILVL row's text geometry; our em-dashed label may overflow the inherited width into the number cell");
-        ImGui.BulletText("Single intervention: shorten advisor label from \"── Materia Advisor ──\" to \"Materia Advisor\" (no dashes)");
-        ImGui.BulletText("If ghost disappears or shrinks → H6 confirmed, ship v0.6.6 with proper Width-fix");
-        ImGui.BulletText("If ghost persists → H6 wrong, move to next hypothesis (likely buffer zero-init)");
-        ImGui.Unindent();
-        ImGui.BulletText("/ttinfo and header version pill now share UI.MainWindow.ResolveVersion() — single source of truth for display version");
-        ImGui.BulletText("Pure numeric versioning going forward; letter-suffix experiment (v0.6.5.3a) closed due to release-tooling friction");
-
-        // ── v0.6.5.3a ─────────────────────────────────────────────────────
-        ImGui.Spacing();
-        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.5.3a — H1 candidate (didn't fix BUG-001):");
-        ImGui.BulletText("Removed AddStatRow's extra bidirectional sibling-link patch to match CharacterPanelRefined's pattern verbatim");
-        ImGui.Indent();
-        ImGui.BulletText("In-game test confirmed ghost text PERSISTS — H1 was not the cause");
-        ImGui.BulletText("Bug pattern CHANGED (different garbage characters in the overlap) which was diagnostically useful");
-        ImGui.BulletText("The AddStatRow change is RETAINED in v0.6.6+ — aligns with upstream CPR, no observed regressions");
-        ImGui.Unindent();
-        ImGui.BulletText("InformationalVersion plumbing for letter-suffix versions added then deprecated (Option 3 numeric-only)");
-
-        // ── v0.6.5.3 ──────────────────────────────────────────────────────
-        ImGui.Spacing();
-        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.5.3 — \"Collision Fix\" (didn't fix BUG-001, but brand pills landed):");
-        ImGui.BulletText("Attempted collision-node fix for advisor header overlap — added expandCollisionNode parameter to AddStatRow, didn't resolve ghost text");
-        ImGui.BulletText("Brand convergence: 4 functional /goblin → /tt references in StatusPanelInjector that v0.6.4's sweep missed");
-        ImGui.Indent();
-        ImGui.BulletText("Empty-state advisor pill, with-audits pill, click handler ProcessCommand, error log message");
-        ImGui.BulletText("This part DID land — /tt is now the only command path through the in-game advisor UI");
-        ImGui.Unindent();
-
-        // ── v0.6.5.2 ──────────────────────────────────────────────────────
-        ImGui.Spacing();
-        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.5.2 — \"Panel Polish\" (panel-fix didn't land, 7 polish items did):");
-        ImGui.BulletText("Version-pill formatter shows the Revision component so v0.6.5.x patch-levels render correctly");
-        ImGui.BulletText("Refresh button wired with ✓ refreshed fading confirmation");
-        ImGui.BulletText("BrandResources loads on framework thread (no more \"Not on main thread!\" warnings)");
-        ImGui.BulletText("/ttinfo diagnostic block reads \"Tonberry Tactics\" instead of legacy \"GearGoblin /goblininfo\"");
-        ImGui.BulletText("PlanTab.cs CS4014 warning silenced (intentional fire-and-forget marked _ =)");
-        ImGui.BulletText("release.ps1 fetch + rebase + build-gate (infra hardening)");
-        ImGui.BulletText("Character-panel pre-pad approach to BUG-001 didn't land (collision growth was the wrong intervention)");
-
-        // ── v0.6.5 ────────────────────────────────────────────────────────
-        ImGui.Spacing();
-        ImGui.TextColored(new Vector4(1f, 0.85f, 0.5f, 1f), "v0.6.5 — \"Crafted Visible\":");
-        ImGui.BulletText("Critical: HQ-crafted gear no longer silently filtered from exports");
-        ImGui.Indent();
-        ImGui.BulletText("Dalamud's GameInventoryItem.ItemId carries a +1,000,000 offset for HQ items");
-        ImGui.BulletText("Pre-v0.6.5 the Item-sheet lookup returned null for HQ pieces and silently skipped them");
-        ImGui.BulletText("Players wearing realistic raid gear saw 3-of-13 or 7-of-13 piece exports; the missing ones were always the HQ crafted gear");
-        ImGui.BulletText("v0.6.5 strips the offset before the sheet lookup; IsHighQuality still carries the quality state on the wire");
-        ImGui.Unindent();
-        ImGui.BulletText("Chat-message branding sweep: [GearGoblin] → [Tonberry Tactics], legacy /goblin* refs → /tt*");
-        ImGui.BulletText("Web companion v0.6.5: Meld Audit panel lit up (real Wrong-stat / Under-tier / Overcap counts + Sell/replace verdict row)");
-        ImGui.BulletText("Web companion v0.6.5.1: off-by-one Tier XII display fix");
-
-        // ── Older history ────────────────────────────────────────────────
-        ImGui.Spacing();
-        ImGui.TextDisabled("Earlier versions (v0.3.x → v0.6.4) trimmed for brevity.");
-        ImGui.TextDisabled("Full history: github.com/LastOnionKnight/GearGoblin/blob/main/CHANGELOG.md");
+        if (_aboutChangelog == null)
+        {
+            try
+            {
+                using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("GearGoblin.Resources.about-changelog.txt");
+                if (stream != null)
+                {
+                    using var reader = new System.IO.StreamReader(stream);
+                    _aboutChangelog = reader.ReadToEnd();
+                }
+                else
+                {
+                    _aboutChangelog = "Changelog resource not found. (Requires clean build via release.ps1)";
+                }
+            }
+            catch (Exception ex)
+            {
+                _aboutChangelog = $"Error loading changelog: {ex.Message}";
+            }
+        }
+        
+        ImGui.TextUnformatted(_aboutChangelog);
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
@@ -932,7 +862,17 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.TextDisabled("(Akhmorning Allagan Studies, FFXIV datamining repo).");
         ImGui.TextDisabled("AtkNode injection patterns adapted from CharacterPanelRefined (MIT).");
 
-        Theme.TlfTheme.StandingReadyFooter(s_versionString);
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TtChrome.EmberDeep);
+        ImGui.TextUnformatted($"  {Theme.TtChrome.GlyphCorner}  The Onion Knight stands ready  {Theme.TtChrome.GlyphCorner}");
+        ImGui.PopStyleColor();
+        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TtChrome.FrostFaint);
+        ImGui.TextUnformatted($"  TONBERRY TACTICS · v{s_versionString} · NO GEAR · NO HOPE · NO PANTS · JUST ONIONS");
+        ImGui.PopStyleColor();
+
+        Theme.TtChrome.EndCard();
     }
 
     /// <summary>

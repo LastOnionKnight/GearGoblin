@@ -35,8 +35,12 @@ public static class MateriaTab
     // When true on next Draw, lands the user on the Audit view directly.
     internal static bool WantsAuditOnNextDraw;
 
-    public static void Draw(InventoryReader inventory)
+    public static void Draw(Plugin plugin)
     {
+        Theme.TtChrome.Push();
+        try
+        {
+            var inventory = plugin.Inventory;
         // Consume cross-tab signal if pending
         if (WantsAuditOnNextDraw)
         {
@@ -62,11 +66,16 @@ public static class MateriaTab
 
         if (s_showingAudit)
         {
-            DrawAuditView(s, profile, mod, inventory);
+            DrawAuditView(plugin, s, profile, mod, inventory);
         }
         else
         {
-            DrawDefaultView(s, profile, mod, inventory);
+            DrawDefaultView(plugin, s, profile, mod, inventory);
+        }
+        }
+        finally
+        {
+            Theme.TtChrome.Pop();
         }
     }
 
@@ -99,7 +108,7 @@ public static class MateriaTab
 
         // Balance preset toggle (only meaningful when viewing Plan; still
         // shown in Audit since the optimizer feeds both surfaces)
-        ImGui.PushStyleColor(ImGuiCol.Text, TlfTheme.FrostSoft);
+        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TtChrome.FrostMuted);
         if (ImGui.SmallButton(modeLabel))
         {
             s_weightMode = s_weightMode == WeightMode.PureMath
@@ -109,7 +118,7 @@ public static class MateriaTab
         ImGui.PopStyleColor();
 
         ImGui.SameLine();
-        ImGui.PushStyleColor(ImGuiCol.Text, s_showingAudit ? TlfTheme.Lantern : TlfTheme.FrostSoft);
+        ImGui.PushStyleColor(ImGuiCol.Text, s_showingAudit ? Theme.TtChrome.Ember : Theme.TtChrome.FrostMuted);
         if (ImGui.SmallButton(auditLabel))
         {
             s_showingAudit = !s_showingAudit;
@@ -119,33 +128,39 @@ public static class MateriaTab
 
     // ─── Default view: Stat Sheet + Recommended Fills stacked ─────────────
 
-    private static void DrawDefaultView(StatSnapshot s, JobProfile profile, LevelMod mod, InventoryReader inventory)
+    private static void DrawDefaultView(Plugin plugin, StatSnapshot s, JobProfile profile, LevelMod mod, InventoryReader inventory)
     {
-        DrawSectionHead("Current Substats", null);
-        DrawStatSheet(s, profile, mod);
+        Theme.TtChrome.BeginCard();
+        DrawSectionHead(plugin, "Current Substats", null);
+        DrawStatSheet(plugin, s, profile, mod);
+        Theme.TtChrome.EndCard();
 
         ImGui.Spacing();
         ImGui.Spacing();
 
-        DrawSectionHead("Recommended Fills", null);
+        Theme.TtChrome.BeginCard();
+        DrawSectionHead(plugin, "Recommended Fills", null);
         DrawModeDisclaimer();
         ImGui.Spacing();
         DrawPlan(s, profile, mod, inventory);
+        Theme.TtChrome.EndCard();
     }
 
     // ─── Audit view ───────────────────────────────────────────────────────
 
-    private static void DrawAuditView(StatSnapshot s, JobProfile profile, LevelMod mod, InventoryReader inventory)
+    private static void DrawAuditView(Plugin plugin, StatSnapshot s, JobProfile profile, LevelMod mod, InventoryReader inventory)
     {
-        DrawSectionHead("Materia Audit", null);
+        Theme.TtChrome.BeginCard();
+        DrawSectionHead(plugin, "Materia Audit", null);
         DrawAudit(s, profile, mod, inventory);
+        Theme.TtChrome.EndCard();
     }
 
     // Section head mirrors CharacterTab's visual treatment (gold-bright title,
     // hairline separator). Local copy to avoid cross-class coupling.
-    private static void DrawSectionHead(string title, string? rightRail)
+    private static void DrawSectionHead(Plugin plugin, string title, string? rightRail)
     {
-        ImGui.TextColored(TlfTheme.GoldBright, title);
+        Theme.TtChrome.Eyebrow(plugin.Fonts, title);
         if (!string.IsNullOrEmpty(rightRail))
         {
             ImGui.SameLine();
@@ -182,7 +197,7 @@ public static class MateriaTab
 
     // ─── Stat Sheet ────────────────────────────────────────────────────────
 
-    private static void DrawStatSheet(StatSnapshot s, JobProfile profile, LevelMod mod)
+    private static void DrawStatSheet(Plugin plugin, StatSnapshot s, JobProfile profile, LevelMod mod)
     {
         if (ImGui.BeginTable("##statsheet", 4,
             ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.SizingFixedFit))
