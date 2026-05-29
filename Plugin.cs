@@ -42,6 +42,7 @@ public sealed class Plugin : IDalamudPlugin
 
 
     public Configuration Configuration { get; }
+    public IConfigurationService ConfigService { get; }
     public WindowSystem  WindowSystem  { get; } = new("GearGoblin");
     public IServiceProvider Provider { get; }
 
@@ -77,6 +78,7 @@ public sealed class Plugin : IDalamudPlugin
         Exporter    = Provider.GetRequiredService<IGearsetExporter>();                       // v0.4.1
         Importer    = Provider.GetRequiredService<IGearsetImporter>();                            // v0.4.7 (scaffold)
         StatusPanel = Provider.GetRequiredService<IStatusPanelInjector>();
+        ConfigService = Provider.GetRequiredService<IConfigurationService>();
         Brand       = new BrandResources();                                 // v0.4.7.1
         Fonts       = new Theme.FontAtlasManager(pluginInterface);          // v0.6.0
 
