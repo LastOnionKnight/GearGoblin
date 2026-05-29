@@ -35,9 +35,9 @@ public sealed class GearsetExporter
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    private readonly InventoryReader inventory;
+    private readonly IInventoryReader inventory;
 
-    public GearsetExporter(InventoryReader inventory)
+    public GearsetExporter(IInventoryReader inventory)
     {
         this.inventory = inventory;
     }

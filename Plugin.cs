@@ -19,6 +19,7 @@ using Dalamud.Plugin;
 using GearGoblin.Services;
 using GearGoblin.UI;
 using Dalamud.Bindings.ImGui;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace GearGoblin;
 
@@ -42,8 +43,9 @@ public sealed class Plugin : IDalamudPlugin
 
     public Configuration Configuration { get; }
     public WindowSystem  WindowSystem  { get; } = new("GearGoblin");
+    public IServiceProvider Provider { get; }
 
-    public InventoryReader  Inventory { get; }
+    public IInventoryReader Inventory { get; }
     public GearsetExporter  Exporter  { get; }   // v0.4.1
     public GearsetImporter  Importer  { get; }   // v0.4.7 (scaffold; full body next session)
 
@@ -67,8 +69,11 @@ public sealed class Plugin : IDalamudPlugin
         Configuration = DalamudServices.PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         Configuration.Initialize(DalamudServices.PluginInterface);
 
+        // Build the DI container.
+        Provider = ServiceContainer.CreateProvider(this);
+
         // Services.
-        Inventory   = new InventoryReader();
+        Inventory   = Provider.GetRequiredService<IInventoryReader>();
         Exporter    = new GearsetExporter(Inventory);                       // v0.4.1
         Importer    = new GearsetImporter(this);                            // v0.4.7 (scaffold)
         StatusPanel = new StatusPanelInjector(this);

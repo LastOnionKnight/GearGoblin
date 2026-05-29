@@ -89,4 +89,8 @@
     <None Remove="*-dropin\**" />
     <None Remove="**\*-dropin\**" />
   </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.8" />
+  </ItemGroup>
 </Project>

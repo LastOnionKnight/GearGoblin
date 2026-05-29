@@ -13,7 +13,7 @@ namespace GearGoblin.Services;
 /// Designed to be cheap to call — caches nothing internally; UI is responsible for
 /// refresh cadence.
 /// </summary>
-public class InventoryReader
+public class InventoryReader : IInventoryReader
 {
     public static readonly EquipSlot[] AllSlots =
     {

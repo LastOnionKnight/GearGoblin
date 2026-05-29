@@ -128,7 +128,7 @@ public static class MateriaTab
 
     // ─── Default view: Stat Sheet + Recommended Fills stacked ─────────────
 
-    private static void DrawDefaultView(Plugin plugin, StatSnapshot s, JobProfile profile, LevelMod mod, InventoryReader inventory)
+    private static void DrawDefaultView(Plugin plugin, StatSnapshot s, JobProfile profile, LevelMod mod, IInventoryReader inventory)
     {
         Theme.TtChrome.BeginCard();
         DrawSectionHead(plugin, "Current Substats", null);
@@ -148,7 +148,7 @@ public static class MateriaTab
 
     // ─── Audit view ───────────────────────────────────────────────────────
 
-    private static void DrawAuditView(Plugin plugin, StatSnapshot s, JobProfile profile, LevelMod mod, InventoryReader inventory)
+    private static void DrawAuditView(Plugin plugin, StatSnapshot s, JobProfile profile, LevelMod mod, IInventoryReader inventory)
     {
         Theme.TtChrome.BeginCard();
         DrawSectionHead(plugin, "Materia Audit", null);
@@ -282,7 +282,7 @@ public static class MateriaTab
 
     // ─── Plan body ────────────────────────────────────────────────────────
 
-    private static void DrawPlan(StatSnapshot s, JobProfile profile, LevelMod mod, InventoryReader inventory)
+    private static void DrawPlan(StatSnapshot s, JobProfile profile, LevelMod mod, IInventoryReader inventory)
     {
         var pieces = BuildMeldablePieces(inventory);
         if (pieces.Count == 0)
@@ -337,7 +337,7 @@ public static class MateriaTab
 
     // ─── Audit body ───────────────────────────────────────────────────────
 
-    private static void DrawAudit(StatSnapshot s, JobProfile profile, LevelMod mod, InventoryReader inventory)
+    private static void DrawAudit(StatSnapshot s, JobProfile profile, LevelMod mod, IInventoryReader inventory)
     {
         var pieces = BuildMeldablePieces(inventory);
         if (pieces.Count == 0)
@@ -415,7 +415,7 @@ public static class MateriaTab
 
     // ─── Helpers ───────────────────────────────────────────────────────────
 
-    private static List<MeldablePiece> BuildMeldablePieces(InventoryReader inventory)
+    private static List<MeldablePiece> BuildMeldablePieces(IInventoryReader inventory)
     {
         var equipped = inventory.ReadEquipped();
         return equipped.Select(p => MeldSlotsBuilder.FromEquipped(p)).ToList();

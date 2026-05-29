@@ -186,7 +186,7 @@ public static class PlanTab
         TtChrome.EndCard();
     }
 
-    private static void DrawDiff(BisGearset bis, InventoryReader inventory, FontAtlasManager fonts)
+    private static void DrawDiff(BisGearset bis, IInventoryReader inventory, FontAtlasManager fonts)
     {
         var equipped = inventory.ReadEquipped();
         // Defensive: skip duplicate-slot entries rather than crash.
