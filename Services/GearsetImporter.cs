@@ -25,7 +25,7 @@ using GearGoblin.Planning;
 
 namespace GearGoblin.Services;
 
-public sealed class GearsetImporter
+public sealed class GearsetImporter : IGearsetImporter
 {
     private const string ExpectedPrefix    = "GG-PLAN:v1:";
     private const int    ExpectedSchemaVer = 1;

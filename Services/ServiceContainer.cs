@@ -13,6 +13,7 @@ public static class ServiceContainer
         services.AddSingleton(plugin); // Inject the plugin root if needed
         services.AddSingleton<IInventoryReader, InventoryReader>();
         services.AddSingleton<IGearsetExporter, GearsetExporter>();
+        services.AddSingleton<IGearsetImporter, GearsetImporter>();
 
         return services.BuildServiceProvider();
     }

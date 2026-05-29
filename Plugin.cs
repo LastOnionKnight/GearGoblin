@@ -47,7 +47,7 @@ public sealed class Plugin : IDalamudPlugin
 
     public IInventoryReader Inventory { get; }
     public IGearsetExporter  Exporter  { get; }   // v0.4.1
-    public GearsetImporter  Importer  { get; }   // v0.4.7 (scaffold; full body next session)
+    public IGearsetImporter  Importer  { get; }   // v0.4.7 (scaffold; full body next session)
 
     // v0.4.0: native injection into the CharacterStatus addon.
     public StatusPanelInjector StatusPanel { get; }
@@ -75,7 +75,7 @@ public sealed class Plugin : IDalamudPlugin
         // Services.
         Inventory   = Provider.GetRequiredService<IInventoryReader>();
         Exporter    = Provider.GetRequiredService<IGearsetExporter>();                       // v0.4.1
-        Importer    = new GearsetImporter(this);                            // v0.4.7 (scaffold)
+        Importer    = Provider.GetRequiredService<IGearsetImporter>();                            // v0.4.7 (scaffold)
         StatusPanel = new StatusPanelInjector(this);
         Brand       = new BrandResources();                                 // v0.4.7.1
         Fonts       = new Theme.FontAtlasManager(pluginInterface);          // v0.6.0
