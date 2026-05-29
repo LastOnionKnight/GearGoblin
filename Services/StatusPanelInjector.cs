@@ -58,7 +58,7 @@ using GearGoblin.Util;
 
 namespace GearGoblin.Services;
 
-public sealed unsafe class StatusPanelInjector : IDisposable
+public sealed unsafe class StatusPanelInjector : IStatusPanelInjector
 {
     // ── Node IDs verified by CharacterPanelRefined in-game inspection ──
     private const uint AttributesNodeId          = 26;

@@ -14,6 +14,7 @@ public static class ServiceContainer
         services.AddSingleton<IInventoryReader, InventoryReader>();
         services.AddSingleton<IGearsetExporter, GearsetExporter>();
         services.AddSingleton<IGearsetImporter, GearsetImporter>();
+        services.AddSingleton<IStatusPanelInjector, StatusPanelInjector>();
 
         return services.BuildServiceProvider();
     }

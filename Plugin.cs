@@ -50,7 +50,7 @@ public sealed class Plugin : IDalamudPlugin
     public IGearsetImporter  Importer  { get; }   // v0.4.7 (scaffold; full body next session)
 
     // v0.4.0: native injection into the CharacterStatus addon.
-    public StatusPanelInjector StatusPanel { get; }
+    public IStatusPanelInjector StatusPanel { get; }
 
     // v0.4.7.1: brand artwork loaded from Assets/ at startup.
     public BrandResources Brand { get; }
@@ -76,7 +76,7 @@ public sealed class Plugin : IDalamudPlugin
         Inventory   = Provider.GetRequiredService<IInventoryReader>();
         Exporter    = Provider.GetRequiredService<IGearsetExporter>();                       // v0.4.1
         Importer    = Provider.GetRequiredService<IGearsetImporter>();                            // v0.4.7 (scaffold)
-        StatusPanel = new StatusPanelInjector(this);
+        StatusPanel = Provider.GetRequiredService<IStatusPanelInjector>();
         Brand       = new BrandResources();                                 // v0.4.7.1
         Fonts       = new Theme.FontAtlasManager(pluginInterface);          // v0.6.0
 
