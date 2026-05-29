@@ -24,7 +24,7 @@ namespace GearGoblin.Services;
 /// records below. Internal refactors don't break the export contract.
 /// </para>
 /// </summary>
-public sealed class GearsetExporter
+public sealed class GearsetExporter : IGearsetExporter
 {
     private const string Prefix        = "GG-EXPORT:v1:";
     private const int    SchemaVersion = 1;
