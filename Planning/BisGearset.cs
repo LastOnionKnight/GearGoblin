@@ -1,3 +1,5 @@
+using GearGoblin.Core;
+using GearGoblin.Core.Materia;
 // Planning/BisGearset.cs
 // Common gearset model. Etro and XIVGear use different JSON shapes; we parse
 // them both into this neutral structure so the diff/UI code doesn't care
@@ -52,3 +54,4 @@ public sealed class BisGearset
     /// <summary>Free-form description from source.</summary>
     public string Description { get; init; } = "";
 }
+

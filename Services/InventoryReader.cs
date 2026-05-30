@@ -1,3 +1,5 @@
+using GearGoblin.Core;
+using GearGoblin.Core.Materia;
 using System.Collections.Generic;
 using System.Linq;
 using Dalamud.Game.Inventory;
@@ -257,14 +259,7 @@ public class InventoryReader : IInventoryReader
     };
 }
 
-public enum EquipSlot
-{
-    Unknown,
-    MainHand, OffHand,
-    Head, Body, Hands, Waist, Legs, Feet,
-    Earring, Necklace, Bracelet,
-    RingLeft, RingRight,
-}
+
 
 public class EquippedPiece
 {
@@ -294,3 +289,5 @@ public class MateriaMeld
     public string StatName  { get; set; } = "";
     public int    StatValue { get; set; }
 }
+
+

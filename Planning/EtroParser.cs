@@ -1,3 +1,5 @@
+using GearGoblin.Core;
+using GearGoblin.Core.Materia;
 // Planning/EtroParser.cs
 // Parses Etro API responses into BisGearset.
 //
@@ -104,3 +106,4 @@ internal static class JsonShim
         return p.ValueKind == JsonValueKind.String ? (p.GetString() ?? "") : "";
     }
 }
+

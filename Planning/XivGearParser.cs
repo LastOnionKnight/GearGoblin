@@ -1,3 +1,5 @@
+using GearGoblin.Core;
+using GearGoblin.Core.Materia;
 // Planning/XivGearParser.cs
 // Parses XIVGear API responses into BisGearset.
 //
@@ -119,3 +121,4 @@ public static class XivGearParser
         _ => 0,
     };
 }
+

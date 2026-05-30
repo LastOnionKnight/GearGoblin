@@ -1,3 +1,7 @@
+## [1.1.0] - 2026-05-30
+### Changed
+- Refactored GearGoblin Core math. Lifted Materia logic from plugin and web app into GearGoblin.Core to guarantee parity.
+- Fixed substat cap bug where capped stats were being incorrectly recommended.
 ## [1.0.6] - 2026-05-30
 - Hotfix: TonberryTactics Web App now correctly accepts the new `GG-EXPORT:v2:` string schema version (fixed "Schema version mismatch" error).
 
@@ -2130,3 +2134,4 @@ All four are fixed in `Services/StatusPanelInjector.cs`.
 [0.3.2]: https://github.com/LastOnionKnight/GearGoblin/releases/tag/v0.3.2
 [0.3.1]: https://github.com/LastOnionKnight/GearGoblin/releases/tag/v0.3.1
 [0.3.0]: https://github.com/LastOnionKnight/GearGoblin/releases/tag/v0.3.0
+

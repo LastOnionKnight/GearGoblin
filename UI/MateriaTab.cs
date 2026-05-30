@@ -21,6 +21,7 @@ using System.Linq;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using GearGoblin.Materia;
+using GearGoblin.Core.Materia;
 using GearGoblin.Services;
 using GearGoblin.Theme;
 
@@ -418,7 +419,7 @@ public static class MateriaTab
     private static List<MeldablePiece> BuildMeldablePieces(IInventoryReader inventory)
     {
         var equipped = inventory.ReadEquipped();
-        return equipped.Select(p => MeldSlotsBuilder.FromEquipped(p)).ToList();
+        return equipped.Select(p => p.FromEquipped()).ToList();
     }
 
     private static Vector4 SeverityColor(AuditSeverity sev) => sev switch
@@ -445,3 +446,4 @@ public static class MateriaTab
     private static bool UsesSps(JobProfile p) =>
         Array.IndexOf(p.RelevantStats, Substat.SpellSpeed) >= 0;
 }
+

@@ -36,6 +36,7 @@ using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using GearGoblin.Materia;
+using GearGoblin.Core.Materia;
 using GearGoblin.Services;
 using GearGoblin.Theme;
 
@@ -499,7 +500,7 @@ public static class CharacterTab
         OptimizerResult opt;
         try
         {
-            var pieces = equipped.Select(MeldSlotsBuilder.FromEquipped).ToList();
+            var pieces = equipped.Select(p => p.FromEquipped()).ToList();
             opt = MeldOptimizer.Optimize(pieces, s, mod, profile, WeightMode.PureMath);
         }
         catch (Exception ex)
@@ -772,3 +773,4 @@ public static class CharacterTab
     private static bool UsesSps(JobProfile p) =>
         p.Role == Role.MagicalRangedDps || p.Role == Role.Healer;
 }
+

@@ -1,3 +1,4 @@
+using GearGoblin.Core;
 // UI/PlanTab.cs
 //
 // Plan tab: paste an Etro/XIVGear URL, fetch BiS, see a slot-by-slot diff
@@ -298,3 +299,4 @@ public static class PlanTab
         return row.Value.Name.ExtractText();
     }
 }
+

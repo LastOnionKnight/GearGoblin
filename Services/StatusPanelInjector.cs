@@ -54,6 +54,7 @@ using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using FFXIVClientStructs.FFXIV.Client.Graphics;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using GearGoblin.Materia;
+using GearGoblin.Core.Materia;
 using GearGoblin.Util;
 
 namespace GearGoblin.Services;
@@ -703,7 +704,7 @@ public sealed unsafe class StatusPanelInjector : IStatusPanelInjector
         try
         {
             var equipped = plugin.Inventory.ReadEquipped();
-            var pieces = equipped.Select(MeldSlotsBuilder.FromEquipped).ToList();
+            var pieces = equipped.Select(p => p.FromEquipped()).ToList();
             if (pieces.Count == 0)
             {
                 ClearAdvisorRows("(no gear)");
@@ -1021,4 +1022,5 @@ public sealed unsafe class StatusPanelInjector : IStatusPanelInjector
         advisorSectionPresent = false;
     }
 }
+
 

@@ -17,6 +17,7 @@
 using System;
 using System.Linq;
 using GearGoblin.Materia;
+using GearGoblin.Core.Materia;
 
 namespace GearGoblin.Services;
 
