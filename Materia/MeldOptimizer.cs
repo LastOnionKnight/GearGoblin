@@ -190,8 +190,9 @@ public static class MeldOptimizer
 
             // Overcap penalty: if this would push the piece's stat past its cap, dampen the score
             pieceMeldTotals.TryGetValue(stat, out var currentOnPiece);
-            var newOnPiece = currentOnPiece + spec.Value;
-            var cap        = StatCaps.EstimateCap(piece, stat);
+            piece.BaseSubstats.TryGetValue(stat, out var baseOnPiece);
+            var newOnPiece = currentOnPiece + baseOnPiece + spec.Value;
+            var cap        = piece.SubstatCap;
             var overcap    = Math.Max(0, newOnPiece - cap);
             var overcapPenalty = overcap * 0.001;  // each overcapped point cuts score
 
@@ -329,8 +330,9 @@ public static class MeldOptimizer
 
         // Overcap check on the piece
         piece.CurrentMeldStats.TryGetValue(current.Stat, out var pieceTotal);
-        var cap = StatCaps.EstimateCap(piece, current.Stat);
-        var overcap = Math.Max(0, pieceTotal - cap);
+        piece.BaseSubstats.TryGetValue(current.Stat, out var baseStat);
+        var cap = piece.SubstatCap;
+        var overcap = Math.Max(0, pieceTotal + baseStat - cap);
 
         // Outdated tier check
         var bestTierForStat = MateriaCatalog.ValueOf(MateriaCatalog.CurrentEndgameTier, current.Stat);

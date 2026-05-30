@@ -142,7 +142,6 @@ public static class MateriaTab
         DrawSectionHead(plugin, "Recommended Fills", null);
         DrawModeDisclaimer();
         ImGui.Spacing();
-        GearGoblin.UI.Components.MateriaAdvisorBanner.Draw(plugin);
         DrawPlan(s, profile, mod, inventory);
         Theme.TtChrome.EndCard();
     }

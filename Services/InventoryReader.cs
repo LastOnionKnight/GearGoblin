@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Dalamud.Game.Inventory;
 using Lumina.Excel.Sheets;
+using GearGoblin.Materia;
 
 // Disambiguate the Lumina materia sheet type from our GearGoblin.Materia namespace.
 using LuminaMateria = Lumina.Excel.Sheets.Materia;
@@ -72,6 +73,40 @@ public class InventoryReader : IInventoryReader
             if (slot == EquipSlot.Unknown)
                 slot = SlotFromInventoryIndex((int)item.InventorySlot);
 
+            var baseSubstats = new Dictionary<Substat, int>();
+            for (int i = 0; i < 6; i++)
+            {
+                var param = sheetItem.Value.BaseParam[i].ValueNullable;
+                if (param != null && param.Value.RowId != 0)
+                {
+                    var statId = (Substat)param.Value.RowId;
+                    baseSubstats[statId] = sheetItem.Value.BaseParamValue[i];
+                }
+            }
+
+            if (item.IsHq)
+            {
+                for (int i = 0; i < 6; i++)
+                {
+                    var paramSpec = sheetItem.Value.BaseParamSpecial[i].ValueNullable;
+                    if (paramSpec != null && paramSpec.Value.RowId != 0)
+                    {
+                        var statId = (Substat)paramSpec.Value.RowId;
+                        if (baseSubstats.ContainsKey(statId))
+                            baseSubstats[statId] += sheetItem.Value.BaseParamValueSpecial[i];
+                        else
+                            baseSubstats[statId] = sheetItem.Value.BaseParamValueSpecial[i];
+                    }
+                }
+            }
+
+            var cap = 0;
+            var ilvlRow = sheetItem.Value.LevelItem.ValueNullable;
+            if (ilvlRow != null)
+            {
+                cap = (int)System.Math.Round(ilvlRow.Value.CriticalHit * sheetItem.Value.BaseParamModifier / 1000.0);
+            }
+
             var piece = new EquippedPiece
             {
                 Slot              = slot,
@@ -82,6 +117,8 @@ public class InventoryReader : IInventoryReader
                 MateriaSlotCount  = sheetItem.Value.MateriaSlotCount,
                 IsOvermeldAllowed = sheetItem.Value.IsAdvancedMeldingPermitted,
                 Materia           = ReadMateriaFromItem(item),
+                BaseSubstats      = baseSubstats,
+                SubstatCap        = cap,
             };
             result.Add(piece);
         }
@@ -244,6 +281,9 @@ public class EquippedPiece
     public bool      IsOvermeldAllowed { get; set; }
 
     public List<MateriaMeld> Materia { get; set; } = new();
+
+    public Dictionary<Substat, int> BaseSubstats { get; set; } = new();
+    public int SubstatCap { get; set; }
 }
 
 public class MateriaMeld

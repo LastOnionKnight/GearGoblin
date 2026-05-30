@@ -1,3 +1,7 @@
+## [1.0.3] - 2026-05-30
+- Materia Advisor now respects per-piece substat caps. The v1.0.1 banner mitigation has been removed since the underlying math is corrected.
+- Recommendations no longer suggest melds that would produce zero gain due to per-piece caps.
+
 ## [1.0.2] - 2026-05-30
 - Hotfix: Fixed UI regression introduced in v1.0.1 where the Materia Advisor banner consumed all vertical layout space, causing the recommendations table to disappear.
 

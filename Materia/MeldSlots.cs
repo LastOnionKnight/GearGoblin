@@ -36,6 +36,8 @@ public sealed class MeldablePiece
     public bool      IsHighQuality { get; init; }
     public List<MeldSlot> Slots { get; init; } = new();
     public Dictionary<Substat, int> CurrentMeldStats { get; init; } = new();
+    public Dictionary<Substat, int> BaseSubstats { get; init; } = new();
+    public int SubstatCap { get; init; }
     public int EmptySlotCount => Slots.Count(s => s.IsEmpty);
 }
 
@@ -101,6 +103,8 @@ public static class MeldSlotsBuilder
             IsHighQuality = piece.IsHighQuality,
             Slots         = melds,
             CurrentMeldStats = stats,
+            BaseSubstats  = piece.BaseSubstats,
+            SubstatCap    = piece.SubstatCap,
         };
     }
 

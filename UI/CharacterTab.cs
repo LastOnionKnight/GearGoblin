@@ -549,10 +549,8 @@ public static class CharacterTab
             ? "all slots optimal"
             : $"{recs.Count} of {opt.Audits.Count} suggested";
         DrawSectionHead("Materia Advisor", rightRail);
-        
-        GearGoblin.UI.Components.MateriaAdvisorBanner.Draw(plugin);
 
-        // ── Card chrome ─────────────────────────────────────────────────
+        // ── Card chrome ──────────────────────────────────────────────────────────
         ImGui.PushStyleColor(ImGuiCol.ChildBg, Theme.TtChrome.InkDeeper);
         ImGui.PushStyleColor(ImGuiCol.Border,  Theme.TtChrome.FrostFaint);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(16f, 14f));
