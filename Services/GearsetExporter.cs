@@ -26,8 +26,8 @@ namespace GearGoblin.Services;
 /// </summary>
 public sealed class GearsetExporter : IGearsetExporter
 {
-    private const string Prefix        = "GG-EXPORT:v1:";
-    private const int    SchemaVersion = 1;
+    private const string Prefix        = "GG-EXPORT:v2:";
+    private const int    SchemaVersion = 2;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -89,7 +89,9 @@ public sealed class GearsetExporter : IGearsetExporter
                     Grade:     m.Grade,
                     StatName:  m.StatName,
                     StatValue: m.StatValue
-                )).ToList()
+                )).ToList(),
+                SubstatCap:        (uint)p.SubstatCap,
+                BaseSubstats:      p.BaseSubstats.ToDictionary(kvp => kvp.Key.ToString(), kvp => kvp.Value)
             )).ToList();
 
             var payload = new ExportPayloadV1(
@@ -155,7 +157,9 @@ public sealed class GearsetExporter : IGearsetExporter
         bool                    IsHighQuality,
         byte                    MateriaSlotCount,
         bool                    IsOvermeldAllowed,
-        List<ExportMateriaV1>   Materia
+        List<ExportMateriaV1>   Materia,
+        uint                    SubstatCap = 0,
+        Dictionary<string, int>? BaseSubstats = null
     );
 
     private sealed record ExportMateriaV1(

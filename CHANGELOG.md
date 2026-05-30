@@ -1,3 +1,7 @@
+## [1.0.5] - 2026-05-30
+- Upgraded export payload to `GG-EXPORT:v2:` to include BaseSubstats and SubstatCap.
+- TonberryTactics Web App now correctly enforces per-piece substat caps for materia recommendations.
+
 ## [1.0.4] - 2026-05-30
 - Hotfix: Resolved a logic flaw in the Materia Advisor optimizer where materia was still recommended for capped substats because the optimizer was incorrectly assessing a small penalty rather than zeroing out the stat gain.
 
