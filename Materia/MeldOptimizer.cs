@@ -184,17 +184,22 @@ public static class MeldOptimizer
 
             var spec = MateriaCatalog.Spec(tier, stat);
 
-            // Marginal % gain at the new total
-            var currentTotal = workingStats[stat];
-            var marginalPct  = MarginalPctForStat(stat, currentTotal, currentTotal + spec.Value, mod);
-
-            // Overcap penalty: if this would push the piece's stat past its cap, dampen the score
+            // Calculate actual stat gained, clamping to the piece's cap
             pieceMeldTotals.TryGetValue(stat, out var currentOnPiece);
             piece.BaseSubstats.TryGetValue(stat, out var baseOnPiece);
-            var newOnPiece = currentOnPiece + baseOnPiece + spec.Value;
-            var cap        = piece.SubstatCap;
-            var overcap    = Math.Max(0, newOnPiece - cap);
-            var overcapPenalty = overcap * 0.001;  // each overcapped point cuts score
+            
+            var roomForStat = Math.Max(0, piece.SubstatCap - (currentOnPiece + baseOnPiece));
+            var actualGain  = Math.Min(spec.Value, roomForStat);
+            
+            if (actualGain <= 0) continue;
+
+            // Marginal % gain at the new total uses only the *actual* stat gained
+            var currentTotal = workingStats[stat];
+            var marginalPct  = MarginalPctForStat(stat, currentTotal, currentTotal + actualGain, mod);
+
+            // Small penalty for wasted points to break ties against fully-utilized melds
+            var wasted = spec.Value - actualGain;
+            var overcapPenalty = wasted * 0.001;  // each wasted point cuts score
 
             // Apply slot success rate (overmeld slots score lower)
             var rawScore = weight * marginalPct - overcapPenalty;
@@ -203,7 +208,7 @@ public static class MeldOptimizer
             if (score <= 0) continue;
             if (best is null || score > best.ScoreGain)
             {
-                var reasoning = BuildPlanReasoning(stat, marginalPct, weight, weightMode, overcap, slot);
+                var reasoning = BuildPlanReasoning(stat, marginalPct, weight, weightMode, wasted, slot);
                 best = new MeldRecommendation(
                     Piece            : piece.Slot,
                     PieceName        : piece.Name,

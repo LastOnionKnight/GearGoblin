@@ -1,3 +1,6 @@
+## [1.0.4] - 2026-05-30
+- Hotfix: Resolved a logic flaw in the Materia Advisor optimizer where materia was still recommended for capped substats because the optimizer was incorrectly assessing a small penalty rather than zeroing out the stat gain.
+
 ## [1.0.3] - 2026-05-30
 - Materia Advisor now respects per-piece substat caps. The v1.0.1 banner mitigation has been removed since the underlying math is corrected.
 - Recommendations no longer suggest melds that would produce zero gain due to per-piece caps.
