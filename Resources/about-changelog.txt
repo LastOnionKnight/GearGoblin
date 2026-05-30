@@ -1,3 +1,6 @@
+## [1.0.6] - 2026-05-30
+- Hotfix: TonberryTactics Web App now correctly accepts the new `GG-EXPORT:v2:` string schema version (fixed "Schema version mismatch" error).
+
 ## [1.0.5] - 2026-05-30
 - Upgraded export payload to `GG-EXPORT:v2:` to include BaseSubstats and SubstatCap.
 - TonberryTactics Web App now correctly enforces per-piece substat caps for materia recommendations.
@@ -181,44 +184,3 @@ Closes the v0.6.6.x Character-tab + Materia-tab polish arc on the TlfTheme (gold
 4. **Click `[Audit ▸]`** — body swaps to severity counts + audit table. Toggle label flips to `[◀ Back to gear]` and turns gold (Lantern color). Click again to return.
 5. **Click `[Pure math]`** — flips to `[Balance preset]`, the mode disclaimer caption above the fills table changes to the Balance preset version, and the Plan table re-orders by the new weighting.
 6. **Cross-tab path** — switch to Character tab, click `See full audit in Materia tab →` on the Materia Advisor card footer. Should land directly on the Audit view (not the default Stat Sheet + Plan view).
-
-## [0.6.6.3] — Character tab polish pass 3: Materia Advisor ranked rows
-
-### Added
-- **Materia Advisor card** — section 4.3 rebuilt per Claude Design v0.2.0's `MateriaAdvisorCard.jsx`. Three states:
-  - **Populated** — up to 3 ranked rows, each with a pixel-font rank prefix (`00`/`01`/`02` in GoldDim), slot label in Knife color, direction arrow in Lantern (`→` for audit replacements, `←` for plan additions), materia/replacement spec in Frost, and a right-aligned gain badge in pixel font + Ice color showing the calibrated marginal percentage gain (e.g. `+0.42%`).
-  - **Empty** — ◆ Ship-green glyph + italic Garamond message: "All guaranteed slots filled · no upgrades suggested".
-  - **Errored** — defensive fallback preserved from v0.6.6.0 (shows exception type + `/xllog` hint).
-- **Cross-tab focus link** — the advisor card's footer now contains a clickable "See full audit in Materia tab →" link (Lantern text, hover-background suppressed so it reads as a hyperlink, not a button). Clicking it sets `CharacterTab.WantsMateriaTabFocus`; `MainWindow.cs`'s tab strip consumes the flag in the next frame and passes `ImGuiTabItemFlags.SetSelected` to the Materia tab's `BeginTabItem` for one frame.
-- **`FormatGain(double score)` helper** — converts the optimizer's weighted marginal percentage score into a human-readable badge string. Negative or zero scores render empty (never shows "+0.00%").
-- **`AdvisorRecModel` record** — strongly-typed candidate row replaces the v0.6.6.0 `List<string>` formatting. Same build logic (top-3 audits by `GainIfReplaced`, falling back to `PlanRecommendations` by `ScoreGain` to fill 3 rows), now produces structured data for the renderer.
-
-### Changed
-- `DrawMateriaAdvisor` signature now takes `Plugin plugin` as its first parameter (needed for `plugin.Fonts.Pixel` / `plugin.Fonts.GaramondItalic` access). Call site in `CharacterTab.Draw()` updated accordingly.
-- Card uses `BeginChild` with calculated height (`96f` empty, `50f + recCount*30f + 50f` populated) so the card doesn't gobble vertical space when there's nothing to recommend.
-
-### Why this version
-Closes the Character tab's three large-surface polish arc:
-- v0.6.6.1 — StatsStrip cards
-- v0.6.6.2 — CharacterHero portrait frame + identity column
-- v0.6.6.3 — Materia Advisor ranked rows ← this ship
-
-v0.6.6.4 polishes the gear table (striped rows, gold-tier highlight, HQ ★, Soul Crystal divider) to close the Character tab's TlfTheme era. v0.6.7 begins the Track 2 (ember/frost-blue) repaint with the new Plan tab paste UI as the first surface in the v1.0 design language; the Character tab itself is repainted in v0.7.0 alongside the StatusPanelInjector removal.
-
-### Build-gate risks
-- **`ImGui.BeginTabItem(string, ImGuiTabItemFlags)`** — first use of the 2-arg overload in this codebase. If it fails to resolve, fallback is the 3-arg form `BeginTabItem(string, ref bool, ImGuiTabItemFlags)` with a `bool open = true` shim.
-- **`ImGui.Selectable` returning `true` on click** — standard ImGui pattern, low risk.
-- **`cardHeight` dynamic sizing of `BeginChild`** — verified pattern from v0.6.6.1 StatsStrip cards.
-
-# Changelog
-
-All notable changes to Tonberry Tactics (the in-game plugin, formerly
-"GearGoblin") are documented here. Format based on
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning loosely
-follows [Semantic Versioning](https://semver.org/).
-
-**Versioning note (from v0.5.5 onward):** the plugin and the web app
-(`tonberrytactics.pages.dev`) ship at the same version. Both halves of
-the product bump together at every release going forward. Versions prior
-to v0.5.5 used independent semver tracks — the plugin's v0.4.x line and
-the web's v0.5.x line. v0.5.5 is the moment they re-align.

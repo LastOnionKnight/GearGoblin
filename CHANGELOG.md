@@ -1,3 +1,6 @@
+## [1.0.6] - 2026-05-30
+- Hotfix: TonberryTactics Web App now correctly accepts the new `GG-EXPORT:v2:` string schema version (fixed "Schema version mismatch" error).
+
 ## [1.0.5] - 2026-05-30
 - Upgraded export payload to `GG-EXPORT:v2:` to include BaseSubstats and SubstatCap.
 - TonberryTactics Web App now correctly enforces per-piece substat caps for materia recommendations.
