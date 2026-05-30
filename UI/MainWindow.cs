@@ -409,9 +409,9 @@ public sealed class MainWindow : Window, IDisposable
     private void DrawSettings()
     {
         Theme.TtChrome.BeginCard();
-        var cfg  = plugin.Configuration;
+        var configService = plugin.ConfigService;
+        var cfg  = configService.Current;
         var diag = plugin.StatusPanel.GetDiagnostics();
-        var dirty = false;
 
         Theme.TtChrome.Eyebrow(this.plugin.Fonts, "Native Character-window injection");
         ImGui.Spacing();
@@ -419,8 +419,7 @@ public sealed class MainWindow : Window, IDisposable
         var nativeOn = cfg.EnableNativeStatPanel;
         if (ImGui.Checkbox("Enable native stat-panel injection (Materia Advisor, derivations, GCD)", ref nativeOn))
         {
-            cfg.EnableNativeStatPanel = nativeOn;
-            dirty = true;
+            configService.SetEnableNativeStatPanel(nativeOn);
         }
         ImGui.TextDisabled("Off = /tt window is the only UI surface. Reopen the Character window for changes.");
         ImGui.Spacing();
@@ -442,15 +441,13 @@ public sealed class MainWindow : Window, IDisposable
         var force = cfg.ForceDerivationsOverCpr;
         if (ImGui.Checkbox("Force GG derivations even when CPR is active (will double-render rows)", ref force))
         {
-            cfg.ForceDerivationsOverCpr = force;
-            dirty = true;
+            configService.SetForceDerivationsOverCpr(force);
         }
 
         var compact = cfg.CompactDerivationLayout;
         if (ImGui.Checkbox("Compact one-line derivation layout (denser, saves vertical space)", ref compact))
         {
-            cfg.CompactDerivationLayout = compact;
-            dirty = true;
+            configService.SetCompactDerivationLayout(compact);
         }
         ImGui.Spacing();
 
@@ -467,45 +464,38 @@ public sealed class MainWindow : Window, IDisposable
         var enableDer = cfg.EnableDerivedStatInjection;
         if (ImGui.Checkbox("Master toggle: derived stat injection", ref enableDer))
         {
-            cfg.EnableDerivedStatInjection = enableDer;
-            dirty = true;
+            configService.SetEnableDerivedStatInjection(enableDer);
         }
 
         var crit = cfg.ShowCritDerivations;
         if (ImGui.Checkbox("Critical Hit  (chance · ×damage · DI · breakpoint)", ref crit))
         {
-            cfg.ShowCritDerivations = crit;
-            dirty = true;
+            configService.SetShowCritDerivations(crit);
         }
         var det = cfg.ShowDetDerivations;
         if (ImGui.Checkbox("Determination  (damage increase · breakpoint)", ref det))
         {
-            cfg.ShowDetDerivations = det;
-            dirty = true;
+            configService.SetShowDetDerivations(det);
         }
         var dh = cfg.ShowDhDerivations;
         if (ImGui.Checkbox("Direct Hit  (chance · DI · breakpoint)", ref dh))
         {
-            cfg.ShowDhDerivations = dh;
-            dirty = true;
+            configService.SetShowDhDerivations(dh);
         }
         var speed = cfg.ShowSpeedDerivations;
         if (ImGui.Checkbox("Skill / Spell Speed  (real GCD · speed damage · breakpoint)", ref speed))
         {
-            cfg.ShowSpeedDerivations = speed;
-            dirty = true;
+            configService.SetShowSpeedDerivations(speed);
         }
         var ten = cfg.ShowTenacityRow;
         if (ImGui.Checkbox("Tenacity row  (tank jobs: +damage · −damage taken)", ref ten))
         {
-            cfg.ShowTenacityRow = ten;
-            dirty = true;
+            configService.SetShowTenacityRow(ten);
         }
         var piety = cfg.ShowPietyRow;
         if (ImGui.Checkbox("Piety row  (healer jobs: MP/tick)", ref piety))
         {
-            cfg.ShowPietyRow = piety;
-            dirty = true;
+            configService.SetShowPietyRow(piety);
         }
 
         if (disabled) ImGui.EndDisabled();
@@ -515,19 +505,13 @@ public sealed class MainWindow : Window, IDisposable
         var verbose = cfg.EnableVerboseInjectorLogging;
         if (ImGui.Checkbox("Verbose injector logging (Materia Advisor per-update lines)", ref verbose))
         {
-            cfg.EnableVerboseInjectorLogging = verbose;
-            dirty = true;
+            configService.SetEnableVerboseInjectorLogging(verbose);
         }
         ImGui.TextDisabled("Recommended on after v0.4.6 update so we can verify the advisor-visibility fix.");
 
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.TextDisabled("Changes save automatically. Reopen the Character window for injector toggles to take effect.");
-
-        if (dirty)
-        {
-            cfg.Save();
-        }
 
         Theme.TtChrome.EndCard();
     }
