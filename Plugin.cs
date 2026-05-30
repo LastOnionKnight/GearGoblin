@@ -41,6 +41,7 @@ public sealed class Plugin : IDalamudPlugin
     private const string ImportCommandName = "/ttimport";
 
 
+    [Obsolete("Use ConfigService.Current for reads. Configuration property will be removed by end of Phase 1.")]
     public Configuration Configuration { get; }
     public IConfigurationService ConfigService { get; }
     public WindowSystem  WindowSystem  { get; } = new("GearGoblin");
