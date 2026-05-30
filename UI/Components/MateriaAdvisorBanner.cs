@@ -13,8 +13,8 @@ public static class MateriaAdvisorBanner
         ImGui.PushStyleColor(ImGuiCol.Border, Theme.TtChrome.FrostFaint);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(16f, 14f));
 
-        // Use auto-resize for height to accommodate wrapping
-        if (ImGui.BeginChild("##advisor_cap_banner", new Vector2(0f, 0f), true, ImGuiWindowFlags.AlwaysAutoResize))
+        // Set explicit height to prevent 0f from swallowing all remaining vertical space
+        if (ImGui.BeginChild("##advisor_cap_banner", new Vector2(0f, 85f), true))
         {
             using (plugin.Fonts.GaramondItalic.PushOrNull())
             {

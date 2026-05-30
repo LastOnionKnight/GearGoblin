@@ -1,3 +1,6 @@
+## [1.0.2] - 2026-05-30
+- Hotfix: Fixed UI regression introduced in v1.0.1 where the Materia Advisor banner consumed all vertical layout space, causing the recommendations table to disappear.
+
 ## [1.0.1] - 2026-05-30
 - Hotfix: Added a warning banner to the Materia Advisor regarding per-piece substat caps. The advisor currently does not enforce caps correctly for some items; check caps in-game before melding. A full math fix is in development.
 
