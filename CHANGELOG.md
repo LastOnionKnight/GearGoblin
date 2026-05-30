@@ -1,3 +1,6 @@
+## [1.0.1] - 2026-05-30
+- Hotfix: Added a warning banner to the Materia Advisor regarding per-piece substat caps. The advisor currently does not enforce caps correctly for some items; check caps in-game before melding. A full math fix is in development.
+
 ## [1.0.0] - 2026-05-28
 - TlfTheme.cs deleted; every tab now on Track 2 (TtChrome doubled-frame cards + Eyebrow/Quip typography)
 - `/goblin*` aliases removed (use `/tt`, `/ttexport`, `/ttimport`, `/ttinfo`)
