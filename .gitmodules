@@ -1,0 +1,3 @@
+[submodule "external/GearGoblin.Core"]
+	path = external/GearGoblin.Core
+	url = https://github.com/LastOnionKnight/GearGoblin-Core.git
