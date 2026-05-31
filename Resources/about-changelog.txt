@@ -1,3 +1,11 @@
+## [1.1.2] - 2026-05-31
+### Changed
+- Materia Advisor (Hotfix): Corrected the BaseParamModifier mapping for the substat cap formula. The v1.1.1 mapping was theoretically flawed and incorrectly suppressed 2H weapons, head, hands, feet, and accessories. The new empirical mapping correctly identifies row IDs directly from Item.csv (1=1H, 2=Shield, 3=Accessories, 4=Head/Hands/Feet, 5=2H, 6=Body/Legs).
+## [1.1.1] - 2026-05-31
+### Changed
+- Converted GearGoblin.Core to a git submodule to resolve a local-path reference error that blocked v1.1.0 from building in CI.
+- Materia Advisor: Corrected substat cap calculation. v1.0.6 misread Item.BaseParamModifier as the literal stat multiplier; v1.1.0 swapped to EquipSlotCategory, which classifies most weapons as MainHand regardless of grip and broke 2H weapons differently. v1.1.1 implements the correct mapping � BaseParamModifier row IDs (1-6) -> stat multipliers (100/140/40/60/40/0) per the FFXIV datamined table, cross-referenced against CharacterPanelRefined. Phantom Rapier MainHand now correctly computes a cap of ~414, matching the in-game native panel.
+  See _briefs\CapMath-v106-vs-v110-Audit_20260531_2101Z.md for full derivation and CSV citations.
 ## [1.1.0] - 2026-05-30
 ### Changed
 - Refactored GearGoblin Core math. Lifted Materia logic from plugin and web app into GearGoblin.Core to guarantee parity.
@@ -49,115 +57,3 @@
 ## [0.6.7.2] - 2026-05-20
 - About panel narrative entries for v0.6.6.1 through v0.6.7.1. The "TLF Gear Division · Operations Brief" history block in `DrawAbout()` had been stale since v0.6.6.
 - Explicit dotnet clean + bin/obj wipe before the build to fix caching issues causing tab order to revert.
-
-## [0.6.7] — Track 2 era begins · Plan tab repainted in ember/frost-blue
-
-### Added
-- **`Theme/TtChrome.cs`** (new module) — Track 2 chrome helper, the first piece of the ember/frost-blue visual language that replaces TlfTheme over the v0.6.7 → v1.0 migration arc. Lifts the palette tokens verbatim from `RUNTIME_PORT.md §1.3` (the TLF HUD v0.1 design handoff):
-  - **Ink** — `#14161C` (90% alpha) backdrop, slightly warmer than TlfTheme's `InkPanel` (`#0E1232`). Drops the navy cast.
-  - **Ember** — `#D67B3C` warm-orange accent. Replaces `Lantern` gold for Track 2. Used for eyebrow labels and severity-critical badges.
-  - **Frost** — `#F2F2F5` body text + `rgba(178, 178, 178, *)` frame outlines at three opacity stops (1.0, 0.45, 0.22). The doubled-frame chrome uses the 1.0 outer and 0.22 inner stops.
-  - **Severity ramp** — `SeverityCritical` ember `#D67B3C`, `SeverityWarning` yellow `#E2C36A`, `SeverityNote` frost-blue `#7FC9EE`. Plus `HpGreen #6FBF6A` for match-success and `Farm #FF9D4A` for mismatch.
-- **`TtChrome.BeginCard` / `EndCard`** — the signature doubled-frame chrome. Outer 2px frost-outline at 0 inset; inner 1px hairline at 6px inset. Implemented via `ImDrawList.ChannelsSplit(2)` so the frame draws on the background channel *behind* content rather than overlaying text. Card backdrop fill in `InkSurface`.
-- **`TtChrome.Eyebrow(fonts, label)` / `Quip(fonts, text)` / `Number(fonts, text, color)` / `Pill(text, color)`** — parallel API to TlfTheme's composite helpers. All accept the `FontAtlasManager` and gracefully fall back to default font when individual Track 2 font handles are null (which they will be until Brian drops the .ttf files into `Assets/Fonts/`).
-- **Five Track 2 font handles** in `FontAtlasManager`:
-  - `CormorantBody` — Cormorant Garamond Regular @ 15px (body quip prose)
-  - `CormorantItalic` — Cormorant Garamond Italic @ 15px (Stab. voice, italic emphasis)
-  - `JetBrainsMonoBody` — JetBrains Mono Regular @ 11px (numerics, iLvl, deltas)
-  - `JetBrainsMonoMeta` — JetBrains Mono Bold @ 10px (meta labels, severity counts)
-  - `EorzeaRune` — Eorzea.ttf @ 13px (ornamental rune accent, decorative only)
-  
-  All optional via the existing `TryBuild` pattern — null fallback if the .ttf is missing. **No callers reference them yet** — that wiring is v0.6.7.1 work. v0.6.7 ships the loader plumbing only so Brian can drop the fonts in at his own pace without breaking the build.
-
-### Changed
-- **`UI/PlanTab.cs` repainted** in TtChrome chrome. Three cards stack vertically:
-  - **Paste card** — eyebrow `» PLAN · BIS PASTE`, italic quip subtitle, URL input + Fetch + Clear buttons in one row, status message below (colored by severity: ember for errors, green for `Loaded:`, frost-blue for `Fetching…`).
-  - **Empty state card** — eyebrow `» NO BIS LOADED`, quip subtitle, bulleted example URLs in muted frost.
-  - **Diff card** — eyebrow `» BIS · {name}`, description quip (if any), 4-column diff table (Slot / Current / Target / Status). Match status renders as `[ ✓ match ]` pill in HpGreen; farm status as `[ ✗ farm ]` pill in Farm orange.
-- **`PlanTab.Draw` signature changed** from `Draw(InventoryReader inventory)` to `Draw(Plugin plugin)` so it can reach `plugin.Fonts` for the Track 2 typography. The data flow (StartFetch, BisFetcher.FetchAsync, slot-by-slot diff via InventoryReader.ReadEquipped) is preserved verbatim — only the chrome wraps it.
-- **`MainWindow.cs` line ~203** — caller updated from `PlanTab.Draw(plugin.Inventory)` to `PlanTab.Draw(plugin)`. One-line edit.
-- **Tab bar reordered** — `Quick Start` now leads, `Character` moves to position 2. Rationale: first-time users land on onboarding rather than the meatiest content surface. Existing users muscle-memory-shifts one slot. Other tabs unchanged: `Plan / Materia / Settings / Diagnostics / Feedback / About`.
-
-### Why this version
-First surface in the new ember/frost-blue visual language (Track 2) that gradually replaces TlfTheme (gold/navy) over the v0.6.7 → v1.0 migration. The Plan tab was the natural starting point because it's a contained surface with stable data flow — the chrome can change without disturbing the fetch/diff logic underneath.
-
-**Also ships v0.6.6.5's changes** (Equipped Gear table polish + section eyebrow glyph fix). v0.6.6.5 was built on disk but never separately released to the Custom Repo — Brian switched to the Custom Repo install path before pushing it, so its changes carry forward in the v0.6.7 build. The [0.6.6.5] entry below in this CHANGELOG documents what's in those changes; the build that ships to Custom Repo with the v0.6.7 tag includes both sets atomically.
-
-Per the v0.6.7 vs v0.6.8 split locked 2026-05-20:
-- **v0.6.7** = visual rebuild only (this ship)
-- **v0.6.8** = StatusPanelInjector deprecation banner + plan persistence (behavioral)
-
-This keeps one risk surface per release. v0.6.7 introduces a new theme module and repaints one tab; v0.6.8 will add a deprecation banner and Configuration-keyed persistence for the paste field. Cohabitation rules: TlfTheme.cs is untouched and continues to chrome the Character, Materia, Quick Start, About, Settings, Diagnostics, and Feedback tabs. TtChrome and TlfTheme push their style stacks independently — TtChrome.Push() is scoped to the Plan tab's content area, layered on top of TlfTheme's window-level chrome.
-
-Lockstep: GearGoblin.Core v0.6.7 + tonberrytactics.pages.dev v0.6.7 (version-only bump on both).
-
-### Build-gate risks
-- **`ImDrawList.ChannelsSplit(2)` + `ChannelsSetCurrent(0/1)` + `ChannelsMerge()`** — first use of drawlist channel-split in this codebase. Standard Dear ImGui pattern (see issue #4530); should resolve in the Dalamud bindings. Failure mode would be CS errors at compile or a no-op merge at runtime (frame draws on top of content). Fallback if needed: drop the channel-split and accept that the inner hairline draws over content at the card edges (with the 10px content padding this is barely visible).
-- **`PlanTab.Draw(Plugin)` signature change** — call site in MainWindow.cs needs one-line update (see CHANGELOG above). If missed, build fails immediately with `CS1503: cannot convert from 'InventoryReader' to 'Plugin'`. Fix is mechanical.
-- **`GearGoblin.Theme` namespace import in PlanTab.cs** — added at the top. The file previously only needed `GearGoblin.Planning` and `GearGoblin.Services`.
-
-### Verify in-game (`/xlplugins` toggle off/on)
-1. **Plan tab renders without errors** (no exception in `/xllog`).
-2. **Paste card** — doubled frame visible: outer frost-grey rectangle, inner faint frost-grey hairline inset ~6px. Ember-colored eyebrow `» PLAN · BIS PASTE` at top.
-3. **Paste card contents** — italic-feeling subtitle quip below the eyebrow, then URL input + Fetch + Clear buttons in one row.
-4. **Empty state card** (with no BiS loaded) — second card below the paste form, eyebrow `» NO BIS LOADED`, bulleted example URLs.
-5. **Fetch a real BiS** (paste `https://etro.gg/gearset/<any valid uuid>`) — status changes from `Fetching…` (frost-blue) to `Loaded: <name>` (green).
-6. **Diff card appears** — eyebrow `» BIS · <name>`, description quip if any, 4-column table.
-7. **Match / farm pills** — items that match show `[ ✓ match ]` in HpGreen; items to farm show `[ ✗ farm ]` in Farm orange.
-8. **Plugin loads even if Track 2 .ttf files are missing** — `/xllog` shows `[FontAtlasManager v0.6.7] Loaded 7/12 custom fonts` (the 5 Track 2 fonts not loaded, but Track 1 still works and Plan tab still renders with default-font fallback for the new font helpers).
-9. **TlfTheme surfaces unchanged** — Character tab, Materia tab, About, Quick Start, Settings, Diagnostics, Feedback all look exactly the same as v0.6.6.5 (no chrome bleed from Track 2).
-
-### Brian's manual work to apply this dropin
-1. Apply the five files (`Theme/TtChrome.cs`, `Theme/FontAtlasManager.cs`, `UI/PlanTab.cs`, `GearGoblin.csproj`, `CHANGELOG.md`).
-2. **Update MainWindow.cs line ~203** — change `PlanTab.Draw(plugin.Inventory);` to `PlanTab.Draw(plugin);` (search for the `if (ImGui.BeginTabItem("Plan"))` block).
-3. **Optional but recommended:** download Track 2 .ttf files from Google Fonts into `D:\GearGoblin-v0.1\GearGoblin\Assets\Fonts\`:
-   - `CormorantGaramond-Regular.ttf` (https://fonts.google.com/specimen/Cormorant+Garamond)
-   - `CormorantGaramond-Italic.ttf` (same family)
-   - `JetBrainsMono-Regular.ttf` (https://fonts.google.com/specimen/JetBrains+Mono)
-   - `JetBrainsMono-Bold.ttf` (same family)
-   - `Eorzea.ttf` (copy from `D:\TonberryLiberationFront\design_handoff_tlf_hud_v01\fonts\Eorzea.ttf`)
-4. `dotnet build -c Release` from `D:\GearGoblin-v0.1\GearGoblin\` to verify clean compile.
-5. `.\release.ps1 0.6.7` to push to Custom Repo. (Dev plugin path was removed per the 2026-05-20 decision; Custom Repo flow is exclusive going forward.)
-6. `/xlplugins` → Tonberry Tactics → Update. Verify the 9 in-game points above.
-
-## [0.6.6.5] — Gear table polish + section eyebrow glyph fix
-
-### Changed
-- **Equipped Gear table polished** per the v0.6.6.0 `DrawGearTable` TODO block:
-  - **Striped rows** — alternating `InkPanel` / `InkPanelAlt` backgrounds via per-row `TableSetBgColor(RowBg0)`. Removes `ImGuiTableFlags.RowBg`'s default light-gray stripe which clashed with the dark TlfTheme navy.
-  - **Slot column** — Press Start 2P 10px in `GoldDim`, uppercased (e.g. `MAINHAND`, `RINGLEFT`).
-  - **Item column** — Cinzel SemiBold 16px in `Frost`. HQ items get a trailing `★` in `GoldBright` rendered inline via `SameLine(0, 6)`.
-  - **iLvl column** — default ImGui font in `Knife` (steel), right-aligned via `SetCursorPosX(currentX + availW - textWidth)` rather than a hardcoded offset.
-  - **Materia column** — each meld in `Frost`, with a faint `·` separator in `FrostFaint` between melds for visual hierarchy. Fixed an edge case in the original where `m.SlotIndex` was used as the "last meld" predicate (worked when slots were 0,1,2,3 but unsafe if a slot were skipped); now uses the loop index against the list count.
-- **Header row removed** from the gear table — the section head supplies context; the column headers were visual noise on the dark TlfTheme surface.
-- **`DrawGearTable` signature** now takes `Plugin plugin` as its first parameter (needed for `plugin.Fonts.Pixel` / `plugin.Fonts.CinzelEmphasis` access). Matches the pattern already established for `DrawHero`, `DrawStatsStrip`, and `DrawMateriaAdvisor`. The only call site (`Draw()`) updated accordingly.
-
-### Fixed
-- **Section eyebrow glyph rendering as `?`** in the About and Quick Start tabs (`? TLF GEAR DIVISION · OPERATIONS BRIEF`, `? TLF MANIFESTO`, etc.). Root cause: `TlfTheme.GlyphSection` was `"◇"` (U+25C7 WHITE DIAMOND), which is not in Dalamud's default font glyph range. The two filled-shape glyphs (`▶` U+25B6, `◆` U+25C6) work; the outlined variant (`◇`) does not. Swapped to `»` (U+00BB, RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK), which lives in Latin-1 Supplement and is universally available. Affects all eight `TlfTheme.Eyebrow(...)` call sites in `MainWindow.cs` — seven on the Quick Start tab (`TLF MANIFESTO`, `WHAT THIS PLUGIN DOES`, `THE LOOP`, `SLASH COMMANDS`, `WHAT YOU'LL SEE IN THE CHARACTER WINDOW`, `WHEN SOMETHING LOOKS WRONG`, `TIPS`) and one on the About tab (`TLF GEAR DIVISION · OPERATIONS BRIEF`).
-
-### Why this version
-Closes the Character tab's v0.6.6.x polish arc on the TlfTheme (gold/navy) era:
-- v0.6.6.1 — StatsStrip cards
-- v0.6.6.2 — CharacterHero portrait frame + identity column
-- v0.6.6.3 — Materia Advisor ranked rows
-- v0.6.6.4 — Materia tab merge + Current Gear purge
-- v0.6.6.5 — Gear table polish + glyph fix  ← this ship
-
-This is the last v0.6.6.x release on TlfTheme. v0.6.7 begins the Track 2 (ember/frost-blue) repaint with the new Plan tab paste UI as the first surface in the v1.0 design language; v0.7.0 repaints the Character tab itself, removes the StatusPanelInjector, and lifts MeldOptimizer into GearGoblin.Core.
-
-Note: the original v0.6.6.0 TODO mentioned a "Soul Crystal divider" item. Deferred — `EquippedPiece` doesn't model the soul-crystal slot (the `InventoryReader` reads MainHand through RingRight only, no soul crystal). Revisit if/when soul-crystal data lands in the equipped list.
-
-### Build-gate risks
-- **`ImGui.TableSetBgColor(ImGuiTableBgTarget.RowBg0, uint)`** — first explicit per-row stripe in this codebase. Existing usage uses the `ImGuiTableFlags.RowBg` flag for auto-striping. The explicit pattern is canonical Dear ImGui usage so the binding should resolve.
-- **`Plugin` parameter added to `DrawGearTable`** — matches the `Plugin plugin` parameter pattern established for `DrawHero`, `DrawStatsStrip`, and `DrawMateriaAdvisor`. Only one call site, updated atomically with the signature change.
-- **`»` glyph rendering** — Latin-1 Supplement is in every modern font including Dalamud's bundled default; the `·` (also Latin-1 Supplement) already renders correctly throughout, so this is a safe range. If somehow `»` fails to render, fallback is `>>` or `>`.
-
-### Verify in-game (`/xlplugins` toggle off/on)
-1. **Character tab → Equipped Gear** — rows alternate dark navy (`InkPanel`) and slightly lighter navy (`InkPanelAlt`).
-2. **Slot column** — pixel-font, dim-gold, uppercased: `MAINHAND`, `HEAD`, `BODY`, etc.
-3. **Item column** — Cinzel SemiBold serif. HQ items show a gold `★` after the name.
-4. **iLvl column** — right-aligned, steel-colored number.
-5. **Materia column** — each meld in soft-cream color; multiple melds separated by faded `·` dots in muted purple-grey.
-6. **No header row** above the gear table — the `── Equipped Gear · {N} slots` section head replaces it.
-7. **About tab** — section eyebrows now read `» TLF GEAR DIVISION · OPERATIONS BRIEF` (not `? TLF GEAR DIVISION...`).
-8. **Quick Start tab** — all seven section eyebrows (`TLF MANIFESTO`, `WHAT THIS PLUGIN DOES`, `THE LOOP`, `SLASH COMMANDS`, `WHAT YOU'LL SEE IN THE CHARACTER WINDOW`, `WHEN SOMETHING LOOKS WRONG`, `TIPS`) show the `»` prefix instead of `?`.

@@ -201,12 +201,12 @@ public class InventoryReader : IInventoryReader
     {
         return baseParamModifierId switch
         {
-            1  => 100,
-            2  => 140,
-            3  => 40,
-            4  => 60,
-            5  => 40,
-            6  => 0,
+            1  => 100, // 1H
+            2  => 40,  // Shield
+            3  => 67,  // Accessories
+            4  => 85,  // Head/Hands/Feet
+            5  => 140, // 2H
+            6  => 135, // Body/Legs
             _  => 100,
         };
     }

@@ -1,3 +1,6 @@
+## [1.1.2] - 2026-05-31
+### Changed
+- Materia Advisor (Hotfix): Corrected the BaseParamModifier mapping for the substat cap formula. The v1.1.1 mapping was theoretically flawed and incorrectly suppressed 2H weapons, head, hands, feet, and accessories. The new empirical mapping correctly identifies row IDs directly from Item.csv (1=1H, 2=Shield, 3=Accessories, 4=Head/Hands/Feet, 5=2H, 6=Body/Legs).
 ## [1.1.1] - 2026-05-31
 ### Changed
 - Converted GearGoblin.Core to a git submodule to resolve a local-path reference error that blocked v1.1.0 from building in CI.
@@ -2139,6 +2142,7 @@ All four are fixed in `Services/StatusPanelInjector.cs`.
 [0.3.2]: https://github.com/LastOnionKnight/GearGoblin/releases/tag/v0.3.2
 [0.3.1]: https://github.com/LastOnionKnight/GearGoblin/releases/tag/v0.3.1
 [0.3.0]: https://github.com/LastOnionKnight/GearGoblin/releases/tag/v0.3.0
+
 
 
 
