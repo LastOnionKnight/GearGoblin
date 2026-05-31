@@ -59,6 +59,7 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DefaultItemExcludes>$(DefaultItemExcludes);external\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
@@ -94,6 +95,8 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.8" />
   </ItemGroup>
 </Project>
+
+
 
 
 
