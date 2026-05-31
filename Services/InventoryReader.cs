@@ -106,7 +106,8 @@ public class InventoryReader : IInventoryReader
             var ilvlRow = sheetItem.Value.LevelItem.ValueNullable;
             if (ilvlRow != null)
             {
-                cap = (int)System.Math.Round(ilvlRow.Value.CriticalHit * sheetItem.Value.BaseParamModifier / 1000.0);
+                var modifier = GetSubstatModifier(slotCategory);
+                cap = (int)System.Math.Round(ilvlRow.Value.CriticalHit * modifier / 1000.0);
             }
 
             var piece = new EquippedPiece
@@ -194,6 +195,26 @@ public class InventoryReader : IInventoryReader
         var value    = grade < row.Value.Value.Count ? row.Value.Value[grade] : (short)0;
 
         return (statName, value);
+    }
+
+    private static int GetSubstatModifier(uint categoryId)
+    {
+        return categoryId switch
+        {
+            1  => 100, // 1H Weapon
+            2  => 40,  // Shield
+            3  => 60,  // Head
+            4  => 100, // Body
+            5  => 60,  // Hands
+            7  => 100, // Legs
+            8  => 60,  // Feet
+            9  => 40,  // Earring
+            10 => 40,  // Necklace
+            11 => 40,  // Bracelet
+            12 => 40,  // Ring
+            13 => 140, // 2H Weapon
+            _  => 100,
+        };
     }
 
     /// <summary>
