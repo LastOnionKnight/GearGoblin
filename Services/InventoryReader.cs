@@ -197,22 +197,16 @@ public class InventoryReader : IInventoryReader
         return (statName, value);
     }
 
-    private static int GetSubstatModifier(uint categoryId)
+    private static int GetSubstatModifier(uint baseParamModifierId)
     {
-        return categoryId switch
+        return baseParamModifierId switch
         {
-            1  => 100, // 1H Weapon
-            2  => 40,  // Shield
-            3  => 60,  // Head
-            4  => 100, // Body
-            5  => 60,  // Hands
-            7  => 100, // Legs
-            8  => 60,  // Feet
-            9  => 40,  // Earring
-            10 => 40,  // Necklace
-            11 => 40,  // Bracelet
-            12 => 40,  // Ring
-            13 => 140, // 2H Weapon
+            1  => 100,
+            2  => 140,
+            3  => 40,
+            4  => 60,
+            5  => 40,
+            6  => 0,
             _  => 100,
         };
     }

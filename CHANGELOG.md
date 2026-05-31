@@ -1,7 +1,8 @@
 ## [1.1.1] - 2026-05-31
 ### Changed
 - Converted GearGoblin.Core to a git submodule to resolve a local-path reference error that blocked v1.1.0 from building in CI.
-- Materia Advisor: Corrected substat cap calculation for 2H weapons. v1.1.0 incorrectly applied the 1H modifier to all main-hand items because FFXIV's EquipSlotCategory classifies most weapons as MainHand regardless of grip. The new path reads Item.BaseParamModifier directly, which correctly distinguishes 1H (100) from 2H (140). Restores v1.0.6 behavior on Phantom Rapier and similar 2H weapons. (See _briefs/Audit-BaseParamModifier-CapMath-20260531_2037Z.md for historical audit).
+- Materia Advisor: Corrected substat cap calculation. v1.0.6 misread Item.BaseParamModifier as the literal stat multiplier; v1.1.0 swapped to EquipSlotCategory, which classifies most weapons as MainHand regardless of grip and broke 2H weapons differently. v1.1.1 implements the correct mapping — BaseParamModifier row IDs (1-6) -> stat multipliers (100/140/40/60/40/0) per the FFXIV datamined table, cross-referenced against CharacterPanelRefined. Phantom Rapier MainHand now correctly computes a cap of ~414, matching the in-game native panel.
+  See _briefs\CapMath-v106-vs-v110-Audit_20260531_2101Z.md for full derivation and CSV citations.
 ## [1.1.0] - 2026-05-30
 ### Changed
 - Refactored GearGoblin Core math. Lifted Materia logic from plugin and web app into GearGoblin.Core to guarantee parity.
@@ -2138,5 +2139,6 @@ All four are fixed in `Services/StatusPanelInjector.cs`.
 [0.3.2]: https://github.com/LastOnionKnight/GearGoblin/releases/tag/v0.3.2
 [0.3.1]: https://github.com/LastOnionKnight/GearGoblin/releases/tag/v0.3.1
 [0.3.0]: https://github.com/LastOnionKnight/GearGoblin/releases/tag/v0.3.0
+
 
 
