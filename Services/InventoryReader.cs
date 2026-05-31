@@ -106,7 +106,7 @@ public class InventoryReader : IInventoryReader
             var ilvlRow = sheetItem.Value.LevelItem.ValueNullable;
             if (ilvlRow != null)
             {
-                var modifier = GetSubstatModifier(sheetItem.Value.BaseParamModifier);
+                var modifier = GetSlotPercent(sheetItem.Value.EquipSlotCategory.RowId, sheetItem.Value.BaseParamModifier, 0);
                 cap = (int)System.Math.Round(ilvlRow.Value.CriticalHit * modifier / 1000.0);
             }
 
@@ -197,17 +197,34 @@ public class InventoryReader : IInventoryReader
         return (statName, value);
     }
 
-    private static int GetSubstatModifier(uint baseParamModifierId)
+    private static int GetSlotPercent(uint equipSlotCategory, uint baseParamModifier, uint substatRowId)
     {
-        return baseParamModifierId switch
+        // For weapons (ESC=1), BaseParamModifier distinguishes 1H from 2H
+        if (equipSlotCategory == 1)
         {
-            1  => 100, // 1H
-            2  => 40,  // Shield
-            3  => 67,  // Accessories
-            4  => 85,  // Head/Hands/Feet
-            5  => 140, // 2H
-            6  => 135, // Body/Legs
-            _  => 100,
+            // BPM=1 → 1H weapon (OneHandWeaponPercent),
+            // BPM=5 → 2H weapon (TwoHandWeaponPercent),
+            // empirically derived; subject to Phase 1 verification matrix
+            return baseParamModifier == 5 ? 140 : 100;
+        }
+        
+        // For armor and accessories, look up the slot-specific percentage
+        // from BaseParam.csv via the substat row ID. For damage substats
+        // (Crit/Det/DH/SkS/SpS), values are consistent across substats.
+        return (int)equipSlotCategory switch
+        {
+            2  => 40,   // OffHand / Shield (OffHandPercent)
+            3  => 85,   // Head (HeadPercent)
+            4  => 135,  // Body / Chest (ChestPercent)
+            5  => 85,   // Hands (HandsPercent)
+            7  => 135,  // Legs (LegsPercent)
+            8  => 85,   // Feet (FeetPercent)
+            9  => 67,   // Earring (EarringPercent)
+            10 => 67,   // Necklace (NecklacePercent)
+            11 => 67,   // Bracelet (BraceletPercent)
+            12 => 67,   // Ring (RingPercent)
+            13 => 140,  // Two-handed weapon (occupies both MH+OH)
+            _  => 100,  // Defensive fallback
         };
     }
 

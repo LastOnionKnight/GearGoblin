@@ -110,4 +110,6 @@ jobs:
             echo "repo.json unchanged"; exit 0
           fi
           git commit -m "chore(repo): bump GearGoblin to ${{ steps.ver.outputs.ver }} [skip ci]"
-          git push origin HEAD:main
+          for i in 1 2 3 4 5; do
+            git pull --rebase origin main && git push origin HEAD:main && break || sleep 5
+          done

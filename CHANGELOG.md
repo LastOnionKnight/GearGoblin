@@ -1,3 +1,7 @@
+## [1.1.3] - 2026-05-31
+### Changed
+- Materia Advisor: Fixed cap-math validation gap where all Casting armor pieces were erroneously capped using the 140% multiplier for two-handed weapons due to over-extrapolating the BaseParamModifier. Now correctly uses EquipSlotCategory for armor/accessories slot scaling (see v113-Scope-Decision_20260531_2211Z.md).
+- Web Export (Parity Fix): TonberryTactics web adapter now correctly assigns a 100%->7% overmeld SuccessRate when constructing empty meld slots, preventing empty slots from being completely skipped by the optimizer due to a silent score multiplier of 0.0.
 ## [1.1.2] - 2026-05-31
 ### Changed
 - Materia Advisor (Hotfix): Corrected the BaseParamModifier mapping for the substat cap formula. The v1.1.1 mapping was theoretically flawed and incorrectly suppressed 2H weapons, head, hands, feet, and accessories. The new empirical mapping correctly identifies row IDs directly from Item.csv (1=1H, 2=Shield, 3=Accessories, 4=Head/Hands/Feet, 5=2H, 6=Body/Legs).
