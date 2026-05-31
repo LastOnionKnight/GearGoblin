@@ -106,7 +106,7 @@ public class InventoryReader : IInventoryReader
             var ilvlRow = sheetItem.Value.LevelItem.ValueNullable;
             if (ilvlRow != null)
             {
-                var modifier = GetSubstatModifier(slotCategory);
+                var modifier = GetSubstatModifier(sheetItem.Value.BaseParamModifier);
                 cap = (int)System.Math.Round(ilvlRow.Value.CriticalHit * modifier / 1000.0);
             }
 
