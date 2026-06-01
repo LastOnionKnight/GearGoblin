@@ -1,3 +1,26 @@
+## [1.2.0] - 2026-06-01
+
+### Fixed
+- **Web adapter regression (resolves v1.1.4 build failure):** Restored the
+  WeightMode argument that was improperly dropped from
+  MeldOptimizerAdapter.Optimize(...) in v1.1.4. WeightMode is a fully
+  supported Core feature (added v1.1.0) toggling between PureMath and
+  BalancePreset scoring. The v1.1.4 web tag was never deployed to production
+  due to this regression; v1.2.0 brings the web back into compilable state.
+
+### Changed
+- Scrubbed lingering documentation references to the retired PureMathOptimizer
+  in Core's JobPriorities.cs. Optimizer code itself was retired in v0.6.3.
+- Plugin AssemblyVersion, FileVersion, and Version synchronized to 1.2.0
+  (previously AssemblyVersion and FileVersion were stale at 1.1.2 due to
+  elease.ps1 only updating <Version>; logged as Architecture Debt).
+
+### Lockstep notes
+- Standalone GearGoblin.Core repo skipped v1.1.3 in its tag stream - the
+  v1.1.3 cap-math fix was applied via the submodule-vendored Core consumed
+  by plugin and web. v1.2.0 brings standalone Core back into trinity lockstep.
+- Web CHANGELOG.md previously skipped v1.1.3 (SuccessRate adapter parity
+  fix) and v1.1.4 (build-failure tag); see git history for those releases.
 ## [1.1.3] - 2026-05-31
 ### Changed
 - Materia Advisor: Fixed cap-math validation gap where all Casting armor pieces were erroneously capped using the 140% multiplier for two-handed weapons due to over-extrapolating the BaseParamModifier. Now correctly uses EquipSlotCategory for armor/accessories slot scaling (see v113-Scope-Decision_20260531_2211Z.md).
@@ -8,7 +31,7 @@
 ## [1.1.1] - 2026-05-31
 ### Changed
 - Converted GearGoblin.Core to a git submodule to resolve a local-path reference error that blocked v1.1.0 from building in CI.
-- Materia Advisor: Corrected substat cap calculation. v1.0.6 misread Item.BaseParamModifier as the literal stat multiplier; v1.1.0 swapped to EquipSlotCategory, which classifies most weapons as MainHand regardless of grip and broke 2H weapons differently. v1.1.1 implements the correct mapping — BaseParamModifier row IDs (1-6) -> stat multipliers (100/140/40/60/40/0) per the FFXIV datamined table, cross-referenced against CharacterPanelRefined. Phantom Rapier MainHand now correctly computes a cap of ~414, matching the in-game native panel.
+- Materia Advisor: Corrected substat cap calculation. v1.0.6 misread Item.BaseParamModifier as the literal stat multiplier; v1.1.0 swapped to EquipSlotCategory, which classifies most weapons as MainHand regardless of grip and broke 2H weapons differently. v1.1.1 implements the correct mapping ï¿½ BaseParamModifier row IDs (1-6) -> stat multipliers (100/140/40/60/40/0) per the FFXIV datamined table, cross-referenced against CharacterPanelRefined. Phantom Rapier MainHand now correctly computes a cap of ~414, matching the in-game native panel.
   See _briefs\CapMath-v106-vs-v110-Audit_20260531_2101Z.md for full derivation and CSV citations.
 ## [1.1.0] - 2026-05-30
 ### Changed
