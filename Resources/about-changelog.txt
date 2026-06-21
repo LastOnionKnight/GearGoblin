@@ -1,3 +1,10 @@
+## [1.4.1] - 2026-06-21
+
+### Changed
+- **Phase 3 UI Overhaul**: Fully migrated Gear Goblin to the Tonberry Tactics Cobalt/Gold design language.
+- Replaced ImGui defaults with custom TtChrome components across all plugin tabs (Quick Start, Plan, Materia, Settings, Diagnostics, Feedback).
+- Synced updated visual assets, fixing unstyled sprites in UI panels.
+
 ## [1.2.0] - 2026-06-01
 
 ### Fixed
@@ -72,6 +79,3 @@
 ## [0.6.7.5] - 2026-05-27
 - Injector boot guard (inject when panel already open at load) + lockstep bump
 - Fix boot guard build - use generic GetAddonByName<AtkUnitBase> (AtkUnitBasePtr has no cast to AtkUnitBase*)
-
-## [0.6.7.4] - 2026-05-22
-- Blank native = /tt advisor glyph

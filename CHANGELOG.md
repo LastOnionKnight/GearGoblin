@@ -1,3 +1,10 @@
+## [1.4.1] - 2026-06-21
+
+### Changed
+- **Phase 3 UI Overhaul**: Fully migrated Gear Goblin to the Tonberry Tactics Cobalt/Gold design language.
+- Replaced ImGui defaults with custom TtChrome components across all plugin tabs (Quick Start, Plan, Materia, Settings, Diagnostics, Feedback).
+- Synced updated visual assets, fixing unstyled sprites in UI panels.
+
 ## [1.2.0] - 2026-06-01
 
 ### Fixed

@@ -43,3 +43,4 @@ packages.lock.json
 # Dropin zips (v0.6.4+)
 *-dropin.zip
 *-dropin/
+graphify-out/
