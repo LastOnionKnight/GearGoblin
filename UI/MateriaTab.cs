@@ -87,7 +87,7 @@ public static class MateriaTab
 
         foreach (var audit in result.Audits)
         {
-            Theme.TtChrome.BeginPanel("audit_" + audit.Piece + "_" + audit.SlotIndex);
+            Theme.TtChrome.BeginPanel("audit_" + audit.Piece + "_" + audit.SlotIndex, 64f);
             
             // Layout matching mockup:
             // Orb image

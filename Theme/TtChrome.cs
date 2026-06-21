@@ -111,13 +111,13 @@ public static class TtChrome
         ImGui.TextColored(color, $"[ {text} ]");
     }
 
-    public static void BeginPanel(string id)
+    public static void BeginPanel(string id, float height = 0f)
     {
         ImGui.PushStyleColor(ImGuiCol.ChildBg, Panel);
         ImGui.PushStyleColor(ImGuiCol.Border, Line);
         ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 11f);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(14, 14));
-        ImGui.BeginChild(id, new Vector2(0, 0), true, ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar);
+        ImGui.BeginChild(id, new Vector2(0, height), true, ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar);
     }
 
     public static void EndPanel()
