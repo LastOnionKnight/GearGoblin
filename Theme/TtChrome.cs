@@ -117,7 +117,7 @@ public static class TtChrome
         ImGui.PushStyleColor(ImGuiCol.Border, Line);
         ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 11f);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(14, 14));
-        ImGui.BeginChild(id, new Vector2(0, height), true, ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar);
+        ImGui.BeginChild(id, new Vector2(0, height), true, ImGuiWindowFlags.NoScrollbar);
     }
 
     public static void EndPanel()
