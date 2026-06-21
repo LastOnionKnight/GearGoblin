@@ -35,9 +35,13 @@ public sealed class BrandResources : IDisposable
     /// and the v0.6.x rail UI.</summary>
     public IDalamudTextureWrap? RagsMini { get; private set; }
 
+    /// <summary>Inline Tonberry Tactics lantern mark icon. Used in place of
+    /// generic geometric glyphs in the UI.</summary>
+    public IDalamudTextureWrap? LanternMark { get; private set; }
+
     /// <summary>True if at least one asset loaded successfully. Callers can
     /// use this as a quick "do brand stuff or fall back to text?" check.</summary>
-    public bool AnyLoaded => CircleLogo != null || RagsPortrait != null || RagsMini != null;
+    public bool AnyLoaded => CircleLogo != null || RagsPortrait != null || RagsMini != null || LanternMark != null;
 
     public BrandResources()
     {
@@ -66,6 +70,7 @@ public sealed class BrandResources : IDisposable
                     CircleLogo   = TryLoad("circle-logo.png");
                     RagsPortrait = TryLoad("rags-portrait.png");
                     RagsMini     = TryLoad("rags-mini.png");
+                    LanternMark  = TryLoad("lantern-mark.png");
 
                     if (AnyLoaded)
                     {
@@ -73,7 +78,8 @@ public sealed class BrandResources : IDisposable
                             "BrandResources v0.6.5.2: brand artwork loaded (deferred to framework thread) · " +
                             $"circle-logo={CircleLogo != null} · " +
                             $"rags-portrait={RagsPortrait != null} · " +
-                            $"rags-mini={RagsMini != null}");
+                            $"rags-mini={RagsMini != null} · " +
+                            $"lantern-mark={LanternMark != null}");
                     }
                     else
                     {
@@ -139,8 +145,10 @@ public sealed class BrandResources : IDisposable
         CircleLogo?.Dispose();
         RagsPortrait?.Dispose();
         RagsMini?.Dispose();
+        LanternMark?.Dispose();
         CircleLogo = null;
         RagsPortrait = null;
         RagsMini = null;
+        LanternMark = null;
     }
 }

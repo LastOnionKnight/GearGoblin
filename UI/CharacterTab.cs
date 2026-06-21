@@ -561,8 +561,15 @@ public static class CharacterTab
         {
             if (recs.Count == 0)
             {
-                // Empty state — ◆ glyph in Ship green, italic Garamond message
-                ImGui.TextColored(Theme.TtChrome.HpGreen, "◆");
+                // Empty state - LanternMark or glyph in Ship green, italic Garamond message
+                if (plugin.Brand.LanternMark != null)
+                {
+                    ImGui.Image(plugin.Brand.LanternMark.Handle, new System.Numerics.Vector2(22, 22), System.Numerics.Vector2.Zero, System.Numerics.Vector2.One, Theme.TtChrome.HpGreen);
+                }
+                else
+                {
+                    ImGui.TextColored(Theme.TtChrome.HpGreen, "◆");
+                }
                 ImGui.SameLine();
                 using (plugin.Fonts.GaramondItalic.PushOrNull())
                     ImGui.TextColored(Theme.TtChrome.FrostMuted,

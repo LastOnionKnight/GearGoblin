@@ -388,7 +388,19 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.Separator();
         ImGui.Spacing();
         ImGui.PushStyleColor(ImGuiCol.Text, Theme.TtChrome.EmberDeep);
-        ImGui.TextUnformatted($"  {Theme.TtChrome.GlyphCorner}  The Onion Knight stands ready  {Theme.TtChrome.GlyphCorner}");
+        if (plugin.Brand.LanternMark != null)
+        {
+            var iconSize = new System.Numerics.Vector2(16, 16);
+            ImGui.Image(plugin.Brand.LanternMark.Handle, iconSize, System.Numerics.Vector2.Zero, System.Numerics.Vector2.One, Theme.TtChrome.EmberDeep);
+            ImGui.SameLine();
+            ImGui.TextColored(Theme.TtChrome.EmberDeep, "  The Onion Knight stands ready  ");
+            ImGui.SameLine();
+            ImGui.Image(plugin.Brand.LanternMark.Handle, iconSize, System.Numerics.Vector2.Zero, System.Numerics.Vector2.One, Theme.TtChrome.EmberDeep);
+        }
+        else
+        {
+            ImGui.TextUnformatted($"  {Theme.TtChrome.GlyphCorner}  The Onion Knight stands ready  {Theme.TtChrome.GlyphCorner}");
+        }
         ImGui.PopStyleColor();
         ImGui.PushStyleColor(ImGuiCol.Text, Theme.TtChrome.FrostFaint);
         ImGui.TextUnformatted($"  TONBERRY TACTICS · v{s_versionString} · NO GEAR · NO HOPE · NO PANTS · JUST ONIONS");
@@ -849,9 +861,21 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
-        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TtChrome.EmberDeep);
-        ImGui.TextUnformatted($"  {Theme.TtChrome.GlyphCorner}  The Onion Knight stands ready  {Theme.TtChrome.GlyphCorner}");
-        ImGui.PopStyleColor();
+        if (plugin.Brand.LanternMark != null)
+        {
+            var iconSize = new System.Numerics.Vector2(16, 16);
+            ImGui.Image(plugin.Brand.LanternMark.Handle, iconSize, System.Numerics.Vector2.Zero, System.Numerics.Vector2.One, Theme.TtChrome.EmberDeep);
+            ImGui.SameLine();
+            ImGui.TextColored(Theme.TtChrome.EmberDeep, "  The Onion Knight stands ready  ");
+            ImGui.SameLine();
+            ImGui.Image(plugin.Brand.LanternMark.Handle, iconSize, System.Numerics.Vector2.Zero, System.Numerics.Vector2.One, Theme.TtChrome.EmberDeep);
+        }
+        else
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, Theme.TtChrome.EmberDeep);
+            ImGui.TextUnformatted($"  {Theme.TtChrome.GlyphCorner}  The Onion Knight stands ready  {Theme.TtChrome.GlyphCorner}");
+            ImGui.PopStyleColor();
+        }
         ImGui.PushStyleColor(ImGuiCol.Text, Theme.TtChrome.FrostFaint);
         ImGui.TextUnformatted($"  TONBERRY TACTICS · v{s_versionString} · NO GEAR · NO HOPE · NO PANTS · JUST ONIONS");
         ImGui.PopStyleColor();

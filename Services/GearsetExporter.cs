@@ -63,19 +63,27 @@ public sealed class GearsetExporter : IGearsetExporter
             return false;
         }
 
+        var snap = GearGoblin.Materia.StatReader.ReadCurrent();
+        if (snap == null)
+        {
+            DalamudServices.ChatGui.PrintError("[GearGoblin] Cannot export: unable to read character stats.");
+            return false;
+        }
+
         try
         {
             var jobRowId = player.ClassJob.RowId;
             var jobAbbr  = player.ClassJob.Value.Abbreviation.ExtractText();
 
-            var character = new ExportCharacterV1(
+            var character = new GearGoblin.Core.ExportCharacterV2(
                 Job:              jobRowId,
                 JobAbbreviation:  jobAbbr,
                 Level:            (int)player.Level,
-                AverageItemLevel: inventory.CalculateAverageItemLevel(equipped)
+                AverageItemLevel: inventory.CalculateAverageItemLevel(equipped),
+                TotalStats:       BuildTotalStats(snap.Value, equipped)
             );
 
-            var pieces = equipped.Select(p => new ExportPieceV1(
+            var pieces = equipped.Select(p => new GearGoblin.Core.ExportPieceV1(
                 Slot:              p.Slot.ToString(),
                 ItemId:            p.ItemId,
                 Name:              p.Name,
@@ -83,7 +91,7 @@ public sealed class GearsetExporter : IGearsetExporter
                 IsHighQuality:     p.IsHighQuality,
                 MateriaSlotCount:  p.MateriaSlotCount,
                 IsOvermeldAllowed: p.IsOvermeldAllowed,
-                Materia:           p.Materia.Select(m => new ExportMateriaV1(
+                Materia:           p.Materia.Select(m => new GearGoblin.Core.ExportMateriaV1(
                     SlotIndex: m.SlotIndex,
                     MateriaId: m.MateriaId,
                     Grade:     m.Grade,
@@ -94,7 +102,7 @@ public sealed class GearsetExporter : IGearsetExporter
                 BaseSubstats:      p.BaseSubstats.ToDictionary(kvp => kvp.Key.ToString(), kvp => kvp.Value)
             )).ToList();
 
-            var payload = new ExportPayloadV1(
+            var payload = new GearGoblin.Core.ExportPayloadV2(
                 V:          SchemaVersion,
                 Plugin:     "GearGoblin",
                 Version:    typeof(GearsetExporter).Assembly.GetName().Version?.ToString() ?? "?",
@@ -126,47 +134,23 @@ public sealed class GearsetExporter : IGearsetExporter
             return false;
         }
     }
+    private List<GearGoblin.Core.TotalStat> BuildTotalStats(GearGoblin.Core.Materia.StatSnapshot s, IReadOnlyList<EquippedPiece> equipped)
+    {
+        var mod = GearGoblin.Core.Materia.LevelTable.Get(s.Level);
+        int totalGearCap = equipped.Sum(p => p.SubstatCap);
+        
+        int subCap = mod.Sub + totalGearCap;
+        int mainCap = mod.Main + totalGearCap;
 
-    // =========================================================================
-    // Wire-format DTOs. These are the exact shapes that serialize to JSON.
-    // Schema is versioned via the GG-EXPORT:v1: prefix; new schema versions
-    // get new record types (ExportPayloadV2, etc.) rather than mutating these.
-    // =========================================================================
-
-    private sealed record ExportPayloadV1(
-        int                  V,
-        string               Plugin,
-        string               Version,
-        string               ExportedAt,
-        ExportCharacterV1    Character,
-        List<ExportPieceV1>  Equipped
-    );
-
-    private sealed record ExportCharacterV1(
-        uint   Job,
-        string JobAbbreviation,
-        int    Level,
-        int    AverageItemLevel
-    );
-
-    private sealed record ExportPieceV1(
-        string                  Slot,
-        uint                    ItemId,
-        string                  Name,
-        uint                    ItemLevel,
-        bool                    IsHighQuality,
-        byte                    MateriaSlotCount,
-        bool                    IsOvermeldAllowed,
-        List<ExportMateriaV1>   Materia,
-        uint                    SubstatCap = 0,
-        Dictionary<string, int>? BaseSubstats = null
-    );
-
-    private sealed record ExportMateriaV1(
-        int    SlotIndex,
-        ushort MateriaId,
-        byte   Grade,
-        string StatName,
-        int    StatValue
-    );
+        return new List<GearGoblin.Core.TotalStat>
+        {
+            new("Critical Hit", s.Crit, GearGoblin.Core.Caps.HasNoCap("Critical Hit") ? null : subCap),
+            new("Direct Hit", s.DH, GearGoblin.Core.Caps.HasNoCap("Direct Hit") ? null : subCap),
+            new("Determination", s.Det, GearGoblin.Core.Caps.HasNoCap("Determination") ? null : mainCap),
+            new("Skill Speed", s.SkS, GearGoblin.Core.Caps.HasNoCap("Skill Speed") ? null : subCap),
+            new("Spell Speed", s.SpS, GearGoblin.Core.Caps.HasNoCap("Spell Speed") ? null : subCap),
+            new("Tenacity", s.Ten, GearGoblin.Core.Caps.HasNoCap("Tenacity") ? null : subCap),
+            new("Piety", s.Pie, GearGoblin.Core.Caps.HasNoCap("Piety") ? null : mainCap)
+        };
+    }
 }
