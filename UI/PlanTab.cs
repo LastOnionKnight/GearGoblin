@@ -187,7 +187,7 @@ public static class PlanTab
 
         foreach (var bisSlot in bis.Slots)
         {
-            Theme.TtChrome.BeginPanel("diff_" + bisSlot.Slot);
+            Theme.TtChrome.BeginPanel("diff_" + bisSlot.Slot, 64f);
             
             ImGui.BeginGroup();
             using (fonts.JetBrainsMonoBody.PushOrNull())

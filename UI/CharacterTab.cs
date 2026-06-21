@@ -118,7 +118,7 @@ public static class CharacterTab
 
     private static void DrawGauge(Plugin plugin, string name, int val, int cap, Vector4 color, float fillPct, string note)
     {
-        Theme.TtChrome.BeginPanel("gauge_" + name);
+        Theme.TtChrome.BeginPanel("gauge_" + name, 90f);
         
         // Top row
         using (plugin.Fonts.CinzelEmphasis.PushOrNull())
