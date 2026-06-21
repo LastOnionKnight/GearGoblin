@@ -39,6 +39,19 @@ public sealed class BrandResources : IDisposable
     /// generic geometric glyphs in the UI.</summary>
     public IDalamudTextureWrap? LanternMark { get; private set; }
 
+    public System.Collections.Generic.Dictionary<string, IDalamudTextureWrap?> JobStones { get; } = new();
+
+    // --- Phase 3 Additions ---
+    public IDalamudTextureWrap? OnionCrest { get; private set; }
+    public IDalamudTextureWrap? DrkJob { get; private set; }
+    public IDalamudTextureWrap? MateriaCrit { get; private set; }
+    public IDalamudTextureWrap? MateriaDet { get; private set; }
+    public IDalamudTextureWrap? MateriaDh { get; private set; }
+    public IDalamudTextureWrap? MateriaPie { get; private set; }
+    public IDalamudTextureWrap? MateriaSks { get; private set; }
+    public IDalamudTextureWrap? MateriaSps { get; private set; }
+    public IDalamudTextureWrap? MateriaTen { get; private set; }
+
     /// <summary>True if at least one asset loaded successfully. Callers can
     /// use this as a quick "do brand stuff or fall back to text?" check.</summary>
     public bool AnyLoaded => CircleLogo != null || RagsPortrait != null || RagsMini != null || LanternMark != null;
@@ -71,6 +84,16 @@ public sealed class BrandResources : IDisposable
                     RagsPortrait = TryLoad("rags-portrait.png");
                     RagsMini     = TryLoad("rags-mini.png");
                     LanternMark  = TryLoad("lantern-mark.png");
+
+                    OnionCrest   = TryLoad("onion-crest.png");
+                    DrkJob       = TryLoad("DRK.png");
+                    MateriaCrit  = TryLoad("materia/crit.png");
+                    MateriaDet   = TryLoad("materia/det.png");
+                    MateriaDh    = TryLoad("materia/dh.png");
+                    MateriaPie   = TryLoad("materia/pie.png");
+                    MateriaSks   = TryLoad("materia/sks.png");
+                    MateriaSps   = TryLoad("materia/sps.png");
+                    MateriaTen   = TryLoad("materia/ten.png");
 
                     if (AnyLoaded)
                     {
@@ -146,9 +169,30 @@ public sealed class BrandResources : IDisposable
         RagsPortrait?.Dispose();
         RagsMini?.Dispose();
         LanternMark?.Dispose();
+
+        OnionCrest?.Dispose();
+        DrkJob?.Dispose();
+        MateriaCrit?.Dispose();
+        MateriaDet?.Dispose();
+        MateriaDh?.Dispose();
+        MateriaPie?.Dispose();
+        MateriaSks?.Dispose();
+        MateriaSps?.Dispose();
+        MateriaTen?.Dispose();
+
         CircleLogo = null;
         RagsPortrait = null;
         RagsMini = null;
         LanternMark = null;
+
+        OnionCrest = null;
+        DrkJob = null;
+        MateriaCrit = null;
+        MateriaDet = null;
+        MateriaDh = null;
+        MateriaPie = null;
+        MateriaSks = null;
+        MateriaSps = null;
+        MateriaTen = null;
     }
 }

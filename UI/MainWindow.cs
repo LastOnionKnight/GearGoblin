@@ -114,84 +114,14 @@ public sealed class MainWindow : Window, IDisposable
 
     private void DrawBody(Dalamud.Game.ClientState.Objects.SubKinds.IPlayerCharacter player)
     {
-        var job = player.ClassJob.Value.Abbreviation.ExtractText();
-        var lvl = player.Level;
-
-        // v0.6.0 — Player name line in Cinzel @ 22px to match the web
-        // app's `.adv-name` header style. Falls back to default font if
-        // FontAtlasManager flagged a load failure.
-        using (plugin.Fonts.CinzelHeader.PushOrNull())
-        {
-            ImGui.Text($"{player.Name} — {job} Lv {lvl}");
-        }
-        ImGui.SameLine();
-        // v0.6.5.2 — Refresh button: previously a stub.
-        //
-        // Most tabs already read fresh data each frame (InventoryReader,
-        // ClientState.LocalPlayer, etc. are queried per-draw), so there are
-        // no internal caches to invalidate. The button's real value is:
-        // (1) confirming the click registered with a visible cue, and
-        // (2) forcing one explicit inventory read NOW rather than waiting
-        // for the next render frame — useful right after equipping new
-        // gear or switching jobs.
-        //
-        // The visual cue is a 2-second "✓ refreshed" label that fades
-        // from full ice-cyan opacity to transparent. Static timestamp
-        // lives at class scope so the fade survives across draw frames.
-        if (ImGui.SmallButton("Refresh"))
-        {
-            try
-            {
-                // Discard the result — we don't need it here; the goal is
-                // just to force the read. Tabs call ReadEquipped() again
-                // when they draw. Some inventory reads can throw if the
-                // player object is in an unusual state (loading screens,
-                // between zones); swallow defensively so the UI never
-                // breaks on a refresh.
-                _ = plugin.Inventory.ReadEquipped();
-            }
-            catch (Exception ex)
-            {
-                DalamudServices.Log.Warning(ex,
-                    "Refresh button: InventoryReader.ReadEquipped() threw; UI continues with stale snapshot.");
-            }
-            s_lastRefreshTime = DateTime.UtcNow;
-        }
-
-        // Render the post-click confirmation label inline. Drawing it on
-        // the same line as the button keeps the header layout tight.
-        var sinceRefresh = (DateTime.UtcNow - s_lastRefreshTime).TotalSeconds;
-        if (sinceRefresh >= 0 && sinceRefresh < 2.0)
-        {
-            ImGui.SameLine();
-            // Linear fade across the 2-second window. Ice-cyan to match
-            // the rest of the TLF theme's "info" accent color.
-            var alpha = (float)Math.Max(0.0, 1.0 - sinceRefresh / 2.0);
-            ImGui.TextColored(new Vector4(0.49f, 0.75f, 0.77f, alpha), "✓ refreshed");
-        }
-
-        // Version badge — right-aligned in the header, TLF gold. v0.6.0:
-        // wrapped in Press Start 2P @ 10px to match the web's
-        // .version-pill micro-label treatment.
-        var avail = ImGui.GetContentRegionAvail();
-        var badgeText = $"v{s_versionString}";
-        float badgeWidth;
-        using (plugin.Fonts.Pixel.PushOrNull())
-        {
-            badgeWidth = ImGui.CalcTextSize(badgeText).X + 12;
-            ImGui.SameLine(ImGui.GetCursorPosX() + avail.X - badgeWidth);
-            ImGui.TextColored(Theme.TtChrome.EmberBright, badgeText);
-        }
-
+        DrawIdentityBar(player);
         ImGui.Separator();
+        
+        // Main content area - leave space for footer
+        ImGui.BeginChild("##content", new Vector2(0, -36f), false, ImGuiWindowFlags.NoBackground);
 
         if (ImGui.BeginTabBar("##goblintabs"))
         {
-            // v0.6.6: Character tab — first in the strip, the new landing experience.
-            // Replaces the StatusPanelInjector's native-panel injection over time.
-            // See UI/CharacterTab.cs and CHANGELOG.md v0.6.6 entry.
-            // v0.6.7: Quick Start leads the tab bar for new-user onboarding;
-            // Character moves to position 2 (still the meatiest content).
             if (ImGui.BeginTabItem("Quick Start"))
             {
                 DrawQuickStart();
@@ -204,15 +134,10 @@ public sealed class MainWindow : Window, IDisposable
             }
             if (ImGui.BeginTabItem("Plan"))
             {
-                // v0.6.7: pass full plugin so PlanTab can reach plugin.Fonts
-                // for Track 2 typography (Cormorant Garamond, JetBrains Mono).
                 PlanTab.Draw(plugin);
                 ImGui.EndTabItem();
             }
-            // v0.6.6.3: CharacterTab.WantsMateriaTabFocus is set by the
-            // "See full audit in Materia tab →" link on the advisor card.
-            // Read+consume the flag here so the next BeginTabItem call
-            // receives SetSelected for exactly one frame, then resets.
+            
             var materiaFlags = ImGuiTabItemFlags.None;
             if (CharacterTab.WantsMateriaTabFocus)
             {
@@ -246,6 +171,129 @@ public sealed class MainWindow : Window, IDisposable
             }
             ImGui.EndTabBar();
         }
+        ImGui.EndChild();
+        
+        DrawFooter(player);
+    }
+
+    private void DrawIdentityBar(Dalamud.Game.ClientState.Objects.SubKinds.IPlayerCharacter player)
+    {
+        var jobAbbr = player.ClassJob.Value.Abbreviation.ExtractText();
+        var lvl = player.Level;
+        var world = player.HomeWorld.Value.Name.ExtractText();
+
+        ImGui.PushStyleColor(ImGuiCol.ChildBg, Theme.TtChrome.Rgba(10, 20, 34, 0.5f));
+        ImGui.BeginChild("##identity", new Vector2(0, 58), false, ImGuiWindowFlags.NoScrollbar);
+        
+        // Add some top padding
+        ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 10f);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 16f);
+
+        // Job Stone
+        if (plugin.Brand.JobStones.TryGetValue(jobAbbr, out var tex) && tex != null)
+        // Logo and Title block
+        ImGui.BeginGroup();
+        if (plugin.Brand.CircleLogo != null)
+        {
+            ImGui.Image(plugin.Brand.CircleLogo.Handle, new Vector2(64, 64));
+            ImGui.SameLine(0, 16);
+        }
+        ImGui.BeginGroup();
+        ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 8f);
+        using (this.plugin.Fonts.CinzelHeader.PushOrNull())
+        {
+            ImGui.TextColored(Theme.TtChrome.GoldBright, "GearGoblin");
+        }
+        // Author block
+        ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 4f);
+        ImGui.TextUnformatted("A component of ");
+        ImGui.SameLine(0, 4);
+        ImGui.TextColored(Theme.TtChrome.GoldBright, "Tonberry Tactics");
+        ImGui.EndGroup();
+        ImGui.EndGroup();
+
+        // Right side: World and Refresh
+        var avail = ImGui.GetContentRegionAvail();
+        
+        // Layout: World text (right aligned), then Refresh button
+        // Calculate widths
+        var worldLabel = "WORLD";
+        var refreshLabel = "REFRESH";
+        float worldWidth = 100f; // Approximation
+        float refreshWidth = 80f; // Approximation
+        
+        ImGui.SameLine(ImGui.GetWindowWidth() - 200f);
+        
+        ImGui.BeginGroup();
+        using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
+        {
+            ImGui.TextColored(Theme.TtChrome.FgFaint, worldLabel);
+            ImGui.TextColored(Theme.TtChrome.Fg2, world);
+        }
+        ImGui.EndGroup();
+
+        ImGui.SameLine(0, 16f);
+        
+        // Refresh Button
+        ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 6f);
+        ImGui.PushStyleColor(ImGuiCol.Button, Theme.TtChrome.Rgba(45, 108, 223, 0.10f));
+        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, Theme.TtChrome.Rgba(45, 108, 223, 0.20f));
+        ImGui.PushStyleColor(ImGuiCol.ButtonActive, Theme.TtChrome.Cobalt);
+        ImGui.PushStyleColor(ImGuiCol.Border, Theme.TtChrome.LineCobalt);
+        ImGui.PushStyleVar(ImGuiStyleVar.FrameBorderSize, 1f);
+        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 6f);
+        
+        using (plugin.Fonts.Pixel.PushOrNull())
+        {
+            if (ImGui.Button("REFRESH", new Vector2(0, 24)))
+            {
+                try { _ = plugin.Inventory.ReadEquipped(); }
+                catch (Exception ex) { DalamudServices.Log.Warning(ex, "Refresh threw."); }
+                s_lastRefreshTime = DateTime.UtcNow;
+            }
+        }
+        ImGui.PopStyleVar(2);
+        ImGui.PopStyleColor(4);
+        
+        var sinceRefresh = (DateTime.UtcNow - s_lastRefreshTime).TotalSeconds;
+        if (sinceRefresh >= 0 && sinceRefresh < 2.0)
+        {
+            var alpha = (float)Math.Max(0.0, 1.0 - sinceRefresh / 2.0);
+            ImGui.SameLine();
+            ImGui.TextColored(new Vector4(0.49f, 0.75f, 0.77f, alpha), "✓");
+        }
+
+        ImGui.EndChild();
+        ImGui.PopStyleColor();
+    }
+
+    private void DrawFooter(Dalamud.Game.ClientState.Objects.SubKinds.IPlayerCharacter player)
+    {
+        ImGui.PushStyleColor(ImGuiCol.ChildBg, Theme.TtChrome.Rgba(8, 15, 26, 0.7f));
+        ImGui.BeginChild("##footer", new Vector2(0, 36), false, ImGuiWindowFlags.NoScrollbar);
+        
+        ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 10f);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 16f);
+        
+        using (plugin.Fonts.Pixel.PushOrNull())
+        {
+            ImGui.TextColored(Theme.TtChrome.Tonberry, "LIVE");
+            ImGui.SameLine(0, 8f);
+            ImGui.TextColored(Theme.TtChrome.GoldDim, "· The Onion Knight stands ready");
+        }
+        
+        var jobAbbr = player.ClassJob.Value.Abbreviation.ExtractText();
+        var ilvl = plugin.Inventory.CalculateAverageItemLevel(plugin.Inventory.ReadEquipped()).ToString();
+        
+        ImGui.SameLine(ImGui.GetWindowWidth() - 140f);
+        ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 2f);
+        
+        Theme.TtChrome.Pill(jobAbbr, Theme.TtChrome.CobaltBright);
+        ImGui.SameLine(0, 8f);
+        Theme.TtChrome.Pill($"iLv {ilvl}", Theme.TtChrome.Ok);
+        
+        ImGui.EndChild();
+        ImGui.PopStyleColor();
     }
 
     // ── v0.4.6 Quick Start tab ──────────────────────────────────────────
@@ -259,7 +307,7 @@ public sealed class MainWindow : Window, IDisposable
 
     private void DrawQuickStart()
     {
-        Theme.TtChrome.BeginCard();
+        Theme.TtChrome.BeginPanel("quickstart_panel");
         Theme.TtChrome.Eyebrow(this.plugin.Fonts, "Quick Start · The Loop");
         ImGui.Spacing();
         Theme.TtChrome.Quip(this.plugin.Fonts, "The export–optimize–import loop, in plain English.");
@@ -283,7 +331,7 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.Spacing();
 
         // Step 1: EXPORT
-        ImGui.TextColored(Theme.TtChrome.EmberBright, $"{Theme.TtChrome.GlyphForward} 1. EXPORT");
+        ImGui.TextColored(Theme.TtChrome.GoldBright, $"{Theme.TtChrome.GlyphForward} 1. EXPORT");
         ImGui.Indent();
         ImGui.TextUnformatted("In-game:  /ttexport");
         ImGui.TextWrapped(
@@ -294,7 +342,7 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.Spacing();
 
         // Step 2: OPTIMIZE
-        ImGui.TextColored(Theme.TtChrome.EmberBright, $"{Theme.TtChrome.GlyphForward} 2. OPTIMIZE");
+        ImGui.TextColored(Theme.TtChrome.GoldBright, $"{Theme.TtChrome.GlyphForward} 2. OPTIMIZE");
         ImGui.Indent();
         ImGui.TextUnformatted("In your browser:  https://tonberrytactics.pages.dev");
         ImGui.TextWrapped(
@@ -305,14 +353,14 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.Spacing();
 
         // Step 3: IMPORT
-        ImGui.TextColored(Theme.TtChrome.EmberBright, $"{Theme.TtChrome.GlyphForward} 3. IMPORT");
+        ImGui.TextColored(Theme.TtChrome.GoldBright, $"{Theme.TtChrome.GlyphForward} 3. IMPORT");
         ImGui.Indent();
         ImGui.TextUnformatted("In-game:  /ttimport");
         ImGui.TextWrapped(
             "Reads the GG-PLAN:v1: string from your clipboard and turns it into an active plan with a " +
             "meld checklist (\"Diamond Earring slot 1 ← Savage Aim XII\"). Tick boxes as you meld.");
         ImGui.Spacing();
-        ImGui.TextColored(Theme.TtChrome.SeverityWarning,
+        ImGui.TextColored(Theme.TtChrome.Warn,
             "v0.6.5: command parses + validates plan strings successfully. In-game persistence + checklist UI ship in v0.6.6.");
         ImGui.Unindent();
         ImGui.Spacing();
@@ -320,14 +368,14 @@ public sealed class MainWindow : Window, IDisposable
 
         // TLF manifesto opener — sets the voice up front
         Theme.TtChrome.Eyebrow(this.plugin.Fonts, "TLF MANIFESTO");
-        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TtChrome.FrostMuted);
+        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TtChrome.FgMuted);
         ImGui.TextUnformatted("    We carry the lantern. We carry the knife. We do not run.");
         ImGui.TextUnformatted("    We step forward, one slot at a time, until the math is done.");
         ImGui.PopStyleColor();
         ImGui.Spacing();
-        ImGui.SameLine(); Theme.TtChrome.Pill("offline",       Theme.TtChrome.FrostMuted);
-        ImGui.SameLine(); Theme.TtChrome.Pill("no backend",    Theme.TtChrome.FrostMuted);
-        ImGui.SameLine(); Theme.TtChrome.Pill("round-trip v1", Theme.TtChrome.Ember);
+        ImGui.SameLine(); Theme.TtChrome.Pill("offline",       Theme.TtChrome.FgMuted);
+        ImGui.SameLine(); Theme.TtChrome.Pill("no backend",    Theme.TtChrome.FgMuted);
+        ImGui.SameLine(); Theme.TtChrome.Pill("round-trip v1", Theme.TtChrome.Gold);
         ImGui.Spacing();
         ImGui.Spacing();
 
@@ -387,32 +435,32 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
-        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TtChrome.EmberDeep);
+        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TtChrome.GoldDim);
         if (plugin.Brand.LanternMark != null)
         {
             var iconSize = new System.Numerics.Vector2(16, 16);
-            ImGui.Image(plugin.Brand.LanternMark.Handle, iconSize, System.Numerics.Vector2.Zero, System.Numerics.Vector2.One, Theme.TtChrome.EmberDeep);
+            ImGui.Image(plugin.Brand.LanternMark.Handle, iconSize, System.Numerics.Vector2.Zero, System.Numerics.Vector2.One, Theme.TtChrome.GoldDim);
             ImGui.SameLine();
-            ImGui.TextColored(Theme.TtChrome.EmberDeep, "  The Onion Knight stands ready  ");
+            ImGui.TextColored(Theme.TtChrome.GoldDim, "  The Onion Knight stands ready  ");
             ImGui.SameLine();
-            ImGui.Image(plugin.Brand.LanternMark.Handle, iconSize, System.Numerics.Vector2.Zero, System.Numerics.Vector2.One, Theme.TtChrome.EmberDeep);
+            ImGui.Image(plugin.Brand.LanternMark.Handle, iconSize, System.Numerics.Vector2.Zero, System.Numerics.Vector2.One, Theme.TtChrome.GoldDim);
         }
         else
         {
             ImGui.TextUnformatted($"  {Theme.TtChrome.GlyphCorner}  The Onion Knight stands ready  {Theme.TtChrome.GlyphCorner}");
         }
         ImGui.PopStyleColor();
-        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TtChrome.FrostFaint);
+        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TtChrome.FgFaint);
         ImGui.TextUnformatted($"  TONBERRY TACTICS · v{s_versionString} · NO GEAR · NO HOPE · NO PANTS · JUST ONIONS");
         ImGui.PopStyleColor();
 
-        Theme.TtChrome.EndCard();
+        Theme.TtChrome.EndPanel();
     }
 
     private static void CmdRow(string cmd, string desc)
     {
         ImGui.TableNextRow();
-        ImGui.TableNextColumn(); ImGui.TextColored(Theme.TtChrome.EmberBright, cmd);
+        ImGui.TableNextColumn(); ImGui.TextColored(Theme.TtChrome.GoldBright, cmd);
         ImGui.TableNextColumn(); ImGui.TextUnformatted(desc);
     }
 
@@ -420,7 +468,7 @@ public sealed class MainWindow : Window, IDisposable
 
     private void DrawSettings()
     {
-        Theme.TtChrome.BeginCard();
+        Theme.TtChrome.BeginPanel("settings_panel");
         var configService = plugin.ConfigService;
         var cfg  = configService.Current;
         var diag = plugin.StatusPanel.GetDiagnostics();
@@ -441,7 +489,7 @@ public sealed class MainWindow : Window, IDisposable
         Theme.TtChrome.Eyebrow(this.plugin.Fonts, "CharacterPanelRefined coexistence");
         if (diag.CprDetected)
         {
-            ImGui.TextColored(Theme.TtChrome.HpGreenBright,
+            ImGui.TextColored(Theme.TtChrome.Ok,
                 "✓ CPR detected — derivation rows deferred to CPR by default.");
         }
         else
@@ -525,14 +573,14 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.Separator();
         ImGui.TextDisabled("Changes save automatically. Reopen the Character window for injector toggles to take effect.");
 
-        Theme.TtChrome.EndCard();
+        Theme.TtChrome.EndPanel();
     }
 
     // ── v0.4.6 Diagnostics tab ──────────────────────────────────────────
 
     private void DrawDiagnostics()
     {
-        Theme.TtChrome.BeginCard();
+        Theme.TtChrome.BeginPanel("diagnostics_panel");
         var diag = plugin.StatusPanel.GetDiagnostics();
 
         Theme.TtChrome.Eyebrow(this.plugin.Fonts, "StatusPanelInjector — live state");
@@ -596,7 +644,7 @@ public sealed class MainWindow : Window, IDisposable
             "• 'Outer-addon height growth' near zero with CPR active suggests the v0.4.6 fix isn't running — " +
             "verify v0.4.6 is actually loaded (/xllog should have 'StatusPanelInjector v0.4.6').\n" +
             "• 'Advisor errored: Yes' means the optimizer threw on your gearset — paste the /xllog stack trace into a bug report.");
-        Theme.TtChrome.EndCard();
+        Theme.TtChrome.EndPanel();
     }
 
     private static void Row(string label, string value)
@@ -622,7 +670,7 @@ public sealed class MainWindow : Window, IDisposable
 
     private void DrawFeedback()
     {
-        Theme.TtChrome.BeginCard();
+        Theme.TtChrome.BeginPanel("feedback_panel");
         Theme.TtChrome.Eyebrow(this.plugin.Fonts, "Feedback");
         ImGui.Spacing();
         Theme.TtChrome.Quip(this.plugin.Fonts, "GearGoblin is in beta. Feedback genuinely shapes what ships next.");
@@ -693,7 +741,7 @@ public sealed class MainWindow : Window, IDisposable
 
         if (!string.IsNullOrEmpty(feedbackLastAction))
         {
-            ImGui.TextColored(Theme.TtChrome.HpGreenBright, feedbackLastAction);
+            ImGui.TextColored(Theme.TtChrome.Ok, feedbackLastAction);
         }
 
         ImGui.Spacing();
@@ -708,7 +756,7 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.TextDisabled(
             "No analytics, no telemetry, no auto-submit. Nothing leaves your " +
             "machine unless you click one of those buttons.");
-        Theme.TtChrome.EndCard();
+        Theme.TtChrome.EndPanel();
     }
 
     /// <summary>
@@ -760,7 +808,7 @@ public sealed class MainWindow : Window, IDisposable
 
     private void DrawAbout()
     {
-        Theme.TtChrome.BeginCard();
+        Theme.TtChrome.BeginPanel("about_panel");
         // v0.6.0 — eyebrow in Press Start 2P @ 10px to match the web's
         // .brand-eyebrow micro-label treatment.
         Theme.TtChrome.Eyebrow(plugin.Fonts, "TLF GEAR DIVISION · OPERATIONS BRIEF");
@@ -782,7 +830,7 @@ public sealed class MainWindow : Window, IDisposable
             ImGui.BeginGroup();
             using (plugin.Fonts.CinzelDisplay.PushOrNull())
             {
-                ImGui.TextColored(Theme.TtChrome.EmberBright, "TONBERRY TACTICS");
+                ImGui.TextColored(Theme.TtChrome.GoldBright, "TONBERRY TACTICS");
             }
             using (plugin.Fonts.Pixel.PushOrNull())
             {
@@ -794,7 +842,7 @@ public sealed class MainWindow : Window, IDisposable
         {
             using (plugin.Fonts.CinzelDisplay.PushOrNull())
             {
-                ImGui.TextColored(Theme.TtChrome.EmberBright, "TONBERRY TACTICS");
+                ImGui.TextColored(Theme.TtChrome.GoldBright, "TONBERRY TACTICS");
             }
             ImGui.SameLine();
             using (plugin.Fonts.Pixel.PushOrNull())
@@ -861,26 +909,26 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
+        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TtChrome.GoldDim);
         if (plugin.Brand.LanternMark != null)
         {
             var iconSize = new System.Numerics.Vector2(16, 16);
-            ImGui.Image(plugin.Brand.LanternMark.Handle, iconSize, System.Numerics.Vector2.Zero, System.Numerics.Vector2.One, Theme.TtChrome.EmberDeep);
+            ImGui.Image(plugin.Brand.LanternMark.Handle, iconSize, System.Numerics.Vector2.Zero, System.Numerics.Vector2.One, Theme.TtChrome.GoldDim);
             ImGui.SameLine();
-            ImGui.TextColored(Theme.TtChrome.EmberDeep, "  The Onion Knight stands ready  ");
+            ImGui.TextColored(Theme.TtChrome.GoldDim, "  The Onion Knight stands ready  ");
             ImGui.SameLine();
-            ImGui.Image(plugin.Brand.LanternMark.Handle, iconSize, System.Numerics.Vector2.Zero, System.Numerics.Vector2.One, Theme.TtChrome.EmberDeep);
+            ImGui.Image(plugin.Brand.LanternMark.Handle, iconSize, System.Numerics.Vector2.Zero, System.Numerics.Vector2.One, Theme.TtChrome.GoldDim);
         }
         else
         {
-            ImGui.PushStyleColor(ImGuiCol.Text, Theme.TtChrome.EmberDeep);
             ImGui.TextUnformatted($"  {Theme.TtChrome.GlyphCorner}  The Onion Knight stands ready  {Theme.TtChrome.GlyphCorner}");
             ImGui.PopStyleColor();
         }
-        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TtChrome.FrostFaint);
+        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TtChrome.FgFaint);
         ImGui.TextUnformatted($"  TONBERRY TACTICS · v{s_versionString} · NO GEAR · NO HOPE · NO PANTS · JUST ONIONS");
         ImGui.PopStyleColor();
 
-        Theme.TtChrome.EndCard();
+        Theme.TtChrome.EndPanel();
     }
 
     /// <summary>

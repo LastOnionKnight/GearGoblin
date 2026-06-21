@@ -56,48 +56,43 @@ public static class PlanTab
     private static CancellationTokenSource? s_pendingFetch;
     private static bool s_isFetching;
 
-    /// <summary>
-    /// Draw the Plan tab. v0.6.7 takes the full Plugin instance so it can
-    /// reach the FontAtlasManager for Track 2 typography. Replaces the
-    /// v0.6.x Draw(InventoryReader) signature — MainWindow.cs caller must
-    /// be updated to pass `plugin` instead of `plugin.Inventory`.
-    /// </summary>
     public static void Draw(Plugin plugin)
     {
-        TtChrome.Push();
+        Theme.TtChrome.Push();
         try
         {
-            DrawPasteCard(plugin);
+            Theme.TtChrome.Eyebrow(plugin.Fonts, "Plan · Diff Against Target");
+            Theme.TtChrome.Quip(plugin.Fonts, "Paste an Etro or XIVGear URL to diff a target set against your equipped gear, slot by slot.");
+            ImGui.Spacing();
+            ImGui.Spacing();
+
+            DrawPasteArea(plugin);
 
             ImGui.Spacing();
             ImGui.Spacing();
 
             if (s_loadedSet is null)
-                DrawEmptyStateCard(plugin);
+                DrawEmptyState(plugin);
             else
-                DrawDiffCard(plugin, s_loadedSet);
+                DrawDiffArea(plugin, s_loadedSet);
         }
         finally
         {
-            TtChrome.Pop();
+            Theme.TtChrome.Pop();
         }
     }
 
-    // ── Paste card ──────────────────────────────────────────────────────
+    // ── Paste area ──────────────────────────────────────────────────────
 
-    private static void DrawPasteCard(Plugin plugin)
+    private static void DrawPasteArea(Plugin plugin)
     {
-        TtChrome.BeginCard();
-
-        TtChrome.Eyebrow(plugin.Fonts, "Plan · BiS Paste");
-        ImGui.Spacing();
-        TtChrome.Quip(plugin.Fonts,
-            "Paste an Etro or XIVGear URL. Grub-Grub will compare it to your kit.");
-        ImGui.Spacing();
-        ImGui.Spacing();
-
-        // URL input + Fetch + Clear in one row.
-        // Reserves 160px on the right for the two buttons + spacing.
+        ImGui.BeginGroup();
+        
+        using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
+        {
+            ImGui.TextColored(Theme.TtChrome.FgFaint, "TARGET SOURCE");
+        }
+        
         ImGui.PushItemWidth(-160);
         ImGui.InputText("##url", ref s_urlInput, 512);
         ImGui.PopItemWidth();
@@ -123,7 +118,7 @@ public static class PlanTab
             s_status    = "";
         }
 
-        // Status message (if any) — colored by severity.
+        // Status message (if any)
         if (!string.IsNullOrEmpty(s_status))
         {
             ImGui.Spacing();
@@ -131,66 +126,56 @@ public static class PlanTab
             ImGui.TextColored(color, s_status);
         }
 
-        TtChrome.EndCard();
+        ImGui.EndGroup();
     }
 
     private static Vector4 ResolveStatusColor(string status)
     {
         if (status.StartsWith("Error", StringComparison.OrdinalIgnoreCase) ||
             status.StartsWith("Failed", StringComparison.OrdinalIgnoreCase))
-            return TtChrome.SeverityCritical;
+            return Theme.TtChrome.Over;
 
         if (status.StartsWith("Loaded", StringComparison.OrdinalIgnoreCase))
-            return TtChrome.HpGreen;
+            return Theme.TtChrome.Ok;
 
-        // "Fetching..." and anything else
-        return TtChrome.SeverityNote;
+        return Theme.TtChrome.FgMuted;
     }
 
-    // ── Empty state card ────────────────────────────────────────────────
+    // ── Empty state ────────────────────────────────────────────────
 
-    private static void DrawEmptyStateCard(Plugin plugin)
+    private static void DrawEmptyState(Plugin plugin)
     {
-        TtChrome.BeginCard();
-
-        TtChrome.Eyebrow(plugin.Fonts, "No BiS Loaded");
-        ImGui.Spacing();
-        TtChrome.Quip(plugin.Fonts,
-            "Drop a URL into the paste field above. Examples:");
+        ImGui.Separator();
         ImGui.Spacing();
 
-        ImGui.PushStyleColor(ImGuiCol.Text, TtChrome.FrostMuted);
-        ImGui.BulletText("https://etro.gg/gearset/<uuid>");
-        ImGui.BulletText("https://xivgear.app/?page=sl|<uuid>");
-        ImGui.PopStyleColor();
-
-        TtChrome.EndCard();
-    }
-
-    // ── Diff card ───────────────────────────────────────────────────────
-
-    private static void DrawDiffCard(Plugin plugin, BisGearset bis)
-    {
-        TtChrome.BeginCard();
-
-        TtChrome.Eyebrow(plugin.Fonts, $"BiS · {bis.Name}");
-        if (!string.IsNullOrEmpty(bis.Description))
+        using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
         {
+            ImGui.TextColored(Theme.TtChrome.FgFaint, "No BiS Loaded");
             ImGui.Spacing();
-            TtChrome.Quip(plugin.Fonts, bis.Description);
+            ImGui.TextColored(Theme.TtChrome.FgMuted, "Drop a URL into the paste field above. Examples:");
+            ImGui.Spacing();
+            ImGui.BulletText("https://etro.gg/gearset/<uuid>");
+            ImGui.BulletText("https://xivgear.app/?page=sl|<uuid>");
         }
-        ImGui.Spacing();
+    }
+
+    // ── Diff Area ───────────────────────────────────────────────────────
+
+    private static void DrawDiffArea(Plugin plugin, BisGearset bis)
+    {
+        using (plugin.Fonts.Pixel.PushOrNull())
+        {
+            ImGui.TextColored(Theme.TtChrome.CobaltBright, $"{Theme.TtChrome.GlyphEyebrow} SLOT DIFF");
+        }
+        ImGui.Separator();
         ImGui.Spacing();
 
         DrawDiff(bis, plugin.Inventory, plugin.Fonts);
-
-        TtChrome.EndCard();
     }
 
     private static void DrawDiff(BisGearset bis, IInventoryReader inventory, FontAtlasManager fonts)
     {
         var equipped = inventory.ReadEquipped();
-        // Defensive: skip duplicate-slot entries rather than crash.
         var equippedBySlot = new Dictionary<EquipSlot, EquippedPiece>();
         foreach (var e in equipped)
         {
@@ -200,58 +185,65 @@ public static class PlanTab
 
         var itemSheet = DalamudServices.DataManager.GetExcelSheet<Item>();
 
-        // Slightly de-emphasized header text so the data reads first.
-        ImGui.PushStyleColor(ImGuiCol.TableHeaderBg, TtChrome.InkDeeper);
-
-        if (ImGui.BeginTable("##plandiff", 4,
-            ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.Resizable))
+        foreach (var bisSlot in bis.Slots)
         {
-            ImGui.TableSetupColumn("Slot",    ImGuiTableColumnFlags.WidthFixed,  90);
-            ImGui.TableSetupColumn("Current", ImGuiTableColumnFlags.WidthStretch);
-            ImGui.TableSetupColumn("Target",  ImGuiTableColumnFlags.WidthStretch);
-            ImGui.TableSetupColumn("Status",  ImGuiTableColumnFlags.WidthFixed, 100);
-            ImGui.TableHeadersRow();
-
-            foreach (var bisSlot in bis.Slots)
+            Theme.TtChrome.BeginPanel("diff_" + bisSlot.Slot);
+            
+            ImGui.BeginGroup();
+            using (fonts.JetBrainsMonoBody.PushOrNull())
             {
-                ImGui.TableNextRow();
-
-                // Slot label
-                ImGui.TableNextColumn();
-                ImGui.PushStyleColor(ImGuiCol.Text, TtChrome.FrostMuted);
-                ImGui.TextUnformatted(bisSlot.Slot.ToString());
-                ImGui.PopStyleColor();
-
-                // Current
-                ImGui.TableNextColumn();
-                if (equippedBySlot.TryGetValue(bisSlot.Slot, out var current))
-                {
-                    ImGui.TextUnformatted(current.IsHighQuality ? $"{current.Name} ★" : current.Name);
-                    TtChrome.Number(fonts, $"iLvl {current.ItemLevel}", TtChrome.FrostFaint);
-                }
-                else
-                {
-                    ImGui.TextDisabled("(empty)");
-                }
-
-                // Target
-                ImGui.TableNextColumn();
-                var targetName = LookupItemName(itemSheet, bisSlot.ItemId);
-                ImGui.TextUnformatted(targetName);
-                TtChrome.Number(fonts, $"id {bisSlot.ItemId}", TtChrome.FrostFaint);
-
-                // Status pill
-                ImGui.TableNextColumn();
-                if (equippedBySlot.TryGetValue(bisSlot.Slot, out var c) && c.ItemId == bisSlot.ItemId)
-                    TtChrome.Pill("✓ match", TtChrome.HpGreen);
-                else
-                    TtChrome.Pill("✗ farm",  TtChrome.Farm);
+                ImGui.TextColored(Theme.TtChrome.FgMuted, bisSlot.Slot.ToString());
             }
+            ImGui.EndGroup();
 
-            ImGui.EndTable();
+            ImGui.SameLine(120);
+
+            ImGui.BeginGroup();
+            if (equippedBySlot.TryGetValue(bisSlot.Slot, out var current))
+            {
+                using (fonts.JetBrainsMonoBody.PushOrNull())
+                {
+                    ImGui.TextColored(Theme.TtChrome.Fg, current.IsHighQuality ? $"{current.Name} ★" : current.Name);
+                }
+                using (fonts.Pixel.PushOrNull())
+                {
+                    ImGui.TextColored(Theme.TtChrome.FgFaint, $"equipped · iLvl {current.ItemLevel}");
+                }
+            }
+            else
+            {
+                using (fonts.JetBrainsMonoBody.PushOrNull())
+                {
+                    ImGui.TextColored(Theme.TtChrome.FgFaint, "(empty)");
+                }
+            }
+            ImGui.EndGroup();
+
+            var targetName = LookupItemName(itemSheet, bisSlot.ItemId);
+            
+            var avail = ImGui.GetContentRegionAvail();
+            ImGui.SameLine(ImGui.GetWindowWidth() - 250f);
+            
+            ImGui.BeginGroup();
+            if (equippedBySlot.TryGetValue(bisSlot.Slot, out var c) && c.ItemId == bisSlot.ItemId)
+            {
+                using (fonts.JetBrainsMonoBody.PushOrNull())
+                {
+                    ImGui.TextColored(Theme.TtChrome.Ok, "✓ identical");
+                }
+            }
+            else
+            {
+                using (fonts.JetBrainsMonoBody.PushOrNull())
+                {
+                    ImGui.TextColored(Theme.TtChrome.Warn, $"target wants {targetName}");
+                }
+            }
+            ImGui.EndGroup();
+
+            Theme.TtChrome.EndPanel();
+            ImGui.Spacing();
         }
-
-        ImGui.PopStyleColor();  // TableHeaderBg
     }
 
     // ── Fetch (unchanged from v0.6.x) ───────────────────────────────────
@@ -264,17 +256,9 @@ public static class PlanTab
         s_loadedSet   = null;
         s_isFetching  = true;
 
-        // Fire-and-forget; don't block UI.
         _ = Task.Run(async () =>
         {
             var result = await BisFetcher.FetchAsync(url, s_pendingFetch.Token);
-            // Marshal back to framework thread for safety when we mutate static
-            // state. v0.6.5.2: explicit _ = discard silences CS4014 — the
-            // fire-and-forget pattern is intentional. We're already inside a
-            // Task.Run, so awaiting the framework dispatch would just add
-            // latency without changing behavior: the static state mutations
-            // happen on the framework tick regardless of whether this outer
-            // Task waits for them.
             _ = DalamudServices.Framework.RunOnFrameworkThread(() =>
             {
                 s_isFetching = false;
