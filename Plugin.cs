@@ -35,10 +35,16 @@ public sealed class Plugin : IDalamudPlugin
     // v0.4.7.1: /tt* are the new primary commands. /goblin* remain as
     // deprecated aliases through v0.5.x and will be removed at v1.0 (migration
     // strategy C from the v0.4.8 product Q&A: graceful staged transition).
-    private const string CommandName       = "/tt";
+    private const string CommandName       = "/tactics";
     private const string ExportCommandName = "/ttexport";
     private const string InfoCommandName   = "/ttinfo";
     private const string ImportCommandName = "/ttimport";
+
+    // Legacy aliases (kept for migration through v0.5.x)
+    private const string LegacyCommandName       = "/goblin";
+    private const string LegacyExportCommandName = "/goblinexport";
+    private const string LegacyInfoCommandName   = "/goblininfo";
+    private const string LegacyImportCommandName = "/goblinimport";
 
 
     // Property removed per Phase 1 migration.
@@ -72,11 +78,11 @@ public sealed class Plugin : IDalamudPlugin
         Provider = ServiceContainer.CreateProvider(this);
 
         // Services.
+        ConfigService = Provider.GetRequiredService<IConfigurationService>();
         Inventory   = Provider.GetRequiredService<IInventoryReader>();
         Exporter    = Provider.GetRequiredService<IGearsetExporter>();                       // v0.4.1
         Importer    = Provider.GetRequiredService<IGearsetImporter>();                            // v0.4.7 (scaffold)
         StatusPanel = Provider.GetRequiredService<IStatusPanelInjector>();
-        ConfigService = Provider.GetRequiredService<IConfigurationService>();
         Brand       = new BrandResources();                                 // v0.4.7.1
         Fonts       = new Theme.FontAtlasManager(pluginInterface);          // v0.6.0
 
@@ -91,19 +97,39 @@ public sealed class Plugin : IDalamudPlugin
         // Commands — primary set (/tt*).
         DalamudServices.CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Open Tonberry Tactics. Usage: /tt"
+            HelpMessage = "Open Tonberry Tactics. Usage: /tactics or /goblin"
+        });
+        DalamudServices.CommandManager.AddHandler(LegacyCommandName, new CommandInfo(OnCommand)
+        {
+            HelpMessage = "Open Tonberry Tactics (Legacy alias). Usage: /goblin",
+            ShowInHelp = false
         });
         DalamudServices.CommandManager.AddHandler(ExportCommandName, new CommandInfo(OnExportCommand)
         {
             HelpMessage = "Export your equipped gearset to clipboard for use in the Tonberry Tactics website."
         });
+        DalamudServices.CommandManager.AddHandler(LegacyExportCommandName, new CommandInfo(OnExportCommand)
+        {
+            HelpMessage = "Export your equipped gearset to clipboard (Legacy alias).",
+            ShowInHelp = false
+        });
         DalamudServices.CommandManager.AddHandler(InfoCommandName, new CommandInfo(OnInfoCommand)
         {
             HelpMessage = "Print Tonberry Tactics diagnostics to chat. Useful for bug reports."
         });
+        DalamudServices.CommandManager.AddHandler(LegacyInfoCommandName, new CommandInfo(OnInfoCommand)
+        {
+            HelpMessage = "Print Tonberry Tactics diagnostics to chat (Legacy alias).",
+            ShowInHelp = false
+        });
         DalamudServices.CommandManager.AddHandler(ImportCommandName, new CommandInfo(OnImportCommand)
         {
             HelpMessage = "Import a GG-PLAN:v1: plan string from clipboard. Pair with /ttexport."
+        });
+        DalamudServices.CommandManager.AddHandler(LegacyImportCommandName, new CommandInfo(OnImportCommand)
+        {
+            HelpMessage = "Import a plan string from clipboard (Legacy alias).",
+            ShowInHelp = false
         });
 
 
@@ -129,6 +155,11 @@ public sealed class Plugin : IDalamudPlugin
         DalamudServices.CommandManager.RemoveHandler(ExportCommandName);
         DalamudServices.CommandManager.RemoveHandler(InfoCommandName);
         DalamudServices.CommandManager.RemoveHandler(ImportCommandName);
+        
+        DalamudServices.CommandManager.RemoveHandler(LegacyCommandName);
+        DalamudServices.CommandManager.RemoveHandler(LegacyExportCommandName);
+        DalamudServices.CommandManager.RemoveHandler(LegacyInfoCommandName);
+        DalamudServices.CommandManager.RemoveHandler(LegacyImportCommandName);
 
         WindowSystem.RemoveAllWindows();
         mainWindow.Dispose();
