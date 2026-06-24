@@ -184,6 +184,14 @@ public sealed class MainWindow : Window, IDisposable
 
         ImGui.PushStyleColor(ImGuiCol.ChildBg, Theme.TtChrome.Sink);
         ImGui.BeginChild("##identity", new Vector2(0, 58), false, ImGuiWindowFlags.NoScrollbar);
+
+        var identityDrawList = ImGui.GetWindowDrawList();
+        var identityMin = ImGui.GetWindowPos();
+        var identitySize = ImGui.GetWindowSize();
+        identityDrawList.AddRectFilled(
+            identityMin,
+            new Vector2(identityMin.X + identitySize.X, identityMin.Y + identitySize.Y),
+            ImGui.GetColorU32(Theme.TtChrome.Sink));
         
         // Add some top padding
         ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 10f);
