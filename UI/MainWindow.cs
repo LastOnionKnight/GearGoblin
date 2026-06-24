@@ -118,7 +118,7 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.Separator();
         
         // Main content area - leave space for footer
-        ImGui.BeginChild("##content", new Vector2(0, -36f), false, ImGuiWindowFlags.NoBackground);
+        ImGui.BeginChild("##content", new Vector2(0, -36f), false, ImGuiWindowFlags.None);
 
         if (ImGui.BeginTabBar("##goblintabs"))
         {
