@@ -195,7 +195,7 @@ public sealed unsafe class StatusPanelInjector : IStatusPanelInjector
     {
         this.plugin = plugin;
 
-        if (!plugin.Configuration.EnableNativeStatPanel)
+        if (!plugin.ConfigService.Current.EnableNativeStatPanel)
         {
             DalamudServices.Log.Info(
                 "StatusPanelInjector: disabled in configuration; not registering listeners.");
@@ -277,7 +277,7 @@ public sealed unsafe class StatusPanelInjector : IStatusPanelInjector
             lastAdvisorErrored    = false;
 
             cprDetectedActive = CprDetection.IsCprActive();
-            if (cprDetectedActive && !plugin.Configuration.ForceDerivationsOverCpr)
+            if (cprDetectedActive && !plugin.ConfigService.Current.ForceDerivationsOverCpr)
             {
                 DalamudServices.Log.Info(
                     "StatusPanelInjector v0.4.6: CharacterPanelRefined detected as active; " +
@@ -349,8 +349,8 @@ public sealed unsafe class StatusPanelInjector : IStatusPanelInjector
 
     private bool WillInjectDerivations()
     {
-        if (!plugin.Configuration.EnableDerivedStatInjection) return false;
-        if (cprDetectedActive && !plugin.Configuration.ForceDerivationsOverCpr) return false;
+        if (!plugin.ConfigService.Current.EnableDerivedStatInjection) return false;
+        if (cprDetectedActive && !plugin.ConfigService.Current.ForceDerivationsOverCpr) return false;
         return true;
     }
 
@@ -414,17 +414,17 @@ public sealed unsafe class StatusPanelInjector : IStatusPanelInjector
                 "Some derivation rows will be missing.");
         }
 
-        if (critComponent != null && plugin.Configuration.ShowCritDerivations)
+        if (critComponent != null && plugin.ConfigService.Current.ShowCritDerivations)
             critCompactValue = AddStatRow(critComponent, "");
-        if (detComponent != null && plugin.Configuration.ShowDetDerivations)
+        if (detComponent != null && plugin.ConfigService.Current.ShowDetDerivations)
             detCompactValue = AddStatRow(detComponent, "");
-        if (dhComponent != null && plugin.Configuration.ShowDhDerivations)
+        if (dhComponent != null && plugin.ConfigService.Current.ShowDhDerivations)
             dhCompactValue = AddStatRow(dhComponent, "");
     }
 
     private void InjectSpeedSection()
     {
-        if (!plugin.Configuration.ShowSpeedDerivations) return;
+        if (!plugin.ConfigService.Current.ShowSpeedDerivations) return;
 
         var snap = StatReader.ReadCurrent();
         if (snap == null) return;
@@ -479,8 +479,8 @@ public sealed unsafe class StatusPanelInjector : IStatusPanelInjector
         var profile = JobProfiles.All.GetValueOrDefault(snap.Value.JobId);
         if (profile == null) return;
 
-        var injectTenacity = profile.Role == Role.Tank   && plugin.Configuration.ShowTenacityRow;
-        var injectPiety    = profile.Role == Role.Healer && plugin.Configuration.ShowPietyRow;
+        var injectTenacity = profile.Role == Role.Tank   && plugin.ConfigService.Current.ShowTenacityRow;
+        var injectPiety    = profile.Role == Role.Healer && plugin.ConfigService.Current.ShowPietyRow;
         if (!injectTenacity && !injectPiety) return;
 
         var roleSection = characterStatusPtr->UldManager.SearchNodeById(RolePropertiesNodeId);

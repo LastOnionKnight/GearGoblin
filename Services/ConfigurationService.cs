@@ -6,9 +6,11 @@ public sealed class ConfigurationService : IConfigurationService
 {
     public Configuration Current { get; }
 
-    public ConfigurationService(Plugin plugin)
+    public ConfigurationService()
     {
-        this.Current = plugin.Configuration;
+        var config = DalamudServices.PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        config.Initialize(DalamudServices.PluginInterface);
+        this.Current = config;
     }
 
     public void Save()

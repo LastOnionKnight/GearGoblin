@@ -41,8 +41,7 @@ public sealed class Plugin : IDalamudPlugin
     private const string ImportCommandName = "/ttimport";
 
 
-    [Obsolete("Use ConfigService.Current for reads. Configuration property will be removed by end of Phase 1.")]
-    public Configuration Configuration { get; }
+    // Property removed per Phase 1 migration.
     public IConfigurationService ConfigService { get; }
     public WindowSystem  WindowSystem  { get; } = new("GearGoblin");
     public IServiceProvider Provider { get; }
@@ -67,9 +66,7 @@ public sealed class Plugin : IDalamudPlugin
         // Inject Dalamud services into the static container.
         pluginInterface.Create<DalamudServices>();
 
-        // Load or create config.
-        Configuration = DalamudServices.PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
-        Configuration.Initialize(DalamudServices.PluginInterface);
+        // Config Service will initialize the configuration in its constructor.
 
         // Build the DI container.
         Provider = ServiceContainer.CreateProvider(this);
