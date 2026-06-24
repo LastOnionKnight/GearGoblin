@@ -1,3 +1,14 @@
+## [1.5.1] - 2026-06-24
+
+### Fixed
+- **UI Render Regression**: Resolved an issue where transparent child backgrounds allowed the game world to bleed through the `##content` body and `##identity` masthead panels.
+
+## [1.5.0] - 2026-06-24
+
+### Changed
+- **Export Schema v2**: Added `TotalStat` tracking to the `GG-EXPORT` string to support deeper analysis in TonberryTactics.
+- Unified plugin, web, and core to v1.5.0 to maintain lockstep.
+
 ## [1.4.1] - 2026-06-21
 
 ### Changed
