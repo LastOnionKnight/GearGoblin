@@ -40,4 +40,18 @@ Assert-True `
     (-not [regex]::IsMatch($chrome, 'AlwaysAutoResize')) `
     "Regression: AlwaysAutoResize must stay out of TtChrome panels so the prior width fix remains intact."
 
+$transparentHeaderHostPattern =
+    'ImGui\.PushStyleColor\(ImGuiCol\.ChildBg,\s*Theme\.TtChrome\.Rgba\(\d+,\s*\d+,\s*\d+,\s*0\.5f\)\)'
+
+$paintedHeaderHostPattern =
+    'ImGui\.PushStyleColor\(ImGuiCol\.ChildBg,\s*Theme\.TtChrome\.Sink\)'
+
+Assert-True `
+    (-not [regex]::IsMatch($mainWindow, $transparentHeaderHostPattern)) `
+    "Regression: the header region (##identity) background has transparency, allowing the game world to bleed through."
+
+Assert-True `
+    ([regex]::IsMatch($mainWindow, $paintedHeaderHostPattern)) `
+    "Expected the header region (##identity) to explicitly draw the opaque Sink background."
+
 Write-Host "UI render regression checks passed."

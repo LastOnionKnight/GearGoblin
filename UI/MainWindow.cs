@@ -182,7 +182,7 @@ public sealed class MainWindow : Window, IDisposable
         var lvl = player.Level;
         var world = player.HomeWorld.Value.Name.ExtractText();
 
-        ImGui.PushStyleColor(ImGuiCol.ChildBg, Theme.TtChrome.Rgba(10, 20, 34, 0.5f));
+        ImGui.PushStyleColor(ImGuiCol.ChildBg, Theme.TtChrome.Sink);
         ImGui.BeginChild("##identity", new Vector2(0, 58), false, ImGuiWindowFlags.NoScrollbar);
         
         // Add some top padding
