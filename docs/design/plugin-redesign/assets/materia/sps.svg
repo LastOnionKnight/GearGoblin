@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <defs>
+    <radialGradient id="g_sps" cx="38%" cy="30%" r="72%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.96"></stop>
+      <stop offset="20%" stop-color="#8CE0EC"></stop>
+      <stop offset="62%" stop-color="#2FA6B8"></stop>
+      <stop offset="100%" stop-color="#135C68"></stop>
+    </radialGradient>
+    <radialGradient id="halo_sps" cx="50%" cy="50%" r="50%">
+      <stop offset="52%" stop-color="#2FA6B8" stop-opacity="0"></stop>
+      <stop offset="76%" stop-color="#8CE0EC" stop-opacity="0.5"></stop>
+      <stop offset="100%" stop-color="#2FA6B8" stop-opacity="0"></stop>
+    </radialGradient>
+  </defs>
+  <circle cx="24" cy="24" r="23" fill="url(#halo_sps)"></circle>
+  <circle cx="24" cy="23.5" r="14.5" fill="#135C68"></circle>
+  <circle cx="24" cy="23" r="13.5" fill="url(#g_sps)"></circle>
+  <circle cx="24" cy="23" r="9.2" fill="none" stroke="#ffffff" stroke-opacity="0.22" stroke-width="1"></circle>
+  <ellipse cx="19.5" cy="17.5" rx="4.6" ry="3" fill="#ffffff" opacity="0.82" transform="rotate(-28 19.5 17.5)"></ellipse>
+  <circle cx="28.5" cy="29" r="1.6" fill="#ffffff" opacity="0.5"></circle>
+</svg>

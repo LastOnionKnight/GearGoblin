@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tonberry Tactics — In-Game Plugin</title>
+<link rel="icon" type="image/svg+xml" href="assets/tt-icon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&family=Press+Start+2P&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<section class="pwin" data-screen-label="TT Plugin Window">
+
+  <!-- ─── TITLE BAR ─────────────────────────────────────────────────────── -->
+  <header class="titlebar">
+    <img class="crest" src="assets/onion-crest.png" alt="" />
+    <span class="wtitle">Tonberry <b>Tactics</b></span>
+    <span class="ver">v1.2.1</span>
+    <span class="spacer"></span>
+    <div class="win-btns">
+      <button class="win-btn" title="Settings">⚙</button>
+      <button class="win-btn" title="Collapse">▾</button>
+      <button class="win-btn close" title="Close">✕</button>
+    </div>
+  </header>
+
+  <!-- ─── IDENTITY BAR ──────────────────────────────────────────────────── -->
+  <div class="identity">
+    <img class="jobstone" src="assets/DRK.png" alt="Dark Knight" />
+    <div class="who">
+      <div class="name">Refia Rakkiri</div>
+      <div class="sub">Dark Knight · <span class="lv">Lv 100</span> · i735</div>
+    </div>
+    <span class="spacer"></span>
+    <div class="world"><b>Phoenix</b> · Light DC<br />Free Company: <b>The Last Flame</b></div>
+    <button class="refresh"><span class="gly">⟳</span> Refresh</button>
+  </div>
+
+  <!-- ─── TAB STRIP ─────────────────────────────────────────────────────── -->
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-tab="quickstart">Quick Start</button>
+    <button class="tab" data-tab="character">Character</button>
+    <button class="tab" data-tab="plan">Plan</button>
+    <button class="tab" data-tab="materia">Materia</button>
+    <button class="tab" data-tab="settings">Settings</button>
+    <button class="tab" data-tab="diagnostics">Diagnostics</button>
+    <button class="tab" data-tab="feedback">Feedback</button>
+    <button class="tab" data-tab="about">About</button>
+  </nav>
+
+  <!-- ─── CONTENT ───────────────────────────────────────────────────────── -->
+  <div class="content">
+
+    <!-- ===== QUICK START ===== -->
+    <div class="tabpane active" data-pane="quickstart">
+      <div class="sec-hd">Quick Start · The Loop</div>
+      <p class="lead">The export → optimize → import loop, in plain English.</p>
+      <div class="halves">
+        <span class="tagchip"><span class="dot gold"></span> <b>In-game plugin</b></span>
+        <span class="tagchip"><span class="dot"></span> <b>Web app</b></span>
+        <span class="tagchip">Same product, two halves</span>
+      </div>
+
+      <div class="sec-hd">What this plugin does</div>
+      <p class="body-p">Tonberry Tactics reads your equipped gear, derives your stats and breakpoint hints in the Character window, and exports your gearset to a copy-pasteable string. The companion website consumes that string, runs an optimizer in your browser, and produces a plan string going the other direction — pasted back into the game as an actionable meld checklist. <span class="gold-t">Two halves, one product, round-trip in roughly thirty seconds.</span></p>
+
+      <div class="sec-hd">The Loop</div>
+      <div class="steps">
+        <div class="step arrow">
+          <div class="num">01 · Export</div>
+          <div class="st-title">Export</div>
+          <span class="cmd">/ttexport</span>
+          <div class="st-body">Copies your gear to clipboard as <span class="str">GG-EXPORT:v1:&lt;base64&gt;</span> — every piece, every materia, every stat. A save file you can paste into a website.</div>
+        </div>
+        <div class="step arrow">
+          <div class="num">02 · Optimize</div>
+          <div class="st-title">Optimize</div>
+          <span class="cmd">tonberrytactics.pages.dev</span>
+          <div class="st-body">Paste the export into the import box. The site runs an optimizer against your gear and emits a <span class="str">GG-PLAN:v1</span> string with recommended melds.</div>
+        </div>
+        <div class="step">
+          <div class="num">03 · Import</div>
+          <div class="st-title">Import</div>
+          <span class="cmd">/ttimport</span>
+          <div class="st-body">Reads the plan from your clipboard and turns it into an active checklist — <span class="str">“Diamond Earring slot 1 ← Savage Aim XII.”</span> Tick boxes as you meld.</div>
+        </div>
+      </div>
+
+      <div class="manifesto">
+        <img src="assets/tt-lantern-mark.svg" alt="" />
+        <div>
+          <div class="q">“We carry the lantern. We carry the knife. We step forward, one slot at a time, until the math is done. <b>Stab first. Stab true.</b>”</div>
+          <div class="meta">— THE LAST FLAME · TLF MANIFESTO</div>
+        </div>
+      </div>
+
+      <div class="sec-hd cobalt">Slash Commands</div>
+      <table class="cmd-table">
+        <tr><td class="k">/tt</td><td class="v">Open this window.</td></tr>
+        <tr><td class="k">/ttexport</td><td class="v">Export equipped gear to clipboard as <code>GG-EXPORT:v1:…</code></td></tr>
+        <tr><td class="k">/ttimport</td><td class="v">Import a plan from clipboard. Pair with <code class="cobalt">/ttexport</code> + the website.</td></tr>
+        <tr><td class="k">/ttinfo</td><td class="v">Print diagnostic state to chat. Use this when reporting bugs.</td></tr>
+      </table>
+
+      <div class="cols2">
+        <div>
+          <div class="sec-hd">When something looks wrong</div>
+          <ul class="tlist">
+            <li>Open the <b>Diagnostics</b> tab. Confirm “Materia Advisor injected: Yes.”</li>
+            <li>Run <code>/ttinfo</code> in-game and copy the chat block.</li>
+            <li>File an issue at <span class="cobalt-t">github.com/LastOnionKnight/GearGoblin</span>.</li>
+          </ul>
+        </div>
+        <div>
+          <div class="sec-hd cobalt">Tips</div>
+          <ul class="tlist cobalt">
+            <li><b>Plan tab</b> — paste an Etro or XIVGear URL and diff it against equipped gear.</li>
+            <li><b>Materia tab</b> — current melds with overcap and tier audits.</li>
+            <li><b>Settings</b> — toggle every derivation row; greyed when CPR provides them.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== CHARACTER ===== -->
+    <div class="tabpane" data-pane="character">
+      <div class="sec-hd">Character · Substat Profile</div>
+      <p class="lead muted">Derived from equipped gear at i735. Cap marks show the next relevant breakpoint — fill past it is wasted budget.</p>
+
+      <div class="gauge-stack" id="gauges">
+        <div class="gauge">
+          <div class="g-top">
+            <span class="g-name">Critical Hit</span>
+            <span class="g-val">3022 <span class="of">/ 3174 cap</span></span>
+            <span class="g-spacer"></span>
+            <span class="g-tier near">95% · next tier +152</span>
+          </div>
+          <div class="track"><div class="fill ok" style="width:95%"></div><div class="capmark" style="left:100%"></div></div>
+          <div class="g-note">Priority stat. <span class="gain">+0.4% crit rate</span> to reach the i735 tier — one Savage Critical Hit XII gets you there.</div>
+        </div>
+
+        <div class="gauge">
+          <div class="g-top">
+            <span class="g-name">Determination</span>
+            <span class="g-val">2156 <span class="of">/ no cap</span></span>
+            <span class="g-spacer"></span>
+            <span class="g-tier">linear · 71%</span>
+          </div>
+          <div class="track"><div class="fill gold" style="width:71%"></div></div>
+          <div class="g-note">No breakpoints — pure linear gain. Safe dump stat once speed and crit are tiered.</div>
+        </div>
+
+        <div class="gauge">
+          <div class="g-top">
+            <span class="g-name">Skill Speed</span>
+            <span class="g-val">964 <span class="of">/ 904 tier</span></span>
+            <span class="g-spacer"></span>
+            <span class="g-tier over">+60 over · 2.43 GCD</span>
+          </div>
+          <div class="track"><div class="fill over" style="width:100%"></div><div class="capmark" style="left:90%"></div></div>
+          <div class="g-note">60 points past the 2.43s tier — they do nothing until the next GCD breakpoint. <span style="color:var(--over)">Reclaim into Det or DH.</span></div>
+        </div>
+
+        <div class="gauge">
+          <div class="g-top">
+            <span class="g-name">Direct Hit</span>
+            <span class="g-val">1844 <span class="of">/ 2030 cap</span></span>
+            <span class="g-spacer"></span>
+            <span class="g-tier cap">91% · room for 2</span>
+          </div>
+          <div class="track"><div class="fill ok" style="width:91%"></div><div class="capmark" style="left:100%"></div></div>
+          <div class="g-note">Two more Savage Direct Hit XII fit before the budget ceiling. <span class="gain">+1.0% DH rate.</span></div>
+        </div>
+      </div>
+
+      <div class="sec-hd cobalt">Average Item Level</div>
+      <p class="body-p"><span class="gold-t" style="font-family:var(--f-data);font-size:18px">735</span> &nbsp;·&nbsp; 13 / 13 slots filled &nbsp;·&nbsp; <span class="dim">Materia Advisor injected below by Tonberry Tactics. Substat derivations provided by CharacterPanelRefined.</span></p>
+    </div>
+
+    <!-- ===== PLAN ===== -->
+    <div class="tabpane" data-pane="plan">
+      <div class="sec-hd">Plan · Diff Against Target</div>
+      <p class="lead muted">Paste an Etro or XIVGear URL to diff a target set against your equipped gear, slot by slot.</p>
+      <div class="step" style="margin:8px 0 14px">
+        <div class="num">Target source</div>
+        <div style="display:flex;gap:9px;align-items:center;margin-top:9px;flex-wrap:wrap">
+          <code class="cobalt" style="white-space:normal">etro.gg/gearset/a1c9-…-savage-bis</code>
+          <span class="statchip ok">PARSED ✓</span>
+          <span class="statchip cobalt">11 slots match · 2 differ</span>
+        </div>
+      </div>
+      <div class="sec-hd cobalt">Slot Diff</div>
+      <div class="meld-row">
+        <span class="slot">Earrings</span>
+        <div class="mat"><span class="mn">Diamond Earring of Aiming</span><span class="ms">equipped · DET / DH</span></div>
+        <span class="verdict up">target wants CRT / DET → remeld</span>
+      </div>
+      <div class="meld-row">
+        <span class="slot">Ring · R</span>
+        <div class="mat"><span class="mn">Diamond Ring of Aiming</span><span class="ms">equipped · CRT / DET</span></div>
+        <span class="verdict up">target i740 → upgrade</span>
+      </div>
+      <div class="meld-row">
+        <span class="slot">Weapon</span>
+        <div class="mat"><span class="mn">Diamond Composite Bow</span><span class="ms">equipped · matches target</span></div>
+        <span class="verdict ok">identical</span>
+      </div>
+    </div>
+
+    <!-- ===== MATERIA ===== -->
+    <div class="tabpane" data-pane="materia">
+      <div class="sec-hd">Materia · Current Melds</div>
+      <p class="lead muted">Every melded substat with overcap and tier audits. Red rows are wasting budget.</p>
+
+      <div class="meld-row">
+        <img class="orb" src="assets/materia/crit.png" alt="" />
+        <span class="slot">Weapon · 1</span>
+        <div class="mat"><span class="mn">Savage Critical Hit Materia XII</span><span class="ms">+36 Critical Hit</span></div>
+        <span class="verdict ok">clean · under cap</span>
+      </div>
+      <div class="meld-row">
+        <img class="orb" src="assets/materia/sks.png" alt="" />
+        <span class="slot">Head · 1</span>
+        <div class="mat"><span class="mn">Savage Skill Speed Materia XII</span><span class="ms">+36 Skill Speed</span></div>
+        <span class="verdict over">+24 overcap · 2.43 tier hit</span>
+      </div>
+      <div class="meld-row">
+        <img class="orb" src="assets/materia/dh.png" alt="" />
+        <span class="slot">Hands · 2</span>
+        <div class="mat"><span class="mn">Savage Direct Hit Materia XII</span><span class="ms">+36 Direct Hit</span></div>
+        <span class="verdict ok">clean · under cap</span>
+      </div>
+      <div class="meld-row">
+        <img class="orb" src="assets/materia/det.png" alt="" />
+        <span class="slot">Earring · 1</span>
+        <div class="mat"><span class="mn">Heavens' Eye Materia XII</span><span class="ms">+12 Determination</span></div>
+        <span class="verdict up">swap → Savage Crit XII (+24)</span>
+      </div>
+      <div class="meld-row">
+        <img class="orb" src="assets/materia/ten.png" alt="" />
+        <span class="slot">Ring · 2</span>
+        <div class="mat"><span class="mn">Savage Tenacity Materia XII</span><span class="ms">+36 Tenacity</span></div>
+        <span class="verdict over">offensive job · 0 value</span>
+      </div>
+    </div>
+
+    <!-- ===== SETTINGS ===== -->
+    <div class="tabpane" data-pane="settings">
+      <div class="sec-hd">Settings · Derivation Rows</div>
+      <p class="lead muted">Toggle each row Tonberry Tactics injects into the Character window. Locked rows are supplied by CharacterPanelRefined.</p>
+      <div class="set-row">
+        <div class="si"><div class="sn">Materia Advisor</div><div class="sd">Up to three meld recommendations under Average Item Level.</div></div>
+        <div class="toggle on"></div>
+      </div>
+      <div class="set-row">
+        <div class="si"><div class="sn">Breakpoint hints</div><div class="sd">GCD and crit-tier callouts inline with derived stats.</div></div>
+        <div class="toggle on"></div>
+      </div>
+      <div class="set-row">
+        <div class="si"><div class="sn">Substat derivations</div><div class="sd">Crit %, DH %, GCD, DoT scalar — provided by CPR.</div></div>
+        <div class="toggle locked"></div>
+      </div>
+      <div class="set-row">
+        <div class="si"><div class="sn">Auto-export on logout</div><div class="sd">Copy GG-EXPORT string to clipboard when you log out.</div></div>
+        <div class="toggle"></div>
+      </div>
+      <div class="set-row">
+        <div class="si"><div class="sn">Verbose chat logging</div><div class="sd">Print parse + inject steps to chat. Leave off unless debugging.</div></div>
+        <div class="toggle"></div>
+      </div>
+    </div>
+
+    <!-- ===== DIAGNOSTICS ===== -->
+    <div class="tabpane" data-pane="diagnostics">
+      <div class="sec-hd">Diagnostics · /ttinfo</div>
+      <p class="lead muted">Copy this block into a GitHub issue. “Force Reinject” re-runs the advisor without closing the Character window.</p>
+      <div class="diag"><span class="key">Plugin</span>          Tonberry Tactics <span class="val">v1.2.1</span>
+<span class="key">Dalamud API</span>      <span class="val">11.0.0.17</span>  ·  game 7.21
+<span class="key">Character window</span>  <span class="ok">open</span>
+<span class="key">Materia Advisor</span>  injected: <span class="ok">Yes</span>  ·  3 recommendations
+<span class="key">CPR detected</span>      <span class="ok">Yes</span>  ·  derivations delegated
+<span class="key">Gear read</span>        13 / 13 slots  ·  i735  ·  DRK
+<span class="key">Last export</span>      GG-EXPORT:v1  ·  482 bytes  ·  2s ago
+<span class="key">Last plan</span>        <span class="key">none this session</span></div>
+      <div class="fbtns" style="margin-top:12px">
+        <button class="gbtn cobalt">⟳ Force Reinject</button>
+        <button class="gbtn">⎘ Copy block</button>
+      </div>
+    </div>
+
+    <!-- ===== FEEDBACK ===== -->
+    <div class="tabpane" data-pane="feedback">
+      <div class="sec-hd">Feedback · The Last Flame</div>
+      <p class="body-p">Found a bug, a wrong breakpoint, or a meld the advisor missed? Bring it to us. Attach your <code>/ttinfo</code> block so we can reproduce.</p>
+      <div class="fbtns">
+        <a class="gbtn cobalt" href="#">⚑ Report an issue</a>
+        <a class="gbtn" href="#">◈ Suggest a feature</a>
+        <a class="gbtn" href="#">✦ Join the FC Discord</a>
+      </div>
+      <div class="manifesto" style="margin-top:16px">
+        <img src="assets/tt-lantern-mark.svg" alt="" />
+        <div>
+          <div class="q">“No gear. No hope. No pants. <b>Just onions.</b>”</div>
+          <div class="meta">— TONBERRY TACTICS · SHIPPING SINCE PATCH 7.0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== ABOUT ===== -->
+    <div class="tabpane" data-pane="about">
+      <div class="about-logo">
+        <img src="assets/onion-crest.png" alt="" />
+        <div>
+          <div class="al-t">Tonberry Tactics</div>
+          <div class="al-s">In-game gear &amp; materia companion · v1.2.1</div>
+        </div>
+      </div>
+      <p class="body-p">A two-part FFXIV gear optimizer by <span class="gold-t">The Last Flame</span>. The in-game plugin reads your gear and injects a Materia Advisor into the Character window; the companion website runs the optimizer and hands back a meld plan. Round-trip in thirty seconds, no backend, no account.</p>
+      <div class="sec-hd cobalt">Built with</div>
+      <ul class="tlist cobalt">
+        <li><b>Dalamud</b> — plugin runtime &amp; ImGui rendering.</li>
+        <li><b>CharacterPanelRefined</b> — substat derivations (recommended companion).</li>
+        <li><b>Blazor WASM</b> — the browser-side optimizer at tonberrytactics.pages.dev.</li>
+      </ul>
+      <p class="body-p dim" style="margin-top:10px">© The Last Flame · Phoenix · Light DC. Not affiliated with Square Enix. FFXIV © SQUARE ENIX.</p>
+    </div>
+
+  </div>
+
+  <!-- ─── FOOTER STATUS ─────────────────────────────────────────────────── -->
+  <footer class="pfoot">
+    <span class="creed">TONBERRY TACTICS · v1.2.1 · <span class="live">THE ONION KNIGHT STANDS READY</span></span>
+    <span class="spacer"></span>
+    <span class="statchip ok">● offline · no backend</span>
+    <span class="statchip cobalt">round-trip v1</span>
+    <span class="statchip">CPR linked</span>
+  </footer>
+
+  <div class="grip"><i></i><i></i><i></i></div>
+</section>
+
+<script>
+  const tabs = document.getElementById('tabs');
+  const panes = document.querySelectorAll('.tabpane');
+  const content = document.querySelector('.content');
+  tabs.addEventListener('click', (e) => {
+    const btn = e.target.closest('.tab');
+    if (!btn) return;
+    const id = btn.dataset.tab;
+    tabs.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t === btn));
+    panes.forEach(p => p.classList.toggle('active', p.dataset.pane === id));
+    content.scrollTop = 0;
+    try { localStorage.setItem('tt-plugin-tab', id); } catch (e) {}
+  });
+  // restore last tab
+  try {
+    const saved = localStorage.getItem('tt-plugin-tab');
+    if (saved) {
+      const btn = tabs.querySelector('.tab[data-tab="' + saved + '"]');
+      if (btn) btn.click();
+    }
+  } catch (e) {}
+
+  // toggle interactions (non-locked)
+  document.querySelectorAll('.toggle:not(.locked)').forEach(t => {
+    t.addEventListener('click', () => t.classList.toggle('on'));
+  });
+</script>
+</body>
+</html>
