@@ -1,3 +1,23 @@
+## [1.5.5] - 2026-06-24
+
+### Fixed
+- **UI Layout Regression**: Tightened the `##identity` masthead region height from 58px to 76px to fit the 64x64 logo and text correctly, and vertically centered the world/refresh block. This resolves the tab bar clipping into the subtitle and eliminates the dead space below the masthead.
+- **Hygiene**: Updated the About tab byline (removed italic subtitle, added em-dash) and regenerated the changelog text.
+
+## [1.5.4] - 2026-06-24
+
+### Fixed
+- **Load Crash**: Fixed a `NullReferenceException` in `Plugin.cs` initialization where `StatusPanelInjector` attempted to read the configuration before the DI container registered the `ConfigService`.
+- **UI Regression**: Restored opaque `Sink` fill for the `##identity` masthead via `AddRectFilled`.
+- **UI Bug**: Fixed the `##content` window improperly retaining the default `ImGuiWindowFlags` drawing behavior.
+- **Commands**: Restored `/tt` as the primary slash command and deprecated `/tactics` and `/goblin` to hidden aliases to respect established muscle memory.
+
+## [1.5.3] - 2026-06-24
+- *Abandoned dead tag (manifest collision during merge conflict push)*
+
+## [1.5.2] - 2026-06-24
+- *Abandoned dead tag (manifest collision during deployment pipeline)*
+
 ## [1.5.1] - 2026-06-24
 
 ### Fixed

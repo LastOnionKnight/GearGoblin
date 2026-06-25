@@ -183,7 +183,7 @@ public sealed class MainWindow : Window, IDisposable
         var world = player.HomeWorld.Value.Name.ExtractText();
 
         ImGui.PushStyleColor(ImGuiCol.ChildBg, Theme.TtChrome.Sink);
-        ImGui.BeginChild("##identity", new Vector2(0, 58), false, ImGuiWindowFlags.NoScrollbar);
+        ImGui.BeginChild("##identity", new Vector2(0, 76), false, ImGuiWindowFlags.NoScrollbar);
 
         var identityDrawList = ImGui.GetWindowDrawList();
         var identityMin = ImGui.GetWindowPos();
@@ -233,6 +233,8 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.SameLine(ImGui.GetWindowWidth() - 200f);
         
         ImGui.BeginGroup();
+        // Vertically center the right block within the 76px tall masthead
+        ImGui.SetCursorPosY(22f);
         using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
         {
             ImGui.TextColored(Theme.TtChrome.FgFaint, worldLabel);
@@ -877,11 +879,7 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.Separator();
         ImGui.Spacing();
 
-        ImGui.TextUnformatted("By LastOnionKnight");
-        using (plugin.Fonts.GaramondItalic.PushOrNull())
-        {
-            ImGui.TextDisabled("Refia Rakkiri — the Last Onion Knight (Aisling O'Callaghan, Cork)");
-        }
+        ImGui.TextUnformatted("By Refia Rakkiri — Last Onion Knight");
 
         // What's New — auto-generated from CHANGELOG.md via release.ps1
         ImGui.Spacing();

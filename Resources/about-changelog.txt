@@ -1,3 +1,23 @@
+## [1.5.5] - 2026-06-24
+
+### Fixed
+- **UI Layout Regression**: Tightened the `##identity` masthead region height from 58px to 76px to fit the 64x64 logo and text correctly, and vertically centered the world/refresh block. This resolves the tab bar clipping into the subtitle and eliminates the dead space below the masthead.
+- **Hygiene**: Updated the About tab byline (removed italic subtitle, added em-dash) and regenerated the changelog text.
+
+## [1.5.4] - 2026-06-24
+
+### Fixed
+- **Load Crash**: Fixed a `NullReferenceException` in `Plugin.cs` initialization where `StatusPanelInjector` attempted to read the configuration before the DI container registered the `ConfigService`.
+- **UI Regression**: Restored opaque `Sink` fill for the `##identity` masthead via `AddRectFilled`.
+- **UI Bug**: Fixed the `##content` window improperly retaining the default `ImGuiWindowFlags` drawing behavior.
+- **Commands**: Restored `/tt` as the primary slash command and deprecated `/tactics` and `/goblin` to hidden aliases to respect established muscle memory.
+
+## [1.5.3] - 2026-06-24
+- *Abandoned dead tag (manifest collision during merge conflict push)*
+
+## [1.5.2] - 2026-06-24
+- *Abandoned dead tag (manifest collision during deployment pipeline)*
+
 ## [1.5.1] - 2026-06-24
 
 ### Fixed
@@ -64,20 +84,3 @@
 
 ## [1.0.4] - 2026-05-30
 - Hotfix: Resolved a logic flaw in the Materia Advisor optimizer where materia was still recommended for capped substats because the optimizer was incorrectly assessing a small penalty rather than zeroing out the stat gain.
-
-## [1.0.3] - 2026-05-30
-- Materia Advisor now respects per-piece substat caps. The v1.0.1 banner mitigation has been removed since the underlying math is corrected.
-- Recommendations no longer suggest melds that would produce zero gain due to per-piece caps.
-
-## [1.0.2] - 2026-05-30
-- Hotfix: Fixed UI regression introduced in v1.0.1 where the Materia Advisor banner consumed all vertical layout space, causing the recommendations table to disappear.
-
-## [1.0.1] - 2026-05-30
-- Hotfix: Added a warning banner to the Materia Advisor regarding per-piece substat caps. The advisor currently does not enforce caps correctly for some items; check caps in-game before melding. A full math fix is in development.
-
-## [1.0.0] - 2026-05-28
-- TlfTheme.cs deleted; every tab now on Track 2 (TtChrome doubled-frame cards + Eyebrow/Quip typography)
-- `/goblin*` aliases removed (use `/tt`, `/ttexport`, `/ttimport`, `/ttinfo`)
-- Display name locked: "Tonberry Tactics" (InternalName remains GearGoblin for save-state continuity)
-- Public Dalamud repo submission opened
-- Trinity 1.0.0 — plugin + Core + web in lockstep
