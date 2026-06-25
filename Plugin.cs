@@ -35,7 +35,7 @@ public sealed class Plugin : IDalamudPlugin
     // v0.4.7.1: /tt* are the new primary commands. /goblin* remain as
     // deprecated aliases through v0.5.x and will be removed at v1.0 (migration
     // strategy C from the v0.4.8 product Q&A: graceful staged transition).
-    private const string CommandName       = "/tactics";
+    private const string CommandName       = "/tt";
     private const string ExportCommandName = "/ttexport";
     private const string InfoCommandName   = "/ttinfo";
     private const string ImportCommandName = "/ttimport";
@@ -46,6 +46,11 @@ public sealed class Plugin : IDalamudPlugin
     private const string LegacyInfoCommandName   = "/goblininfo";
     private const string LegacyImportCommandName = "/goblinimport";
 
+    // New alias /tactics
+    private const string TacticsCommandName       = "/tactics";
+    private const string TacticsExportCommandName = "/tacticsexport";
+    private const string TacticsInfoCommandName   = "/tacticsinfo";
+    private const string TacticsImportCommandName = "/tacticsimport";
 
     // Property removed per Phase 1 migration.
     public IConfigurationService ConfigService { get; }
@@ -97,41 +102,64 @@ public sealed class Plugin : IDalamudPlugin
         // Commands — primary set (/tt*).
         DalamudServices.CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Open Tonberry Tactics. Usage: /tactics or /goblin"
-        });
-        DalamudServices.CommandManager.AddHandler(LegacyCommandName, new CommandInfo(OnCommand)
-        {
-            HelpMessage = "Open Tonberry Tactics (Legacy alias). Usage: /goblin",
-            ShowInHelp = false
+            HelpMessage = "Open Tonberry Tactics. Usage: /tt"
         });
         DalamudServices.CommandManager.AddHandler(ExportCommandName, new CommandInfo(OnExportCommand)
         {
             HelpMessage = "Export your equipped gearset to clipboard for use in the Tonberry Tactics website."
+        });
+        DalamudServices.CommandManager.AddHandler(InfoCommandName, new CommandInfo(OnInfoCommand)
+        {
+            HelpMessage = "Print Tonberry Tactics diagnostics to chat. Useful for bug reports."
+        });
+        DalamudServices.CommandManager.AddHandler(ImportCommandName, new CommandInfo(OnImportCommand)
+        {
+            HelpMessage = "Import a GG-PLAN:v1: plan string from clipboard. Pair with /ttexport."
+        });
+
+        // Tactics aliases (/tactics*)
+        DalamudServices.CommandManager.AddHandler(TacticsCommandName, new CommandInfo(OnCommand)
+        {
+            HelpMessage = "Open Tonberry Tactics (Alias). Usage: /tactics",
+            ShowInHelp = false
+        });
+        DalamudServices.CommandManager.AddHandler(TacticsExportCommandName, new CommandInfo(OnExportCommand)
+        {
+            HelpMessage = "Export your equipped gearset to clipboard (Alias).",
+            ShowInHelp = false
+        });
+        DalamudServices.CommandManager.AddHandler(TacticsInfoCommandName, new CommandInfo(OnInfoCommand)
+        {
+            HelpMessage = "Print Tonberry Tactics diagnostics to chat (Alias).",
+            ShowInHelp = false
+        });
+        DalamudServices.CommandManager.AddHandler(TacticsImportCommandName, new CommandInfo(OnImportCommand)
+        {
+            HelpMessage = "Import a GG-PLAN:v1: plan string from clipboard (Alias).",
+            ShowInHelp = false
+        });
+
+        // Legacy aliases (/goblin*)
+        DalamudServices.CommandManager.AddHandler(LegacyCommandName, new CommandInfo(OnCommand)
+        {
+            HelpMessage = "Open Tonberry Tactics (Legacy alias). Usage: /goblin",
+            ShowInHelp = false
         });
         DalamudServices.CommandManager.AddHandler(LegacyExportCommandName, new CommandInfo(OnExportCommand)
         {
             HelpMessage = "Export your equipped gearset to clipboard (Legacy alias).",
             ShowInHelp = false
         });
-        DalamudServices.CommandManager.AddHandler(InfoCommandName, new CommandInfo(OnInfoCommand)
-        {
-            HelpMessage = "Print Tonberry Tactics diagnostics to chat. Useful for bug reports."
-        });
         DalamudServices.CommandManager.AddHandler(LegacyInfoCommandName, new CommandInfo(OnInfoCommand)
         {
             HelpMessage = "Print Tonberry Tactics diagnostics to chat (Legacy alias).",
             ShowInHelp = false
         });
-        DalamudServices.CommandManager.AddHandler(ImportCommandName, new CommandInfo(OnImportCommand)
-        {
-            HelpMessage = "Import a GG-PLAN:v1: plan string from clipboard. Pair with /ttexport."
-        });
         DalamudServices.CommandManager.AddHandler(LegacyImportCommandName, new CommandInfo(OnImportCommand)
         {
-            HelpMessage = "Import a plan string from clipboard (Legacy alias).",
+            HelpMessage = "Import a GG-PLAN:v1: plan string from clipboard (Legacy alias).",
             ShowInHelp = false
         });
-
 
         DalamudServices.Log.Info($"Tonberry Tactics (formerly GearGoblin) v{GetType().Assembly.GetName().Version} loaded.");
     }
