@@ -21,16 +21,9 @@
       "https://raw.githubusercontent.com/LastOnionKnight/GearGoblin/main/images/banner-1-profile.png",
       "https://raw.githubusercontent.com/LastOnionKnight/GearGoblin/main/images/banner-2-pixel.png"
     ],
-<<<<<<< Updated upstream
-    "DownloadLinkInstall": "https://github.com/LastOnionKnight/GearGoblin/releases/download/v1.5.4/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/LastOnionKnight/GearGoblin/releases/download/v1.5.4/latest.zip",
-    "DownloadLinkTesting": "https://github.com/LastOnionKnight/GearGoblin/releases/download/v1.5.4/latest.zip",
-    "LastUpdate": 1782352033
-=======
     "DownloadLinkInstall": "https://github.com/LastOnionKnight/GearGoblin/releases/download/v1.5.5/latest.zip",
     "DownloadLinkUpdate": "https://github.com/LastOnionKnight/GearGoblin/releases/download/v1.5.5/latest.zip",
     "DownloadLinkTesting": "https://github.com/LastOnionKnight/GearGoblin/releases/download/v1.5.5/latest.zip",
-    "LastUpdate": 1782345093
->>>>>>> Stashed changes
+    "LastUpdate": 1782352033
   }
 ]
