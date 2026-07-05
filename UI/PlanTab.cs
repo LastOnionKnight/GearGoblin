@@ -36,6 +36,7 @@ using GearGoblin.Core;
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -161,89 +162,183 @@ public static class PlanTab
 
     // ── Diff Area ───────────────────────────────────────────────────────
 
+    // Slot outcome after comparing the equipped piece against the BiS target.
+    private enum SlotVerdict { Match, Remeld, Upgrade, Sidegrade, Downgrade, Missing }
+
     private static void DrawDiffArea(Plugin plugin, BisGearset bis)
     {
-        using (plugin.Fonts.Pixel.PushOrNull())
+        var fonts = plugin.Fonts;
+
+        var equipped = plugin.Inventory.ReadEquipped();
+        var bySlot = new Dictionary<EquipSlot, EquippedPiece>();
+        foreach (var e in equipped)
+        {
+            if (bySlot.ContainsKey(e.Slot)) continue;
+            bySlot[e.Slot] = e;
+        }
+
+        // Tally: a slot only "matches" when item AND melds line up.
+        int total = bis.Slots.Count;
+        int match = 0;
+        foreach (var b in bis.Slots)
+        {
+            var cur = bySlot.GetValueOrDefault(b.Slot);
+            if (Verdict(cur, b) == SlotVerdict.Match) match++;
+        }
+        int differ = total - match;
+
+        DrawTargetCard(plugin, bis, match, differ, total);
+        ImGui.Spacing();
+        ImGui.Spacing();
+
+        using (fonts.Pixel.PushOrNull())
         {
             ImGui.TextColored(Theme.TtChrome.CobaltBright, $"{Theme.TtChrome.GlyphEyebrow} SLOT DIFF");
         }
         ImGui.Separator();
         ImGui.Spacing();
 
-        DrawDiff(bis, plugin.Inventory, plugin.Fonts);
+        var itemSheet = DalamudServices.DataManager.GetExcelSheet<Item>();
+        foreach (var b in bis.Slots)
+        {
+            var cur = bySlot.GetValueOrDefault(b.Slot);
+            DrawSlotRow(fonts, b, cur, itemSheet);
+        }
     }
 
-    private static void DrawDiff(BisGearset bis, IInventoryReader inventory, FontAtlasManager fonts)
+    // Target-source header: set name, provenance, and the match/differ tally.
+    private static void DrawTargetCard(Plugin plugin, BisGearset bis, int match, int differ, int total)
     {
-        var equipped = inventory.ReadEquipped();
-        var equippedBySlot = new Dictionary<EquipSlot, EquippedPiece>();
-        foreach (var e in equipped)
+        Theme.TtChrome.BeginPanel("plan_target", 0f);
+
+        using (plugin.Fonts.CinzelHeader.PushOrNull())
         {
-            if (equippedBySlot.ContainsKey(e.Slot)) continue;
-            equippedBySlot[e.Slot] = e;
+            ImGui.TextColored(Theme.TtChrome.GoldBright,
+                string.IsNullOrWhiteSpace(bis.Name) ? "Target gearset" : bis.Name);
+        }
+        using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
+        {
+            ImGui.TextColored(Theme.TtChrome.FgMuted,
+                $"{bis.Source.ToUpperInvariant()} · {JobLabel(bis.JobId)} · {total} slots");
         }
 
-        var itemSheet = DalamudServices.DataManager.GetExcelSheet<Item>();
+        ImGui.Spacing();
+        Theme.TtChrome.PillBox("PARSED", Theme.TtChrome.Ok);
+        ImGui.SameLine();
+        Theme.TtChrome.PillBox($"{match} match", Theme.TtChrome.Ok);
+        ImGui.SameLine();
+        Theme.TtChrome.PillBox($"{differ} differ", differ > 0 ? Theme.TtChrome.Warn : Theme.TtChrome.FgMuted);
 
-        foreach (var bisSlot in bis.Slots)
+        Theme.TtChrome.EndPanel();
+    }
+
+    private static void DrawSlotRow(FontAtlasManager fonts, BisSlot bis, EquippedPiece? cur, Lumina.Excel.ExcelSheet<Item> itemSheet)
+    {
+        Theme.TtChrome.BeginPanel("diff_" + bis.Slot, 64f);
+
+        ImGui.BeginGroup();
+        using (fonts.JetBrainsMonoBody.PushOrNull())
         {
-            Theme.TtChrome.BeginPanel("diff_" + bisSlot.Slot, 64f);
-            
-            ImGui.BeginGroup();
+            ImGui.TextColored(Theme.TtChrome.FgMuted, bis.Slot.ToString());
+        }
+        ImGui.EndGroup();
+
+        ImGui.SameLine(120);
+
+        ImGui.BeginGroup();
+        if (cur is not null)
+        {
             using (fonts.JetBrainsMonoBody.PushOrNull())
             {
-                ImGui.TextColored(Theme.TtChrome.FgMuted, bisSlot.Slot.ToString());
+                ImGui.TextColored(Theme.TtChrome.Fg, cur.IsHighQuality ? $"{cur.Name} ★" : cur.Name);
             }
-            ImGui.EndGroup();
-
-            ImGui.SameLine(120);
-
-            ImGui.BeginGroup();
-            if (equippedBySlot.TryGetValue(bisSlot.Slot, out var current))
+            using (fonts.Pixel.PushOrNull())
             {
-                using (fonts.JetBrainsMonoBody.PushOrNull())
-                {
-                    ImGui.TextColored(Theme.TtChrome.Fg, current.IsHighQuality ? $"{current.Name} ★" : current.Name);
-                }
-                using (fonts.Pixel.PushOrNull())
-                {
-                    ImGui.TextColored(Theme.TtChrome.FgFaint, $"equipped · iLvl {current.ItemLevel}");
-                }
+                ImGui.TextColored(Theme.TtChrome.FgFaint, $"equipped · iLvl {cur.ItemLevel}");
             }
-            else
-            {
-                using (fonts.JetBrainsMonoBody.PushOrNull())
-                {
-                    ImGui.TextColored(Theme.TtChrome.FgFaint, "(empty)");
-                }
-            }
-            ImGui.EndGroup();
-
-            var targetName = LookupItemName(itemSheet, bisSlot.ItemId);
-            
-            var avail = ImGui.GetContentRegionAvail();
-            ImGui.SameLine(ImGui.GetWindowWidth() - 250f);
-            
-            ImGui.BeginGroup();
-            if (equippedBySlot.TryGetValue(bisSlot.Slot, out var c) && c.ItemId == bisSlot.ItemId)
-            {
-                using (fonts.JetBrainsMonoBody.PushOrNull())
-                {
-                    ImGui.TextColored(Theme.TtChrome.Ok, "✓ identical");
-                }
-            }
-            else
-            {
-                using (fonts.JetBrainsMonoBody.PushOrNull())
-                {
-                    ImGui.TextColored(Theme.TtChrome.Warn, $"target wants {targetName}");
-                }
-            }
-            ImGui.EndGroup();
-
-            Theme.TtChrome.EndPanel();
-            ImGui.Spacing();
         }
+        else
+        {
+            using (fonts.JetBrainsMonoBody.PushOrNull())
+            {
+                ImGui.TextColored(Theme.TtChrome.FgFaint, "(empty)");
+            }
+        }
+        ImGui.EndGroup();
+
+        var verdict = Verdict(cur, bis);
+        var (label, color, sub) = VerdictDisplay(verdict, cur, bis, itemSheet);
+
+        ImGui.SameLine(ImGui.GetWindowWidth() - 250f);
+        ImGui.BeginGroup();
+        Theme.TtChrome.PillBox(label, color);
+        if (!string.IsNullOrEmpty(sub))
+        {
+            using (fonts.Pixel.PushOrNull())
+            {
+                ImGui.TextColored(Theme.TtChrome.FgMuted, sub);
+            }
+        }
+        ImGui.EndGroup();
+
+        Theme.TtChrome.EndPanel();
+        ImGui.Spacing();
+    }
+
+    // ── Verdict logic ───────────────────────────────────────────────────
+
+    private static SlotVerdict Verdict(EquippedPiece? cur, BisSlot bis)
+    {
+        if (cur is null) return SlotVerdict.Missing;
+        if (cur.ItemId == bis.ItemId)
+            return MeldsMatch(cur, bis) ? SlotVerdict.Match : SlotVerdict.Remeld;
+        if (bis.ItemLevel > cur.ItemLevel) return SlotVerdict.Upgrade;
+        if (bis.ItemLevel < cur.ItemLevel) return SlotVerdict.Downgrade;
+        return SlotVerdict.Sidegrade;
+    }
+
+    // Melds match when the equipped melds and target melds share the same
+    // multiset of (stat, value). Order and slot index are ignored.
+    private static bool MeldsMatch(EquippedPiece cur, BisSlot bis)
+    {
+        if (cur.Materia.Count != bis.Melds.Count) return false;
+        var curKeys = cur.Materia.Select(m => $"{m.StatName}:{m.StatValue}").OrderBy(x => x).ToList();
+        var bisKeys = bis.Melds.Select(m => $"{m.StatName}:{m.StatValue}").OrderBy(x => x).ToList();
+        for (int i = 0; i < curKeys.Count; i++)
+            if (curKeys[i] != bisKeys[i]) return false;
+        return true;
+    }
+
+    private static (string label, Vector4 color, string sub) VerdictDisplay(
+        SlotVerdict v, EquippedPiece? cur, BisSlot bis, Lumina.Excel.ExcelSheet<Item> sheet)
+    {
+        var target = string.IsNullOrWhiteSpace(bis.ItemName) ? LookupItemName(sheet, bis.ItemId) : bis.ItemName;
+        switch (v)
+        {
+            case SlotVerdict.Match:
+                return ("MATCH", Theme.TtChrome.Ok, "item + melds identical");
+            case SlotVerdict.Remeld:
+                return ("REMELD", Theme.TtChrome.Warn, "right item, different melds");
+            case SlotVerdict.Upgrade:
+            {
+                int d = (int)bis.ItemLevel - (int)(cur?.ItemLevel ?? 0);
+                return ($"UPGRADE +{d}", Theme.TtChrome.CobaltBright, target);
+            }
+            case SlotVerdict.Sidegrade:
+                return ("SWAP", Theme.TtChrome.Warn, target);
+            case SlotVerdict.Downgrade:
+                return ("TARGET LOWER", Theme.TtChrome.FgMuted, target);
+            default:
+                return ("ACQUIRE", Theme.TtChrome.Over, target);
+        }
+    }
+
+    private static string JobLabel(uint jobId)
+    {
+        if (jobId == 0) return "All jobs";
+        var sheet = DalamudServices.DataManager.GetExcelSheet<ClassJob>();
+        var row = sheet.GetRowOrDefault(jobId);
+        return row is null ? $"Job {jobId}" : row.Value.Abbreviation.ExtractText().ToUpperInvariant();
     }
 
     // ── Fetch (unchanged from v0.6.x) ───────────────────────────────────

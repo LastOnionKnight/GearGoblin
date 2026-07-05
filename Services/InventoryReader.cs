@@ -114,6 +114,7 @@ public class InventoryReader : IInventoryReader
             {
                 Slot              = slot,
                 ItemId            = baseItemId,
+                IconId            = sheetItem.Value.Icon,
                 Name              = sheetItem.Value.Name.ExtractText(),
                 ItemLevel         = sheetItem.Value.LevelItem.RowId,
                 IsHighQuality     = item.IsHq,
@@ -297,6 +298,7 @@ public class EquippedPiece
 {
     public EquipSlot Slot              { get; set; }
     public uint      ItemId            { get; set; }
+    public uint      IconId            { get; set; }
     public string    Name              { get; set; } = "";
     public uint      ItemLevel         { get; set; }
     public bool      IsHighQuality     { get; set; }

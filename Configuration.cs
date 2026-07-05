@@ -73,6 +73,13 @@ public class Configuration : IPluginConfiguration
     /// </summary>
     public bool EnableVerboseInjectorLogging { get; set; } = true;
 
+    /// <summary>
+    /// v1.5.7 (handoff §3.2, option 3): Free Company name shown on the identity
+    /// bar. Dalamud doesn't expose the player's FC directly, so this is a
+    /// user-set fallback edited on the Settings tab. Empty = the FC line hides.
+    /// </summary>
+    public string FreeCompany { get; set; } = "";
+
     [NonSerialized] private IDalamudPluginInterface? pluginInterface;
 
     public void Initialize(IDalamudPluginInterface pi) => pluginInterface = pi;

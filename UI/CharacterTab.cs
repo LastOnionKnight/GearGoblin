@@ -96,31 +96,47 @@ public static class CharacterTab
             return;
         }
 
-        DrawGauge(plugin, "Critical Hit", s.Crit, 3174, Theme.TtChrome.Ok, 0.95f, "Priority stat. One Savage Critical Hit XII gets you there.");
-        DrawGauge(plugin, "Determination", s.Det, 3000, Theme.TtChrome.GoldBright, 0.71f, "No breakpoints — pure linear gain.");
-        
+        // Gauge caps are the current-tier substat ceilings used as the fill
+        // reference. Fill and state are derived from the player's REAL stats
+        // (s.*), never from a fixed mock percentage.
+        DrawGauge(plugin, "Critical Hit", s.Crit, 3174, Theme.TtChrome.MatCrit,
+            "Highest-value substat for most jobs — scales both rate and multiplier.");
+        DrawGauge(plugin, "Determination", s.Det, 3000, Theme.TtChrome.MatDet,
+            "No breakpoints — smooth linear value all the way up.");
+
         if (UsesSks(profile))
         {
-            DrawGauge(plugin, "Skill Speed", s.SkS, 904, Theme.TtChrome.Over, 1.0f, "60 points past the 2.43s tier — they do nothing until the next GCD breakpoint.");
+            DrawGauge(plugin, "Skill Speed", s.SkS, 904, Theme.TtChrome.MatSks,
+                "Tune to a GCD tier; points spent between tiers are inert.");
         }
         else if (UsesSps(profile))
         {
-            DrawGauge(plugin, "Spell Speed", s.SpS, 904, Theme.TtChrome.Over, 1.0f, "Above tier — they do nothing until the next GCD breakpoint.");
+            DrawGauge(plugin, "Spell Speed", s.SpS, 904, Theme.TtChrome.MatSps,
+                "Tune to a GCD tier; points spent between tiers are inert.");
         }
 
-        DrawGauge(plugin, "Direct Hit", s.DH, 2030, Theme.TtChrome.Ok, 0.91f, "Two more Savage Direct Hit XII fit before the budget ceiling.");
-        
+        DrawGauge(plugin, "Direct Hit", s.DH, 2030, Theme.TtChrome.MatDh,
+            "Raises hit frequency; no breakpoints, flat value per point.");
+
         if (profile.Role == Role.Tank)
-            DrawGauge(plugin, "Tenacity", s.Ten, 2000, Theme.TtChrome.GoldBright, 0.5f, "Tank mitigation.");
+            DrawGauge(plugin, "Tenacity", s.Ten, 2000, Theme.TtChrome.MatTen,
+                "Tank substat — outgoing damage plus mitigation.");
         else if (profile.Role == Role.Healer)
-            DrawGauge(plugin, "Piety", s.Pie, 2000, Theme.TtChrome.GoldBright, 0.5f, "Healer MP regen.");
+            DrawGauge(plugin, "Piety", s.Pie, 2000, Theme.TtChrome.MatPie,
+                "Healer MP sustain — no combat value beyond regen.");
     }
 
-    private static void DrawGauge(Plugin plugin, string name, int val, int cap, Vector4 color, float fillPct, string note)
+    private static void DrawGauge(Plugin plugin, string name, int val, int cap, Vector4 accent, string note)
     {
+        // Real fill: the player's actual substat over the tier ceiling.
+        float ratio = cap > 0 ? Math.Clamp(val / (float)cap, 0f, 1f) : 0f;
+        bool over = val > cap;
+        bool near = !over && ratio >= 0.90f;
+        var fillColor = over ? Theme.TtChrome.Over : (near ? Theme.TtChrome.GoldBright : accent);
+
         Theme.TtChrome.BeginPanel("gauge_" + name, 90f);
-        
-        // Top row
+
+        // Top row: name + real value / cap + state pill
         using (plugin.Fonts.CinzelEmphasis.PushOrNull())
         {
             ImGui.TextColored(Theme.TtChrome.Fg, name);
@@ -132,35 +148,39 @@ public static class CharacterTab
             ImGui.SameLine(0, 4);
             ImGui.TextColored(Theme.TtChrome.FgFaint, $"/ {cap} cap");
         }
-        
+        ImGui.SameLine(0, 10);
+        var stateLabel = over ? "OVER CAP" : (near ? "NEAR CAP" : "OK");
+        var stateColor = over ? Theme.TtChrome.Over : (near ? Theme.TtChrome.Warn : Theme.TtChrome.Ok);
+        Theme.TtChrome.PillBox(stateLabel, stateColor);
+
         // Track
         ImGui.Spacing();
         var p = ImGui.GetCursorScreenPos();
         var w = ImGui.GetContentRegionAvail().X;
         var h = 10f;
         var drawList = ImGui.GetWindowDrawList();
-        
+
         // bg
         drawList.AddRectFilled(p, new Vector2(p.X + w, p.Y + h), ImGui.GetColorU32(Theme.TtChrome.Sink), 5f);
         drawList.AddRect(p, new Vector2(p.X + w, p.Y + h), ImGui.GetColorU32(Theme.TtChrome.LineSoft), 5f);
-        
-        // fill
-        var fillW = w * fillPct;
-        drawList.AddRectFilled(p, new Vector2(p.X + fillW, p.Y + h), ImGui.GetColorU32(color), 5f);
-        
-        // cap mark
-        var capX = p.X + w * 0.95f; // mock
+
+        // fill — real ratio, state-driven color
+        var fillW = w * ratio;
+        drawList.AddRectFilled(p, new Vector2(p.X + fillW, p.Y + h), ImGui.GetColorU32(fillColor), 5f);
+
+        // cap mark — the tier ceiling sits at the right edge (100%)
+        var capX = p.X + w - 1f;
         drawList.AddRectFilled(new Vector2(capX, p.Y - 2), new Vector2(capX + 2, p.Y + h + 2), ImGui.GetColorU32(Theme.TtChrome.GoldBright));
-        
+
         ImGui.Dummy(new Vector2(w, h));
-        
+
         // Note
         ImGui.Spacing();
         using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
         {
             ImGui.TextColored(Theme.TtChrome.FgMuted, note);
         }
-        
+
         Theme.TtChrome.EndPanel();
         ImGui.Spacing();
     }

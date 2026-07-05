@@ -1,3 +1,19 @@
+## [1.5.7] - 2026-07-05
+
+### Added
+- **Native FFXIV Job Stones**: Job icons now natively load from the FFXIV UI texture sheets via `ITextureProvider`, resolving missing static asset issues (e.g. for VPR).
+- **Materia Tab Summary Bar**: A new three-card aggregator over the Materia grid reports total overcap stat waste, counts zero-value melds, and tracks clean (optimally melded) piece counts.
+- **Identity Bar Data Hooks**: The identity bar now dynamically reports the character's Job, Level, iLvl, World, and Data Center. Free Company is powered by a new fallback entry in Settings.
+
+### Changed
+- **Full gg4 Design Match**: Comprehensive application of the Tonberry Tactics visual language across all tabs (MainWindow, Character, Plan, Materia, Settings, About).
+- **Chrome Restyling**: Titlebar replaced with a custom NoTitleBar window drag band, "Tonberry Tactics" wordmark, version pill, and window controls.
+- **Settings Tab**: All native checkboxes replaced with cobalt/gold `ToggleSwitch` primitives.
+- **Character Tab Gauges**: Progress bars now reflect accurate, data-driven fill percentages based on real stat caps and clamping, removing previously fabricated gauge values.
+- **Plan Tab Verdicts**: Verdict chips (MATCH, REMELD, UPGRADE, TARGET LOWER) now compute accurately against equipped gear vs target set.
+- **Materia Tab Legibility**: Improved tooltip clarity by deduplicating values; HQ stars now render after the item name; iLvl values shifted to gold pills.
+- **Stack Underflow Fix**: Resolved an ImGui style-stack assertion crash in the identity bar refresh cycle.
+
 ## [1.5.6] - 2026-07-05
 
 ### Changed

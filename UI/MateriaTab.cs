@@ -38,7 +38,7 @@ public static class MateriaTab
             var mod = LevelTable.Get(s.Level);
 
             Theme.TtChrome.Eyebrow(plugin.Fonts, "Materia · Current Melds");
-            Theme.TtChrome.Quip(plugin.Fonts, "Every melded substat with overcap and tier audits. Red rows are wasting budget.");
+            Theme.TtChrome.Quip(plugin.Fonts, "One card per equipped piece. Dots are melded substats, colored by type — hover any card for the full meld breakdown and cap audit.");
             ImGui.Spacing();
             ImGui.Spacing();
 
@@ -65,6 +65,98 @@ public static class MateriaTab
         }
 
         var result = MeldOptimizer.Optimize(pieces, s, mod, profile, WeightMode.PureMath);
+
+        // --- Overcap summary bar ---
+        int overCount = 0;
+        int wasteCount = 0;
+        int cleanCount = 0;
+        int overTotal = 0;
+        int totalPieces = pieces.Count;
+        List<string> overPieces = new();
+        List<string> wasteStats = new();
+        
+        foreach (var p in pieces)
+        {
+            var pAudits = result.Audits.Where(a => a.Piece == p.Slot).ToList();
+            bool hasWaste = pAudits.Any(a => a.Severity == AuditSeverity.Critical);
+            bool hasOver = !hasWaste && pAudits.Any(a => a.Severity == AuditSeverity.Warning);
+            
+            if (hasWaste) 
+            {
+                wasteCount++;
+                foreach (var w in pAudits.Where(a => a.Severity == AuditSeverity.Critical))
+                    wasteStats.Add(w.Headline); // Simplification: collect headlines
+            }
+            else if (hasOver) 
+            {
+                overCount++;
+                overPieces.Add(p.Slot.ToString());
+                foreach (var w in pAudits.Where(a => a.Severity == AuditSeverity.Warning))
+                {
+                    var match = System.Text.RegularExpressions.Regex.Match(w.Headline, @"\(-\d+\)");
+                    if (match.Success)
+                    {
+                        var valStr = match.Value.Trim('(', ')', '-');
+                        if (int.TryParse(valStr, out int val)) overTotal += val;
+                    }
+                }
+            }
+            else cleanCount++;
+        }
+
+        ImGui.PushStyleColor(ImGuiCol.ChildBg, Theme.TtChrome.Sink);
+        ImGui.BeginChild("mat-summary", new Vector2(0, 68), true, ImGuiWindowFlags.NoScrollbar);
+        var sumW = ImGui.GetContentRegionAvail().X / 3f;
+        
+        // Card 1: Overcap
+        ImGui.BeginGroup();
+        using (plugin.Fonts.Pixel.PushOrNull()) ImGui.TextColored(Theme.TtChrome.Warn, "OVERCAP");
+        using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
+        {
+            ImGui.SetWindowFontScale(2.0f);
+            ImGui.TextUnformatted($"+{overTotal}");
+            ImGui.SetWindowFontScale(1.0f);
+        }
+        using (plugin.Fonts.JetBrainsMonoBody.PushOrNull()) 
+        {
+            string overSlots = overCount > 0 ? string.Join(", ", overPieces) : "None";
+            ImGui.TextColored(Theme.TtChrome.FgFaint, $"{overCount} piece(s) · {overSlots}");
+        }
+        ImGui.EndGroup();
+        
+        // Card 2: Waste
+        ImGui.SameLine(sumW);
+        ImGui.BeginGroup();
+        using (plugin.Fonts.Pixel.PushOrNull()) ImGui.TextColored(Theme.TtChrome.Over, "ZERO-VALUE");
+        using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
+        {
+            ImGui.SetWindowFontScale(2.0f);
+            ImGui.TextUnformatted($"{wasteCount}");
+            ImGui.SetWindowFontScale(1.0f);
+        }
+        using (plugin.Fonts.JetBrainsMonoBody.PushOrNull()) 
+        {
+            string wasteStr = wasteCount > 0 ? "melds" : "None";
+            ImGui.TextColored(Theme.TtChrome.FgFaint, $"{wasteCount} piece(s) · {wasteStr}");
+        }
+        ImGui.EndGroup();
+        
+        // Card 3: Clean
+        ImGui.SameLine(sumW * 2);
+        ImGui.BeginGroup();
+        using (plugin.Fonts.Pixel.PushOrNull()) ImGui.TextColored(Theme.TtChrome.Ok, "CLEAN");
+        using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
+        {
+            ImGui.SetWindowFontScale(2.0f);
+            ImGui.TextUnformatted($"{cleanCount} / {totalPieces}");
+            ImGui.SetWindowFontScale(1.0f);
+        }
+        using (plugin.Fonts.JetBrainsMonoBody.PushOrNull()) ImGui.TextColored(Theme.TtChrome.FgFaint, $"melded pieces");
+        ImGui.EndGroup();
+        
+        ImGui.EndChild();
+        ImGui.PopStyleColor();
+        ImGui.Spacing();
 
         ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(11, 11));
         if (ImGui.BeginTable("materia_grid", 2, ImGuiTableFlags.None))
@@ -100,25 +192,40 @@ public static class MateriaTab
         // --- gc-top ---
         ImGui.BeginGroup();
         
-        // HQ Star and Name
-        using (plugin.Fonts.GaramondBody.PushOrNull())
+        // Measure the iLvl pill first so the name can reserve space for it
+        // and never overlap it (the card is fixed-height; names vary).
+        var ilvlText = $"i{piece.ItemLevel}";
+        float ilvlPillW;
+        using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
+            ilvlPillW = ImGui.CalcTextSize(ilvlText).X + 16f;
+
+        // Icon
+        var pieceIcon = DalamudServices.TextureProvider.GetFromGameIcon(new Dalamud.Interface.Textures.GameIconLookup(piece.IconId)).GetWrapOrEmpty();
+        float iconAdvance = 0f;
+        if (pieceIcon != null)
         {
-            if (piece.IsHighQuality)
-            {
-                ImGui.TextColored(Theme.TtChrome.Gold, "★ ");
-                ImGui.SameLine(0, 0);
-            }
-            ImGui.TextColored(Theme.TtChrome.Fg, piece.Name);
+            ImGui.Image(pieceIcon.Handle, new Vector2(16, 16));
+            ImGui.SameLine(0, 4);
+            iconAdvance = 20f;
         }
 
-        // Ilvl Pill
-        var ilvlText = $"i{piece.ItemLevel}";
+        // Name (truncated to the space left of the pill), HQ star AFTER the name
+        using (plugin.Fonts.GaramondBody.PushOrNull())
+        {
+            float nameMaxW = w - ilvlPillW - iconAdvance - (piece.IsHighQuality ? 16f : 0f) - 12f;
+            ImGui.TextColored(Theme.TtChrome.Fg, Truncate(piece.Name, nameMaxW));
+            if (piece.IsHighQuality)
+            {
+                ImGui.SameLine(0, 4);
+                ImGui.TextColored(Theme.TtChrome.Gold, "★");
+            }
+        }
+
+        // iLvl pill (right-aligned, mono)
         using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
         {
-            var ilvlSize = ImGui.CalcTextSize(ilvlText);
-            var ilvlPos = new Vector2(p.X + w - ilvlSize.X, p.Y);
-            ImGui.SetCursorScreenPos(ilvlPos);
-            ImGui.TextColored(Theme.TtChrome.GoldDim, ilvlText);
+            ImGui.SetCursorScreenPos(new Vector2(p.X + w - ilvlPillW, p.Y));
+            Theme.TtChrome.PillBox(ilvlText, Theme.TtChrome.Gold);
         }
 
         // Aggregate Badge
@@ -239,6 +346,40 @@ public static class MateriaTab
         draw.AddCircle(center, 5f, ImGui.GetColorU32(Theme.TtChrome.Bg2), 12, 1.5f);
     }
 
+    // Ellipsis-truncate to a pixel width, measured in the currently pushed font.
+    private static string Truncate(string text, float maxW)
+    {
+        if (maxW <= 0f || string.IsNullOrEmpty(text)) return text;
+        if (ImGui.CalcTextSize(text).X <= maxW) return text;
+        while (text.Length > 1 && ImGui.CalcTextSize(text + "…").X > maxW)
+            text = text.Substring(0, text.Length - 1);
+        return text + "…";
+    }
+
+    private static void DrawTooltipVerdict(Plugin plugin, List<MeldAudit> audits)
+    {
+        int overcap = 0;
+        bool waste = false;
+        foreach (var a in audits)
+        {
+            if (a.Severity == AuditSeverity.Critical) waste = true;
+            else if (a.Severity == AuditSeverity.Warning && a.Headline.Contains("(-"))
+            {
+                var start = a.Headline.IndexOf("(-") + 2;
+                var end = a.Headline.IndexOf(")", start);
+                if (end > start && int.TryParse(a.Headline.Substring(start, end - start), out int parsed))
+                    overcap += parsed;
+            }
+        }
+
+        using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
+        {
+            if (waste) Theme.TtChrome.PillBox("ZERO-VALUE MELD", Theme.TtChrome.Over);
+            else if (overcap > 0) Theme.TtChrome.PillBox($"+{overcap} OVERCAP", Theme.TtChrome.Warn);
+            else Theme.TtChrome.PillBox("CLEAN", Theme.TtChrome.Ok);
+        }
+    }
+
     private static Vector4 GetMateriaColor(Substat stat) => stat switch
     {
         Substat.CriticalHit => Theme.TtChrome.MatCrit,
@@ -267,24 +408,24 @@ public static class MateriaTab
         foreach (var audit in audits)
         {
             if (audit.Current == null) continue;
-            
+
             var c = audit.Current.Value;
+            // Left: dot + full stat name. Right: tier + value, once — no dupes.
             ImGui.TextColored(GetMateriaColor(c.Stat), "●");
             ImGui.SameLine();
             using (plugin.Fonts.GaramondBody.PushOrNull())
             {
-                ImGui.TextColored(Theme.TtChrome.Fg, c.Display());
+                ImGui.TextColored(Theme.TtChrome.Fg, c.Stat.Display());
             }
             ImGui.SameLine(200f);
             using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
             {
-                ImGui.TextColored(Theme.TtChrome.Fg2, $"+{c.Value} {c.Stat.Short()}");
+                ImGui.TextColored(Theme.TtChrome.Fg2, $"{c.Tier.Roman()} · +{c.Value}");
             }
         }
 
         ImGui.Separator();
-        // Footer verdict logic similar to badge
-        DrawAuditBadge(plugin, audits, ImGui.GetCursorScreenPos().X + 300f, ImGui.GetCursorScreenPos().Y, profile);
+        DrawTooltipVerdict(plugin, audits);
         ImGui.EndTooltip();
     }
 
@@ -294,9 +435,12 @@ public static class MateriaTab
         var p = ImGui.GetCursorScreenPos();
         using (plugin.Fonts.Pixel.PushOrNull())
         {
-            float xOffset = 0;
-            var legends = new[] { 
-                ("MATERIA", Theme.TtChrome.FgMuted),
+            // Plain leading label — no dot (it names the legend, it is not a stat).
+            ImGui.SetCursorScreenPos(new Vector2(p.X, p.Y));
+            ImGui.TextColored(Theme.TtChrome.FgMuted, "MATERIA");
+            float xOffset = ImGui.CalcTextSize("MATERIA").X + 20f;
+
+            var legends = new[] {
                 ("CRITICAL HIT", Theme.TtChrome.MatCrit),
                 ("DIRECT HIT", Theme.TtChrome.MatDh),
                 ("DETERMINATION", Theme.TtChrome.MatDet),
