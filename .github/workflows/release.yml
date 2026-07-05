@@ -41,9 +41,26 @@ jobs:
         run: |
           TAG="${GITHUB_REF_NAME}"
           VER="${TAG#v}"
-          IFS=. read -r a b c d <<< "$VER"
-          [ -z "$d" ] && d=0
-          ASMVER="${a}.${b}.${c}.${d}"
+          
+          # Parse like 1.5.7b
+          if [[ "$VER" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)([a-zA-Z]*)$ ]]; then
+            a="${BASH_REMATCH[1]}"
+            b="${BASH_REMATCH[2]}"
+            c="${BASH_REMATCH[3]}"
+            letter="${BASH_REMATCH[4]}"
+            d=0
+            if [ -n "$letter" ]; then
+              letter=$(echo "$letter" | tr '[:upper:]' '[:lower:]')
+              d=$(printf "%d" "'$letter")
+              d=$((d - 96))
+            fi
+            ASMVER="${a}.${b}.${c}.${d}"
+          else
+            IFS=. read -r a b c d <<< "$VER"
+            [ -z "$d" ] && d=0
+            ASMVER="${a}.${b}.${c}.${d}"
+          fi
+          
           echo "tag=$TAG"       >> "$GITHUB_OUTPUT"
           echo "ver=$VER"       >> "$GITHUB_OUTPUT"
           echo "asmver=$ASMVER" >> "$GITHUB_OUTPUT"
@@ -54,9 +71,10 @@ jobs:
       - name: Build
         run: >
           dotnet build -c Release --no-restore
-          -p:Version=${{ steps.ver.outputs.ver }}
+          -p:Version=${{ steps.ver.outputs.asmver }}
           -p:AssemblyVersion=${{ steps.ver.outputs.asmver }}
           -p:FileVersion=${{ steps.ver.outputs.asmver }}
+          -p:InformationalVersion=${{ steps.ver.outputs.ver }}
 
       - name: Locate plugin zip
         id: locate
