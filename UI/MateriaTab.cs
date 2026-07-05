@@ -105,7 +105,7 @@ public static class MateriaTab
         }
 
         ImGui.PushStyleColor(ImGuiCol.ChildBg, Theme.TtChrome.Sink);
-        ImGui.BeginChild("mat-summary", new Vector2(0, 68), true, ImGuiWindowFlags.NoScrollbar);
+        ImGui.BeginChild("mat-summary", new Vector2(0, 80), true, ImGuiWindowFlags.NoScrollbar);
         var sumW = ImGui.GetContentRegionAvail().X / 3f;
         
         // Card 1: Overcap
@@ -183,7 +183,7 @@ public static class MateriaTab
             ImGui.PushStyleColor(ImGuiCol.Border, Theme.TtChrome.LineSoft);
         }
 
-        Theme.TtChrome.BeginPanel("card_" + piece.Slot, 84f);
+        Theme.TtChrome.BeginPanel("card_" + piece.Slot, 96f);
 
         var draw = ImGui.GetWindowDrawList();
         var p = ImGui.GetCursorScreenPos();
@@ -204,9 +204,9 @@ public static class MateriaTab
         float iconAdvance = 0f;
         if (pieceIcon != null)
         {
-            ImGui.Image(pieceIcon.Handle, new Vector2(16, 16));
-            ImGui.SameLine(0, 4);
-            iconAdvance = 20f;
+            ImGui.Image(pieceIcon.Handle, new Vector2(20, 20));
+            ImGui.SameLine(0, 6);
+            iconAdvance = 26f;
         }
 
         // Name (truncated to the space left of the pill), HQ star AFTER the name
@@ -229,11 +229,11 @@ public static class MateriaTab
         }
 
         // Aggregate Badge
-        DrawAuditBadge(plugin, audits, p.X + w, p.Y + 24f, profile);
+        DrawAuditBadge(plugin, audits, p.X + w, p.Y + 28f, profile);
 
         ImGui.EndGroup();
 
-        ImGui.SetCursorScreenPos(new Vector2(p.X, p.Y + 44f));
+        ImGui.SetCursorScreenPos(new Vector2(p.X, p.Y + 52f));
         
         // --- gc-bot ---
         ImGui.BeginGroup();
@@ -257,8 +257,8 @@ public static class MateriaTab
             foreach (var audit in audits.AsEnumerable().Reverse())
             {
                 if (audit.Current == null) continue;
-                dotX -= 16f; // spacing
-                DrawDot(draw, new Vector2(dotX, p.Y + 48f), GetMateriaColor(audit.Current.Value.Stat));
+                dotX -= 18f; // spacing
+                DrawDot(draw, new Vector2(dotX, p.Y + 58f), GetMateriaColor(audit.Current.Value.Stat));
             }
         }
         ImGui.EndGroup();
@@ -342,8 +342,8 @@ public static class MateriaTab
 
     private static void DrawDot(ImDrawListPtr draw, Vector2 center, Vector4 color)
     {
-        draw.AddCircleFilled(center, 5f, ImGui.GetColorU32(color));
-        draw.AddCircle(center, 5f, ImGui.GetColorU32(Theme.TtChrome.Bg2), 12, 1.5f);
+        draw.AddCircleFilled(center, 6f, ImGui.GetColorU32(color));
+        draw.AddCircle(center, 6f, ImGui.GetColorU32(Theme.TtChrome.Bg2), 12, 1.5f);
     }
 
     // Ellipsis-truncate to a pixel width, measured in the currently pushed font.

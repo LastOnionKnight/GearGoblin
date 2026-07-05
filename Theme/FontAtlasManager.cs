@@ -113,6 +113,15 @@ public sealed class FontAtlasManager : IDisposable
     /// <summary>Eorzea @ 13px — ornamental rune accent (decorative only).</summary>
     public IFontHandle? EorzeaRune { get; }
 
+    // ── Dalamud shared FontAwesome (window-chrome glyphs) ───────────────
+
+    /// <summary>
+    /// Dalamud's built-in FontAwesome icon font — for window-chrome glyphs
+    /// (settings cog, collapse chevron, close, refresh sync). Owned by
+    /// UiBuilder, so it is NOT disposed here (unlike our own handles).
+    /// </summary>
+    public IFontHandle? IconFont { get; }
+
     // ── Construction ────────────────────────────────────────────────────
 
     public FontAtlasManager(IDalamudPluginInterface pi)
@@ -124,23 +133,30 @@ public sealed class FontAtlasManager : IDisposable
 
         // Build each handle defensively — one bad file shouldn't kill the rest.
 
-        // Track 1 — TlfTheme fonts (unchanged from v0.6.0).
+        // Track 1 — TlfTheme fonts.
+        // v1.5.8 readability pass: body/label/pixel sizes bumped ~+2px so text
+        // is legible at a glance (operator was squinting). Display sizes
+        // (Cinzel 32, PixelDisplay 32) unchanged — already large.
         CinzelDisplay  = TryBuild(atlas, dir, "Cinzel-Regular.ttf",       32f, "CinzelDisplay");
-        CinzelHeader   = TryBuild(atlas, dir, "Cinzel-Regular.ttf",       22f, "CinzelHeader");
-        CinzelEmphasis = TryBuild(atlas, dir, "Cinzel-SemiBold.ttf",      16f, "CinzelEmphasis");
-        GaramondBody   = TryBuild(atlas, dir, "EBGaramond-Regular.ttf",   15f, "GaramondBody");
-        GaramondItalic = TryBuild(atlas, dir, "EBGaramond-Italic.ttf",    15f, "GaramondItalic");
-        Pixel          = TryBuild(atlas, dir, "PressStart2P-Regular.ttf", 10f, "Pixel");
+        CinzelHeader   = TryBuild(atlas, dir, "Cinzel-Regular.ttf",       24f, "CinzelHeader");
+        CinzelEmphasis = TryBuild(atlas, dir, "Cinzel-SemiBold.ttf",      18f, "CinzelEmphasis");
+        GaramondBody   = TryBuild(atlas, dir, "EBGaramond-Regular.ttf",   17f, "GaramondBody");
+        GaramondItalic = TryBuild(atlas, dir, "EBGaramond-Italic.ttf",    17f, "GaramondItalic");
+        Pixel          = TryBuild(atlas, dir, "PressStart2P-Regular.ttf", 12f, "Pixel");
         PixelDisplay   = TryBuild(atlas, dir, "PressStart2P-Regular.ttf", 32f, "PixelDisplay");
 
         // Track 2 — TtChrome fonts (v0.6.7).
         // Filenames match Google Fonts' standard distribution + the
         // Eorzea.ttf shipped in TLF design handoff v0.1 assets.
-        CormorantBody      = TryBuild(atlas, dir, "CormorantGaramond-Regular.ttf", 15f, "CormorantBody");
-        CormorantItalic    = TryBuild(atlas, dir, "CormorantGaramond-Italic.ttf",  15f, "CormorantItalic");
-        JetBrainsMonoBody  = TryBuild(atlas, dir, "JetBrainsMono-Regular.ttf",     11f, "JetBrainsMonoBody");
-        JetBrainsMonoMeta  = TryBuild(atlas, dir, "JetBrainsMono-Bold.ttf",        10f, "JetBrainsMonoMeta");
-        EorzeaRune         = TryBuild(atlas, dir, "Eorzea.ttf",                    13f, "EorzeaRune");
+        CormorantBody      = TryBuild(atlas, dir, "CormorantGaramond-Regular.ttf", 17f, "CormorantBody");
+        CormorantItalic    = TryBuild(atlas, dir, "CormorantGaramond-Italic.ttf",  17f, "CormorantItalic");
+        JetBrainsMonoBody  = TryBuild(atlas, dir, "JetBrainsMono-Regular.ttf",     13f, "JetBrainsMonoBody");
+        JetBrainsMonoMeta  = TryBuild(atlas, dir, "JetBrainsMono-Bold.ttf",        12f, "JetBrainsMonoMeta");
+        EorzeaRune         = TryBuild(atlas, dir, "Eorzea.ttf",                    14f, "EorzeaRune");
+
+        // Dalamud's shared FontAwesome atlas — window-chrome glyphs. Not built
+        // by us (no .ttf), not disposed by us (UiBuilder owns its lifetime).
+        IconFont = pi.UiBuilder.IconFontHandle;
 
         DalamudServices.Log.Info(
             $"[FontAtlasManager v0.6.7] Loaded {CountLoaded()}/12 custom fonts from {dir}");

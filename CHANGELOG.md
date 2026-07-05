@@ -1,3 +1,10 @@
+## [1.5.7b] - 2026-07-05
+
+### Changed
+- **Readability**: Larger UI fonts and gear icons for improved legibility across all panels.
+- **Chrome Glyphs**: Titlebar gear/collapse/close and identity bar Refresh now use FontAwesome glyphs (resolves missing font glyph risks).
+- **Window Management**: The titlebar gear icon now opens Settings, and the collapse icon minimizes the plugin to just the titlebar.
+
 ## [1.5.7] - 2026-07-05
 
 ### Added

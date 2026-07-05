@@ -27,6 +27,7 @@ using System.Net;
 using System.Numerics;
 using System.Reflection;
 using System.Text;
+using Dalamud.Interface;
 using Dalamud.Interface.Windowing;
 using Dalamud.Bindings.ImGui;
 using GearGoblin.Services;
@@ -59,6 +60,10 @@ public sealed class MainWindow : Window, IDisposable
     // v1.5.7 Settings: Free Company name buffer (identity-bar fallback, handoff §3.2).
     private readonly byte[] fcBuf = new byte[64];
     private bool fcBufLoaded;
+
+    // v1.5.7c titlebar chrome state.
+    private static bool _wantsSettingsFocus;  // gear button -> focus the Settings tab
+    private bool _collapsed;                   // collapse chevron -> titlebar-only view
 
     private static readonly string[] FeedbackCategories =
         { "Bug / glitch", "Feature idea", "Confusion / unclear", "Just saying hi" };
@@ -104,6 +109,21 @@ public sealed class MainWindow : Window, IDisposable
 
     public override void Draw()
     {
+        // Collapse: lock the window height to just the titlebar band. Constraint
+        // changes apply on the next frame (Dalamud reads SizeConstraints before
+        // Begin), so the shrink/grow is one frame behind the click — imperceptible.
+        SizeConstraints = _collapsed
+            ? new WindowSizeConstraints
+              {
+                  MinimumSize = new Vector2(360f, 60f),
+                  MaximumSize = new Vector2(float.MaxValue, 60f),
+              }
+            : new WindowSizeConstraints
+              {
+                  MinimumSize = new Vector2(640f, 460f),
+                  MaximumSize = new Vector2(float.MaxValue, float.MaxValue),
+              };
+
         var player = DalamudServices.ObjectTable.LocalPlayer;
         if (player is null)
         {
@@ -126,11 +146,14 @@ public sealed class MainWindow : Window, IDisposable
     private void DrawBody(Dalamud.Game.ClientState.Objects.SubKinds.IPlayerCharacter player)
     {
         DrawTitlebar();
+        if (_collapsed)
+            return; // collapsed: show only the titlebar band
+
         DrawIdentityBar(player);
         ImGui.Separator();
         
         // Main content area - leave space for footer
-        ImGui.BeginChild("##content", new Vector2(0, -36f), false, ImGuiWindowFlags.None);
+        ImGui.BeginChild("##content", new Vector2(0, -44f), false, ImGuiWindowFlags.None);
 
         if (ImGui.BeginTabBar("##goblintabs"))
         {
@@ -161,7 +184,13 @@ public sealed class MainWindow : Window, IDisposable
                 MateriaTab.Draw(plugin);
                 ImGui.EndTabItem();
             }
-            if (ImGui.BeginTabItem("Settings"))
+            var settingsFlags = ImGuiTabItemFlags.None;
+            if (_wantsSettingsFocus)
+            {
+                settingsFlags = ImGuiTabItemFlags.SetSelected;
+                _wantsSettingsFocus = false;
+            }
+            if (ImGui.BeginTabItem("Settings", settingsFlags))
             {
                 DrawSettings();
                 ImGui.EndTabItem();
@@ -193,7 +222,7 @@ public sealed class MainWindow : Window, IDisposable
     // draggable to move the window. gg4 design gap H1.
     private void DrawTitlebar()
     {
-        const float barH = 38f;
+        const float barH = 44f;
         ImGui.PushStyleColor(ImGuiCol.ChildBg, Theme.TtChrome.Panel2);
         ImGui.BeginChild("##titlebar", new Vector2(0, barH), false, ImGuiWindowFlags.NoScrollbar);
 
@@ -240,13 +269,31 @@ public sealed class MainWindow : Window, IDisposable
             Theme.TtChrome.PillBox(verLabel, Theme.TtChrome.CobaltBright);
         }
 
-        // Close button (right). U+00D7 has near-universal font coverage; the gg4
-        // gear/collapse glyphs are deferred to an icon-font pass (see radio).
-        const float btn = 24f;
-        ImGui.SetCursorPos(new Vector2(winW - btn - 10f, (barH - btn) * 0.5f));
-        if (TitleButton("##tt_close", "×", btn))
+        // Window buttons, laid out right->left: close, collapse, settings
+        // (gg4 shows ⚙ ▾ ✕ left->right). Rendered from Dalamud's FontAwesome.
+        const float btn = 24f, gap = 3f;
+        float bx = winW - btn - 10f;
+
+        ImGui.SetCursorPos(new Vector2(bx, (barH - btn) * 0.5f));
+        if (TitleButton("##tt_close", FontAwesomeIcon.Times, btn, Theme.TtChrome.Over))
         {
             this.IsOpen = false;
+        }
+
+        bx -= btn + gap;
+        ImGui.SetCursorPos(new Vector2(bx, (barH - btn) * 0.5f));
+        if (TitleButton("##tt_collapse",
+                _collapsed ? FontAwesomeIcon.ChevronUp : FontAwesomeIcon.ChevronDown,
+                btn, Theme.TtChrome.CobaltBright))
+        {
+            _collapsed = !_collapsed;
+        }
+
+        bx -= btn + gap;
+        ImGui.SetCursorPos(new Vector2(bx, (barH - btn) * 0.5f));
+        if (TitleButton("##tt_settings", FontAwesomeIcon.Cog, btn, Theme.TtChrome.GoldBright))
+        {
+            _wantsSettingsFocus = true;
         }
 
         ImGui.EndChild();
@@ -266,22 +313,27 @@ public sealed class MainWindow : Window, IDisposable
         }
     }
 
-    private bool TitleButton(string id, string glyph, float size)
+    private bool TitleButton(string id, FontAwesomeIcon icon, float size, Vector4 hoverColor)
     {
         var pos = ImGui.GetCursorScreenPos();
         bool clicked = ImGui.InvisibleButton(id, new Vector2(size, size));
         bool hov = ImGui.IsItemHovered();
         var draw = ImGui.GetWindowDrawList();
-        var col = hov ? Theme.TtChrome.Over : Theme.TtChrome.FgMuted;
+        var col = hov ? hoverColor : Theme.TtChrome.FgMuted;
         if (hov)
         {
             draw.AddRectFilled(pos, new Vector2(pos.X + size, pos.Y + size),
-                ImGui.GetColorU32(new Vector4(col.X, col.Y, col.Z, 0.14f)), 5f);
+                ImGui.GetColorU32(new Vector4(hoverColor.X, hoverColor.Y, hoverColor.Z, 0.14f)), 5f);
         }
-        var ts = ImGui.CalcTextSize(glyph);
-        draw.AddText(
-            new Vector2(pos.X + (size - ts.X) * 0.5f, pos.Y + (size - ts.Y) * 0.5f),
-            ImGui.GetColorU32(col), glyph);
+        // FontAwesome glyph rendered in Dalamud's shared icon font (no tofu risk).
+        using (plugin.Fonts.IconFont.PushOrNull())
+        {
+            var glyph = icon.ToIconString();
+            var ts = ImGui.CalcTextSize(glyph);
+            draw.AddText(
+                new Vector2(pos.X + (size - ts.X) * 0.5f, pos.Y + (size - ts.Y) * 0.5f),
+                ImGui.GetColorU32(col), glyph);
+        }
         return clicked;
     }
 
@@ -297,7 +349,7 @@ public sealed class MainWindow : Window, IDisposable
         var avgItemLevel = plugin.Inventory.CalculateAverageItemLevel(allEquipped);
 
         ImGui.PushStyleColor(ImGuiCol.ChildBg, Theme.TtChrome.Sink);
-        ImGui.BeginChild("##identity", new Vector2(0, 76), false, ImGuiWindowFlags.NoScrollbar);
+        ImGui.BeginChild("##identity", new Vector2(0, 86), false, ImGuiWindowFlags.NoScrollbar);
 
         var identityDrawList = ImGui.GetWindowDrawList();
         var identityMin = ImGui.GetWindowPos();
@@ -358,7 +410,7 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.BeginGroup();
         var hasFc = !string.IsNullOrEmpty(fc);
         // Vertically center the right block; two lines when an FC is set.
-        ImGui.SetCursorPosY(hasFc ? 15f : 22f);
+        ImGui.SetCursorPosY(hasFc ? 22f : 32f);
         using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
         {
             // gg4 world/FC 2-line stack: world · DC over the Free Company line.
@@ -374,8 +426,13 @@ public sealed class MainWindow : Window, IDisposable
 
         ImGui.SameLine(0, 16f);
         
-        // Refresh Button
+        // Refresh Button (gg4: ⟳ glyph + label)
         ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 18f);
+        using (plugin.Fonts.IconFont.PushOrNull())
+        {
+            ImGui.TextColored(Theme.TtChrome.CobaltBright, FontAwesomeIcon.Sync.ToIconString());
+        }
+        ImGui.SameLine(0, 5f);
         ImGui.PushStyleColor(ImGuiCol.Button, Theme.TtChrome.Rgba(45, 108, 223, 0.10f));
         ImGui.PushStyleColor(ImGuiCol.ButtonHovered, Theme.TtChrome.Rgba(45, 108, 223, 0.20f));
         using (plugin.Fonts.Pixel.PushOrNull())
@@ -404,7 +461,7 @@ public sealed class MainWindow : Window, IDisposable
     private void DrawFooter(Dalamud.Game.ClientState.Objects.SubKinds.IPlayerCharacter player)
     {
         ImGui.PushStyleColor(ImGuiCol.ChildBg, Theme.TtChrome.Rgba(8, 15, 26, 0.7f));
-        ImGui.BeginChild("##footer", new Vector2(0, 36), false, ImGuiWindowFlags.NoScrollbar);
+        ImGui.BeginChild("##footer", new Vector2(0, 44), false, ImGuiWindowFlags.NoScrollbar);
         
         ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 10f);
         ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 16f);

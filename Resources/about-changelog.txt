@@ -1,3 +1,8 @@
+v1.5.7b
+- Readability: larger UI fonts and gear icons.
+- Chrome: titlebar gear/collapse/close and Refresh use FontAwesome glyphs.
+- Features: gear opens Settings, collapse minimizes to the titlebar.
+
 ## [1.5.7] - 2026-07-05
 
 ### Added

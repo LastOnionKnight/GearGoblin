@@ -134,7 +134,7 @@ public static class CharacterTab
         bool near = !over && ratio >= 0.90f;
         var fillColor = over ? Theme.TtChrome.Over : (near ? Theme.TtChrome.GoldBright : accent);
 
-        Theme.TtChrome.BeginPanel("gauge_" + name, 90f);
+        Theme.TtChrome.BeginPanel("gauge_" + name, 98f);
 
         // Top row: name + real value / cap + state pill
         using (plugin.Fonts.CinzelEmphasis.PushOrNull())
