@@ -1,3 +1,34 @@
+## [1.5.6] - 2026-07-05
+
+### Changed
+- **Materia Tab Redesign (card grid):** Full direct-port from the gg4/plugin/ 
+  design reference. Row-based meld list replaced with a two-column card grid — 
+  one card per equipped piece, iLvl top-right, slot label bottom-left, 
+  colored materia dots bottom-right per substat. Empty pieces render with a 
+  dashed border and italic "no melds" text. HQ pieces prefix the name with a 
+  gold ★.
+- **Chrome retrofit:** Applied the Tonberry Tactics Cobalt/Gold design 
+  language to the persistent plugin chrome — titlebar, identity bar, tab 
+  strip, and window buttons all migrated to the gg2 token palette.
+
+### Added
+- **Materia dot color palette:** Seven new `Lantern.Mat*` color tokens 
+  (Crit / DH / Det / SkS / SpS / Ten / Pie) for per-substat visual identity 
+  on the card grid.
+- **Overcap audit badges:** Card-level verdict pills in three states — 
+  `clean` (all melds optimal), `+N overcap` (data-driven overcap value), 
+  and `<Stat> · 0 dmg` (waste flag when a meld provides zero value for the 
+  current job).
+- **Hover tooltip on gear cards:** Reveals `MELDS · N of N` header, per-meld 
+  rows with dot + name + value pill, and footer verdict mirroring the badge 
+  severity.
+- **Materia legend row:** Bottom-of-tab reference row showing all seven 
+  substat colors with pixel-font labels.
+
+### Fixed
+- **Soul Crystal filter:** Job stones are no longer surfaced in the Materia 
+  tab. Filter path routes them through `EquipSlot.Unknown` fallback so they 
+  correctly exclude from the gear card grid.
 ## [1.5.5] - 2026-06-24
 
 ### Fixed

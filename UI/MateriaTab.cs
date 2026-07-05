@@ -1,25 +1,9 @@
-// UI/MateriaTab.cs
-// v0.6.6.4: Stat Sheet + Plan merged into one default landing per Fork 1
-// (toggle treatment). The 3-radio sub-tab selector is gone. The default
-// view shows current substats and recommended fills stacked on a single
-// scroll surface; an [Audit ▸] toggle in the top-right swaps the body to
-// the audit view, and a [Balance preset] toggle re-runs the optimizer
-// with the alternate weighting.
-//
-// State:
-//   s_showingAudit  — false (default) shows Stat Sheet + Plan; true shows Audit
-//   s_weightMode    — Pure math (default) vs Balance preset
-//
-// Cross-tab signal:
-//   WantsAuditOnNextDraw — set by CharacterTab's "See full audit in
-//   Materia tab →" link to land the user directly on the Audit view
-//   when MateriaTab.Draw next runs.
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
+using GearGoblin.Core;
 using GearGoblin.Materia;
 using GearGoblin.Core.Materia;
 using GearGoblin.Services;
@@ -37,8 +21,6 @@ public static class MateriaTab
         try
         {
             var inventory = plugin.Inventory;
-            // WantsAuditOnNextDraw doesn't do anything structural anymore because there's only one view, 
-            // but we consume it just in case.
             if (WantsAuditOnNextDraw)
             {
                 WantsAuditOnNextDraw = false;
@@ -70,7 +52,12 @@ public static class MateriaTab
 
     private static void DrawAudit(Plugin plugin, StatSnapshot s, JobProfile profile, LevelMod mod, IInventoryReader inventory)
     {
-        var pieces = BuildMeldablePieces(inventory);
+        var allEquipped = inventory.ReadEquipped();
+        var pieces = allEquipped
+            .Where(p => p.Slot != EquipSlot.Unknown)
+            .Select(p => p.FromEquipped())
+            .ToList();
+
         if (pieces.Count == 0)
         {
             ImGui.TextDisabled("No equipped gear detected.");
@@ -79,113 +66,254 @@ public static class MateriaTab
 
         var result = MeldOptimizer.Optimize(pieces, s, mod, profile, WeightMode.PureMath);
 
-        if (result.Audits.Count == 0)
+        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(11, 11));
+        if (ImGui.BeginTable("materia_grid", 2, ImGuiTableFlags.None))
         {
-            ImGui.TextDisabled("No existing melds to audit.");
-            return;
+            foreach (var piece in pieces)
+            {
+                ImGui.TableNextColumn();
+                DrawGearCard(plugin, piece, result.Audits.Where(a => a.Piece == piece.Slot).ToList(), profile);
+            }
+            ImGui.EndTable();
+        }
+        ImGui.PopStyleVar();
+
+        ImGui.Spacing();
+        DrawLegend(plugin);
+    }
+
+    private static void DrawGearCard(Plugin plugin, MeldablePiece piece, List<MeldAudit> audits, JobProfile profile)
+    {
+        bool isEmpty = piece.EmptySlotCount == piece.Slots.Count && !audits.Any(a => a.Current != null);
+        
+        if (isEmpty)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Border, Theme.TtChrome.LineSoft);
         }
 
-        foreach (var audit in result.Audits)
+        Theme.TtChrome.BeginPanel("card_" + piece.Slot, 84f);
+
+        var draw = ImGui.GetWindowDrawList();
+        var p = ImGui.GetCursorScreenPos();
+        var w = ImGui.GetContentRegionAvail().X;
+
+        // --- gc-top ---
+        ImGui.BeginGroup();
+        
+        // HQ Star and Name
+        using (plugin.Fonts.GaramondBody.PushOrNull())
         {
-            Theme.TtChrome.BeginPanel("audit_" + audit.Piece + "_" + audit.SlotIndex, 64f);
-            
-            // Layout matching mockup:
-            // Orb image
-            // slot name
-            // Materia name & stat value
-            // Verdict
-
-            ImGui.BeginGroup();
-            
-            if (audit.Current is not null)
+            if (piece.IsHighQuality)
             {
-                var statName = audit.Current.Value.Stat.ToString().ToLowerInvariant();
-                var orbPath = "crit";
-                if (statName.Contains("crit")) orbPath = "crit";
-                else if (statName.Contains("direct")) orbPath = "dh";
-                else if (statName.Contains("deter")) orbPath = "det";
-                else if (statName.Contains("skill")) orbPath = "sks";
-                else if (statName.Contains("spell")) orbPath = "sps";
-                else if (statName.Contains("tenac")) orbPath = "ten";
-                else if (statName.Contains("piet")) orbPath = "pie";
-
-                // We don't have orb textures loaded in BrandResources yet, so we'll draw a colored circle or just text
-                // Let's use a colored bullet for now
-                var color = Theme.TtChrome.Fg;
-                if (orbPath == "crit") color = Theme.TtChrome.Over;
-                else if (orbPath == "dh") color = Theme.TtChrome.Warn;
-                else if (orbPath == "det") color = Theme.TtChrome.FgMuted;
-                else if (orbPath == "sks" || orbPath == "sps") color = Theme.TtChrome.Ok;
-
-                ImGui.TextColored(color, "●");
+                ImGui.TextColored(Theme.TtChrome.Gold, "★ ");
+                ImGui.SameLine(0, 0);
             }
-            ImGui.EndGroup();
+            ImGui.TextColored(Theme.TtChrome.Fg, piece.Name);
+        }
 
-            ImGui.SameLine(0, 16);
+        // Ilvl Pill
+        var ilvlText = $"i{piece.ItemLevel}";
+        using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
+        {
+            var ilvlSize = ImGui.CalcTextSize(ilvlText);
+            var ilvlPos = new Vector2(p.X + w - ilvlSize.X, p.Y);
+            ImGui.SetCursorScreenPos(ilvlPos);
+            ImGui.TextColored(Theme.TtChrome.GoldDim, ilvlText);
+        }
 
-            ImGui.BeginGroup();
-            using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
+        // Aggregate Badge
+        DrawAuditBadge(plugin, audits, p.X + w, p.Y + 24f, profile);
+
+        ImGui.EndGroup();
+
+        ImGui.SetCursorScreenPos(new Vector2(p.X, p.Y + 44f));
+        
+        // --- gc-bot ---
+        ImGui.BeginGroup();
+        using (plugin.Fonts.Pixel.PushOrNull())
+        {
+            ImGui.TextColored(Theme.TtChrome.CobaltBright, piece.Slot.ToString().ToUpperInvariant());
+        }
+
+        if (isEmpty)
+        {
+            ImGui.SameLine();
+            using (plugin.Fonts.GaramondItalic.PushOrNull())
             {
-                ImGui.TextColored(Theme.TtChrome.FgMuted, $"{audit.Piece} · {audit.SlotIndex + 1}");
+                ImGui.TextColored(Theme.TtChrome.FgFaint, "no melds");
             }
-            ImGui.EndGroup();
-
-            ImGui.SameLine(150);
-
-            ImGui.BeginGroup();
-            if (audit.Current is not null)
+        }
+        else
+        {
+            // Dots
+            float dotX = p.X + w; // Start from right
+            foreach (var audit in audits.AsEnumerable().Reverse())
             {
-                using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
-                {
-                    ImGui.TextColored(Theme.TtChrome.Fg, audit.Current.Value.Display());
-                }
-                using (plugin.Fonts.Pixel.PushOrNull())
-                {
-                    ImGui.TextColored(Theme.TtChrome.FgFaint, $"+{audit.Current.Value.Value} {audit.Current.Value.Stat}");
-                }
+                if (audit.Current == null) continue;
+                dotX -= 16f; // spacing
+                DrawDot(draw, new Vector2(dotX, p.Y + 48f), GetMateriaColor(audit.Current.Value.Stat));
             }
-            else
-            {
-                using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
-                {
-                    ImGui.TextColored(Theme.TtChrome.FgFaint, "Empty Slot");
-                }
-            }
-            ImGui.EndGroup();
+        }
+        ImGui.EndGroup();
 
-            var avail = ImGui.GetContentRegionAvail();
-            ImGui.SameLine(ImGui.GetWindowWidth() - 250f);
+        Theme.TtChrome.EndPanel();
 
-            ImGui.BeginGroup();
-            var sevColor = SeverityColor(audit.Severity);
-            using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
-            {
-                ImGui.TextColored(sevColor, audit.Headline);
-                if (audit.SuggestedReplacement is not null && audit.Severity != AuditSeverity.Good)
-                {
-                    ImGui.TextColored(sevColor, $"→ Replace with {audit.SuggestedReplacement.Value.Display()}");
-                }
-            }
-            ImGui.EndGroup();
+        if (isEmpty)
+        {
+            ImGui.PopStyleColor(); // Pop border override
+        }
 
-            Theme.TtChrome.EndPanel();
-            ImGui.Spacing();
+        if (ImGui.IsItemHovered())
+        {
+            DrawHoverTooltip(plugin, piece, audits, profile);
         }
     }
 
-    private static List<MeldablePiece> BuildMeldablePieces(IInventoryReader inventory)
+    private static void DrawAuditBadge(Plugin plugin, List<MeldAudit> audits, float rightX, float y, JobProfile profile)
     {
-        var equipped = inventory.ReadEquipped();
-        return equipped.Select(p => p.FromEquipped()).ToList();
+        if (audits.Count == 0 || !audits.Any(a => a.Current != null)) return;
+
+        bool hasWaste = false;
+        bool hasOver = false;
+        string wasteText = "";
+        int totalOvercap = 0;
+
+        foreach (var a in audits)
+        {
+            if (a.Severity == AuditSeverity.Critical) 
+            {
+                hasWaste = true;
+                if (a.Current != null)
+                {
+                    wasteText = $"{a.Current.Value.Stat.ToString().Substring(0, 3)} · 0 dmg";
+                }
+            }
+            else if (a.Severity == AuditSeverity.Warning)
+            {
+                hasOver = true;
+                if (a.Current != null && a.Headline.Contains("(-"))
+                {
+                    var start = a.Headline.IndexOf("(-") + 2;
+                    var end = a.Headline.IndexOf(")", start);
+                    if (end > start && int.TryParse(a.Headline.Substring(start, end - start), out int parsed))
+                    {
+                        totalOvercap += parsed;
+                    }
+                }
+            }
+        }
+
+        string text = "clean";
+        Vector4 color = Theme.TtChrome.Ok;
+
+        if (hasWaste)
+        {
+            text = wasteText;
+            color = Theme.TtChrome.Over;
+        }
+        else if (hasOver)
+        {
+            text = $"+{Math.Max(totalOvercap, 1)} overcap";
+            color = Theme.TtChrome.Warn;
+        }
+
+        using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
+        {
+            var size = ImGui.CalcTextSize(text);
+            var draw = ImGui.GetWindowDrawList();
+            var padding = new Vector2(8, 2);
+            var rectMin = new Vector2(rightX - size.X - padding.X * 2, y);
+            var rectMax = new Vector2(rightX, y + size.Y + padding.Y * 2);
+
+            draw.AddRectFilled(rectMin, rectMax, ImGui.GetColorU32(new Vector4(color.X, color.Y, color.Z, 0.12f)), 999f);
+            draw.AddRect(rectMin, rectMax, ImGui.GetColorU32(color), 999f);
+
+            ImGui.SetCursorScreenPos(new Vector2(rectMin.X + padding.X, rectMin.Y + padding.Y));
+            ImGui.TextColored(color, text);
+        }
     }
 
-    private static Vector4 SeverityColor(AuditSeverity sev) => sev switch
+    private static void DrawDot(ImDrawListPtr draw, Vector2 center, Vector4 color)
     {
-        AuditSeverity.Good     => Theme.TtChrome.Ok,
-        AuditSeverity.Minor    => Theme.TtChrome.FgMuted,
-        AuditSeverity.Warning  => Theme.TtChrome.Warn,
-        AuditSeverity.Critical => Theme.TtChrome.Over,
-        _                      => Theme.TtChrome.FgMuted,
+        draw.AddCircleFilled(center, 5f, ImGui.GetColorU32(color));
+        draw.AddCircle(center, 5f, ImGui.GetColorU32(Theme.TtChrome.Bg2), 12, 1.5f);
+    }
+
+    private static Vector4 GetMateriaColor(Substat stat) => stat switch
+    {
+        Substat.CriticalHit => Theme.TtChrome.MatCrit,
+        Substat.DirectHit   => Theme.TtChrome.MatDh,
+        Substat.Determination => Theme.TtChrome.MatDet,
+        Substat.SkillSpeed  => Theme.TtChrome.MatSks,
+        Substat.SpellSpeed  => Theme.TtChrome.MatSps,
+        Substat.Tenacity    => Theme.TtChrome.MatTen,
+        Substat.Piety       => Theme.TtChrome.MatPie,
+        _ => Theme.TtChrome.FgMuted
     };
+
+    private static void DrawHoverTooltip(Plugin plugin, MeldablePiece piece, List<MeldAudit> audits, JobProfile profile)
+    {
+        ImGui.BeginTooltip();
+        
+        int filled = audits.Count(a => a.Current != null);
+        int total = piece.Slots.Count;
+        
+        using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
+        {
+            ImGui.TextColored(Theme.TtChrome.FgMuted, $"MELDS · {filled} of {total}");
+        }
+        ImGui.Separator();
+
+        foreach (var audit in audits)
+        {
+            if (audit.Current == null) continue;
+            
+            var c = audit.Current.Value;
+            ImGui.TextColored(GetMateriaColor(c.Stat), "●");
+            ImGui.SameLine();
+            using (plugin.Fonts.GaramondBody.PushOrNull())
+            {
+                ImGui.TextColored(Theme.TtChrome.Fg, c.Display());
+            }
+            ImGui.SameLine(200f);
+            using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
+            {
+                ImGui.TextColored(Theme.TtChrome.Fg2, $"+{c.Value} {c.Stat.Short()}");
+            }
+        }
+
+        ImGui.Separator();
+        // Footer verdict logic similar to badge
+        DrawAuditBadge(plugin, audits, ImGui.GetCursorScreenPos().X + 300f, ImGui.GetCursorScreenPos().Y, profile);
+        ImGui.EndTooltip();
+    }
+
+    private static void DrawLegend(Plugin plugin)
+    {
+        var draw = ImGui.GetWindowDrawList();
+        var p = ImGui.GetCursorScreenPos();
+        using (plugin.Fonts.Pixel.PushOrNull())
+        {
+            float xOffset = 0;
+            var legends = new[] { 
+                ("MATERIA", Theme.TtChrome.FgMuted),
+                ("CRITICAL HIT", Theme.TtChrome.MatCrit),
+                ("DIRECT HIT", Theme.TtChrome.MatDh),
+                ("DETERMINATION", Theme.TtChrome.MatDet),
+                ("SKILL SPEED", Theme.TtChrome.MatSks),
+                ("SPELL SPEED", Theme.TtChrome.MatSps),
+                ("TENACITY", Theme.TtChrome.MatTen),
+                ("PIETY", Theme.TtChrome.MatPie)
+            };
+
+            foreach (var (label, color) in legends)
+            {
+                DrawDot(draw, new Vector2(p.X + xOffset + 6f, p.Y + 6f), color);
+                ImGui.SetCursorScreenPos(new Vector2(p.X + xOffset + 16f, p.Y));
+                ImGui.TextColored(Theme.TtChrome.FgFaint, label);
+                xOffset += ImGui.CalcTextSize(label).X + 32f;
+            }
+        }
+    }
 }
 

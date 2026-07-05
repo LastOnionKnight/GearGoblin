@@ -37,6 +37,15 @@ public static class TtChrome
 
     public static readonly Vector4 Tonberry   = Rgb(0x9b, 0xc0, 0x63); // #9bc063
 
+    // Semantic
+    public static readonly Vector4 MatCrit = Rgb(0xd6, 0x55, 0x63); // #D65563
+    public static readonly Vector4 MatDh   = Rgb(0xe0, 0x86, 0x3c); // #E0863C
+    public static readonly Vector4 MatDet  = Rgb(0xe5, 0xc2, 0x4e); // #E5C24E
+    public static readonly Vector4 MatSks  = Rgb(0x4a, 0x8b, 0xff); // #4A8BFF
+    public static readonly Vector4 MatSps  = Rgb(0xa0, 0x6f, 0xd6); // #A06FD6
+    public static readonly Vector4 MatTen  = Rgb(0x8f, 0xbe, 0x5a); // #8FBE5A
+    public static readonly Vector4 MatPie  = Rgb(0x3f, 0xb6, 0xa8); // #3FB6A8
+
     // Text & Foreground
     public static readonly Vector4 Fg       = Rgb(0xe7, 0xee, 0xf6); // #E7EEF6
     public static readonly Vector4 Fg2      = Rgb(0xaf, 0xc0, 0xd2); // #AFC0D2
@@ -79,12 +88,59 @@ public static class TtChrome
 
     // ── Composite helpers ───────────────────────────────────────────────
 
-    public static void Eyebrow(FontAtlasManager fonts, string label)
+    public static void Eyebrow(FontAtlasManager fonts, string label, bool isCobalt = false)
     {
+        ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 22f);
+        
+        var color = isCobalt ? CobaltBright : Gold;
+        var shadowColor = isCobalt ? Rgba(74, 139, 255, 0.7f) : Rgba(201, 162, 39, 0.7f);
+        var lineColor = isCobalt ? LineCobalt : LineGold;
+
+        var p = ImGui.GetCursorScreenPos();
+        var draw = ImGui.GetWindowDrawList();
+        
+        // Draw 6x6 diamond at center-left
+        float cx = p.X + 3f;
+        float cy = p.Y + 6f; // approx center of text
+        draw.AddQuadFilled(
+            new Vector2(cx, cy - 4f),
+            new Vector2(cx + 4f, cy),
+            new Vector2(cx, cy + 4f),
+            new Vector2(cx - 4f, cy),
+            ImGui.GetColorU32(color)
+        );
+        // We can't do a real shadow easily without multiple quads, but we can fake a glow
+        draw.AddQuad(
+            new Vector2(cx, cy - 6f),
+            new Vector2(cx + 6f, cy),
+            new Vector2(cx, cy + 6f),
+            new Vector2(cx - 6f, cy),
+            ImGui.GetColorU32(shadowColor), 2f
+        );
+
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 16f); // gap + diamond size
+        ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 2f);
+
         using (fonts.Pixel.PushOrNull())
         {
-            ImGui.TextColored(Gold, $"{GlyphEyebrow} {label.ToUpperInvariant()}");
+            ImGui.TextColored(color, label.ToUpperInvariant());
         }
+
+        ImGui.SameLine();
+        var lineY = ImGui.GetCursorScreenPos().Y + 5f;
+        var rightEdge = ImGui.GetWindowPos().X + ImGui.GetWindowWidth();
+        
+        // Draw trailing line
+        draw.AddRectFilledMultiColor(
+            new Vector2(ImGui.GetCursorScreenPos().X + 10f, lineY),
+            new Vector2(rightEdge, lineY + 1f),
+            ImGui.GetColorU32(lineColor),
+            ImGui.GetColorU32(Vector4.Zero),
+            ImGui.GetColorU32(Vector4.Zero),
+            ImGui.GetColorU32(lineColor)
+        );
+
+        ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 12f);
     }
 
     public static void Quip(FontAtlasManager fonts, string text)
