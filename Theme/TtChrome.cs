@@ -167,6 +167,104 @@ public static class TtChrome
         ImGui.TextColored(color, $"[ {text} ]");
     }
 
+    /// <summary>
+    /// Bordered rounded pill matching the gg4 web chips. Inline: advances the
+    /// cursor by the pill's own size, so callers can chain SameLine().
+    /// </summary>
+    public static void PillBox(string text, Vector4 color)
+    {
+        var draw = ImGui.GetWindowDrawList();
+        var pos = ImGui.GetCursorScreenPos();
+        var ts = ImGui.CalcTextSize(text);
+        const float padX = 8f, padY = 3f;
+        var pMax = new Vector2(pos.X + ts.X + padX * 2f, pos.Y + ts.Y + padY * 2f);
+
+        var bg = new Vector4(color.X, color.Y, color.Z, 0.14f);
+        var br = new Vector4(color.X, color.Y, color.Z, 0.55f);
+        draw.AddRectFilled(pos, pMax, ImGui.GetColorU32(bg), 8f);
+        draw.AddRect(pos, pMax, ImGui.GetColorU32(br), 8f);
+        draw.AddText(new Vector2(pos.X + padX, pos.Y + padY), ImGui.GetColorU32(color), text);
+
+        ImGui.Dummy(new Vector2(pMax.X - pos.X, pMax.Y - pos.Y));
+    }
+
+    /// <summary>
+    /// Cobalt/gold toggle switch. Returns true on the frame the value changed.
+    /// Advances the cursor by the switch size (inline).
+    /// </summary>
+    public static bool ToggleSwitch(string id, ref bool value)
+    {
+        var draw = ImGui.GetWindowDrawList();
+        var pos = ImGui.GetCursorScreenPos();
+        float h = ImGui.GetFrameHeight() * 0.78f;
+        float w = h * 1.9f;
+        // BeginDisabled() scales the global alpha; fold it into our raw
+        // draw-list colors so a disabled toggle dims like a native widget.
+        float a = ImGui.GetStyle().Alpha;
+
+        bool changed = false;
+        ImGui.InvisibleButton(id, new Vector2(w, h));
+        if (ImGui.IsItemClicked())
+        {
+            value = !value;
+            changed = true;
+        }
+
+        Vector4 Dim(Vector4 c, float mul = 1f) => new(c.X, c.Y, c.Z, c.W * mul * a);
+
+        var pMax = new Vector2(pos.X + w, pos.Y + h);
+        var track = value ? Dim(Cobalt, 0.90f) : Dim(Sink);
+        draw.AddRectFilled(pos, pMax, ImGui.GetColorU32(track), h * 0.5f);
+        draw.AddRect(pos, pMax, ImGui.GetColorU32(Dim(value ? CobaltBright : Line)), h * 0.5f);
+
+        float knobR = h * 0.5f - 2.5f;
+        float knobX = value ? (pMax.X - knobR - 2.5f) : (pos.X + knobR + 2.5f);
+        draw.AddCircleFilled(
+            new Vector2(knobX, pos.Y + h * 0.5f), knobR,
+            ImGui.GetColorU32(Dim(value ? GoldBright : FgMuted)));
+
+        return changed;
+    }
+
+    /// <summary>
+    /// gg4 settings row: a toggle switch followed by a label and optional muted
+    /// description. Returns true on the frame the value changed. Respects
+    /// BeginDisabled(). Pass a unique id (ImGui hidden "##id" convention).
+    /// </summary>
+    public static bool ToggleRow(FontAtlasManager fonts, string id, string label, string desc, ref bool value)
+    {
+        ImGui.BeginGroup();
+        bool changed = ToggleSwitch(id, ref value);
+        ImGui.SameLine(0, 10f);
+
+        ImGui.BeginGroup();
+        ImGui.TextColored(Fg, label);
+        if (!string.IsNullOrEmpty(desc))
+        {
+            using (fonts.GaramondBody.PushOrNull())
+            {
+                ImGui.TextColored(FgMuted, desc);
+            }
+        }
+        ImGui.EndGroup();
+        ImGui.EndGroup();
+        return changed;
+    }
+
+    /// <summary>
+    /// Two-line label block: title (Fg) over a muted description. Leaves the
+    /// cursor below the block. Caller places any right-side control with
+    /// SameLine() before calling, or aligns via SetCursorPos.
+    /// </summary>
+    public static void TwoLine(FontAtlasManager fonts, string title, string desc)
+    {
+        ImGui.TextColored(Fg, title);
+        using (fonts.GaramondBody.PushOrNull())
+        {
+            ImGui.TextColored(FgMuted, desc);
+        }
+    }
+
     public static void BeginPanel(string id, float height = 0f)
     {
         ImGui.PushStyleColor(ImGuiCol.ChildBg, Panel);

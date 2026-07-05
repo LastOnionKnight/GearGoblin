@@ -56,6 +56,10 @@ public sealed class MainWindow : Window, IDisposable
     private bool   feedbackIncludeDiag = true;
     private string feedbackLastAction  = string.Empty;
 
+    // v1.5.7 Settings: Free Company name buffer (identity-bar fallback, handoff §3.2).
+    private readonly byte[] fcBuf = new byte[64];
+    private bool fcBufLoaded;
+
     private static readonly string[] FeedbackCategories =
         { "Bug / glitch", "Feature idea", "Confusion / unclear", "Just saying hi" };
     private static readonly string[] FeedbackLabels =
@@ -87,6 +91,13 @@ public sealed class MainWindow : Window, IDisposable
         };
         Size      = new Vector2(820, 600);
         SizeCondition = ImGuiCond.FirstUseEver;
+
+        // gg4 design-match: we draw our own titlebar band (crest + wordmark +
+        // version pill + close), so Dalamud's native title bar is suppressed.
+        // The window stays movable (FFXIV runs ConfigWindowsMoveFromTitleBarOnly
+        // = false, plus our custom titlebar drag) and /tt reopens it if closed.
+        // The ###GearGoblinMain layout id is unaffected (it comes from Begin()).
+        Flags = ImGuiWindowFlags.NoTitleBar;
     }
 
     public void Dispose() { }
@@ -114,6 +125,7 @@ public sealed class MainWindow : Window, IDisposable
 
     private void DrawBody(Dalamud.Game.ClientState.Objects.SubKinds.IPlayerCharacter player)
     {
+        DrawTitlebar();
         DrawIdentityBar(player);
         ImGui.Separator();
         
@@ -176,11 +188,113 @@ public sealed class MainWindow : Window, IDisposable
         DrawFooter(player);
     }
 
+    // Custom titlebar band (replaces the suppressed native title bar):
+    // crest + "TONBERRY TACTICS" wordmark + version pill + close button,
+    // draggable to move the window. gg4 design gap H1.
+    private void DrawTitlebar()
+    {
+        const float barH = 38f;
+        ImGui.PushStyleColor(ImGuiCol.ChildBg, Theme.TtChrome.Panel2);
+        ImGui.BeginChild("##titlebar", new Vector2(0, barH), false, ImGuiWindowFlags.NoScrollbar);
+
+        float winW = ImGui.GetWindowWidth();
+        var barMin = ImGui.GetWindowPos();
+        var draw = ImGui.GetWindowDrawList();
+        // bottom gold hairline
+        draw.AddLine(
+            new Vector2(barMin.X, barMin.Y + barH - 1f),
+            new Vector2(barMin.X + winW, barMin.Y + barH - 1f),
+            ImGui.GetColorU32(Theme.TtChrome.LineGold));
+
+        // Crest
+        var crest = plugin.Brand.CircleLogo;
+        if (crest != null)
+        {
+            ImGui.SetCursorPos(new Vector2(12f, (barH - 22f) * 0.5f));
+            ImGui.Image(crest.Handle, new Vector2(22, 22));
+            ImGui.SameLine(0, 10);
+            ImGui.SetCursorPosY((barH - ImGui.GetTextLineHeight()) * 0.5f);
+        }
+        else
+        {
+            ImGui.SetCursorPos(new Vector2(12f, (barH - ImGui.GetTextLineHeight()) * 0.5f));
+        }
+
+        // Wordmark. "TACTICS" gets a 0.6px redraw to fake a bold weight (we only
+        // ship CinzelHeader at this scale) — same trick as the v1.5.7 header.
+        using (plugin.Fonts.CinzelHeader.PushOrNull())
+        {
+            ImGui.TextColored(Theme.TtChrome.GoldBright, "TONBERRY ");
+            ImGui.SameLine(0, 0);
+            var tPos = ImGui.GetCursorScreenPos();
+            ImGui.TextColored(Theme.TtChrome.GoldBright, "TACTICS");
+            draw.AddText(new Vector2(tPos.X + 0.6f, tPos.Y),
+                ImGui.GetColorU32(Theme.TtChrome.GoldBright), "TACTICS");
+        }
+
+        // Version pill
+        ImGui.SameLine(0, 10);
+        var verLabel = s_versionString.StartsWith("v") ? s_versionString : "v" + s_versionString;
+        using (plugin.Fonts.Pixel.PushOrNull())
+        {
+            Theme.TtChrome.PillBox(verLabel, Theme.TtChrome.CobaltBright);
+        }
+
+        // Close button (right). U+00D7 has near-universal font coverage; the gg4
+        // gear/collapse glyphs are deferred to an icon-font pass (see radio).
+        const float btn = 24f;
+        ImGui.SetCursorPos(new Vector2(winW - btn - 10f, (barH - btn) * 0.5f));
+        if (TitleButton("##tt_close", "×", btn))
+        {
+            this.IsOpen = false;
+        }
+
+        ImGui.EndChild();
+        ImGui.PopStyleColor();
+
+        // Custom window drag: move the parent window while dragging the band,
+        // unless a button inside it is the active item.
+        var bandMax = new Vector2(barMin.X + winW, barMin.Y + barH);
+        if (ImGui.IsWindowFocused() &&
+            ImGui.IsMouseHoveringRect(barMin, bandMax) &&
+            ImGui.IsMouseDragging(ImGuiMouseButton.Left) &&
+            !ImGui.IsAnyItemActive())
+        {
+            var d = ImGui.GetIO().MouseDelta;
+            var wp = ImGui.GetWindowPos();
+            ImGui.SetWindowPos(new Vector2(wp.X + d.X, wp.Y + d.Y));
+        }
+    }
+
+    private bool TitleButton(string id, string glyph, float size)
+    {
+        var pos = ImGui.GetCursorScreenPos();
+        bool clicked = ImGui.InvisibleButton(id, new Vector2(size, size));
+        bool hov = ImGui.IsItemHovered();
+        var draw = ImGui.GetWindowDrawList();
+        var col = hov ? Theme.TtChrome.Over : Theme.TtChrome.FgMuted;
+        if (hov)
+        {
+            draw.AddRectFilled(pos, new Vector2(pos.X + size, pos.Y + size),
+                ImGui.GetColorU32(new Vector4(col.X, col.Y, col.Z, 0.14f)), 5f);
+        }
+        var ts = ImGui.CalcTextSize(glyph);
+        draw.AddText(
+            new Vector2(pos.X + (size - ts.X) * 0.5f, pos.Y + (size - ts.Y) * 0.5f),
+            ImGui.GetColorU32(col), glyph);
+        return clicked;
+    }
+
     private void DrawIdentityBar(Dalamud.Game.ClientState.Objects.SubKinds.IPlayerCharacter player)
     {
-        var jobAbbr = player.ClassJob.Value.Abbreviation.ExtractText();
+        var jobLong = player.ClassJob.Value.Name.ExtractText();
+        var name = player.Name.TextValue;
         var lvl = player.Level;
         var world = player.HomeWorld.Value.Name.ExtractText();
+        var dc = player.HomeWorld.Value.DataCenter.Value.Name.ExtractText();
+        var fc = plugin.ConfigService.Current.FreeCompany;
+        var allEquipped = plugin.Inventory.ReadEquipped();
+        var avgItemLevel = plugin.Inventory.CalculateAverageItemLevel(allEquipped);
 
         ImGui.PushStyleColor(ImGuiCol.ChildBg, Theme.TtChrome.Sink);
         ImGui.BeginChild("##identity", new Vector2(0, 76), false, ImGuiWindowFlags.NoScrollbar);
@@ -197,73 +311,83 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 10f);
         ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 16f);
 
-        // Job Stone
-        if (plugin.Brand.JobStones.TryGetValue(jobAbbr, out var tex) && tex != null)
-        // Logo and Title block
+        // Job Stone (native FFXIV UI icon so every job incl. VPR resolves),
+        // framed in a gg4 gold border rather than sitting bare.
+        var jobIcon = DalamudServices.TextureProvider.GetFromGameIcon(new Dalamud.Interface.Textures.GameIconLookup((uint)(62100 + player.ClassJob.RowId))).GetWrapOrEmpty();
         ImGui.BeginGroup();
-        if (plugin.Brand.CircleLogo != null)
+        if (jobIcon != null)
         {
-            ImGui.Image(plugin.Brand.CircleLogo.Handle, new Vector2(64, 64));
+            const float stone = 44f;
+            var stonePos = ImGui.GetCursorScreenPos();
+            ImGui.Image(jobIcon.Handle, new Vector2(stone, stone));
+            identityDrawList.AddRect(
+                stonePos,
+                new Vector2(stonePos.X + stone, stonePos.Y + stone),
+                ImGui.GetColorU32(Theme.TtChrome.Gold), 6f);
             ImGui.SameLine(0, 16);
         }
         ImGui.BeginGroup();
         ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 8f);
+        
         using (this.plugin.Fonts.CinzelHeader.PushOrNull())
         {
-            ImGui.TextColored(Theme.TtChrome.GoldBright, "GearGoblin");
+            // gg4 design-match: the identity bar leads with the character NAME
+            // (.identity .name). The "Tonberry Tactics" wordmark belongs in the
+            // window title bar, not here.
+            ImGui.TextColored(Theme.TtChrome.Fg, name);
         }
-        // Author block
+        
+        // Author block / Subtitle
         ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 4f);
-        ImGui.TextUnformatted("A component of ");
-        ImGui.SameLine(0, 4);
-        ImGui.TextColored(Theme.TtChrome.GoldBright, "Tonberry Tactics");
+        using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
+        {
+            ImGui.TextColored(Theme.TtChrome.FgMuted, $"{jobLong} · ");
+            ImGui.SameLine(0, 0);
+            ImGui.TextColored(Theme.TtChrome.GoldBright, $"Lv {lvl}");
+            ImGui.SameLine(0, 0);
+            ImGui.TextColored(Theme.TtChrome.FgMuted, $" · i{avgItemLevel}");
+        }
         ImGui.EndGroup();
         ImGui.EndGroup();
 
         // Right side: World and Refresh
         var avail = ImGui.GetContentRegionAvail();
         
-        // Layout: World text (right aligned), then Refresh button
-        // Calculate widths
-        var worldLabel = "WORLD";
-        var refreshLabel = "REFRESH";
-        float worldWidth = 100f; // Approximation
-        float refreshWidth = 80f; // Approximation
-        
-        ImGui.SameLine(ImGui.GetWindowWidth() - 200f);
+        ImGui.SameLine(ImGui.GetWindowWidth() - 320f);
         
         ImGui.BeginGroup();
-        // Vertically center the right block within the 76px tall masthead
-        ImGui.SetCursorPosY(22f);
+        var hasFc = !string.IsNullOrEmpty(fc);
+        // Vertically center the right block; two lines when an FC is set.
+        ImGui.SetCursorPosY(hasFc ? 15f : 22f);
         using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
         {
-            ImGui.TextColored(Theme.TtChrome.FgFaint, worldLabel);
-            ImGui.TextColored(Theme.TtChrome.Fg2, world);
+            // gg4 world/FC 2-line stack: world · DC over the Free Company line.
+            ImGui.TextColored(Theme.TtChrome.FgFaint, $"{world} · {dc}");
+            if (hasFc)
+            {
+                ImGui.TextColored(Theme.TtChrome.FgMuted, "FC · ");
+                ImGui.SameLine(0, 0);
+                ImGui.TextColored(Theme.TtChrome.Fg2, $"«{fc}»");
+            }
         }
         ImGui.EndGroup();
 
         ImGui.SameLine(0, 16f);
         
         // Refresh Button
-        ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 6f);
+        ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 18f);
         ImGui.PushStyleColor(ImGuiCol.Button, Theme.TtChrome.Rgba(45, 108, 223, 0.10f));
         ImGui.PushStyleColor(ImGuiCol.ButtonHovered, Theme.TtChrome.Rgba(45, 108, 223, 0.20f));
-        ImGui.PushStyleColor(ImGuiCol.ButtonActive, Theme.TtChrome.Cobalt);
-        ImGui.PushStyleColor(ImGuiCol.Border, Theme.TtChrome.LineCobalt);
-        ImGui.PushStyleVar(ImGuiStyleVar.FrameBorderSize, 1f);
-        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 6f);
-        
         using (plugin.Fonts.Pixel.PushOrNull())
         {
-            if (ImGui.Button("REFRESH", new Vector2(0, 24)))
+            if (ImGui.Button("Refresh", new Vector2(0, 24)))
             {
                 try { _ = plugin.Inventory.ReadEquipped(); }
                 catch (Exception ex) { DalamudServices.Log.Warning(ex, "Refresh threw."); }
                 s_lastRefreshTime = DateTime.UtcNow;
             }
         }
-        ImGui.PopStyleVar(2);
-        ImGui.PopStyleColor(4);
+        ImGui.PopStyleColor(2);
         
         var sinceRefresh = (DateTime.UtcNow - s_lastRefreshTime).TotalSeconds;
         if (sinceRefresh >= 0 && sinceRefresh < 2.0)
@@ -287,20 +411,24 @@ public sealed class MainWindow : Window, IDisposable
         
         using (plugin.Fonts.Pixel.PushOrNull())
         {
-            ImGui.TextColored(Theme.TtChrome.Tonberry, "LIVE");
-            ImGui.SameLine(0, 8f);
-            ImGui.TextColored(Theme.TtChrome.GoldDim, "· The Onion Knight stands ready");
+            // gg4 footer creed: "TONBERRY TACTICS . v{ver} . THE ONION KNIGHT STANDS READY".
+            var verLabel = s_versionString.StartsWith("v") ? s_versionString : "v" + s_versionString;
+            ImGui.TextColored(Theme.TtChrome.GoldDim, $"TONBERRY TACTICS · {verLabel} · ");
+            ImGui.SameLine(0, 0);
+            ImGui.TextColored(Theme.TtChrome.Tonberry, "THE ONION KNIGHT STANDS READY");
         }
-        
-        var jobAbbr = player.ClassJob.Value.Abbreviation.ExtractText();
-        var ilvl = plugin.Inventory.CalculateAverageItemLevel(plugin.Inventory.ReadEquipped()).ToString();
-        
-        ImGui.SameLine(ImGui.GetWindowWidth() - 140f);
-        ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 2f);
-        
-        Theme.TtChrome.Pill(jobAbbr, Theme.TtChrome.CobaltBright);
-        ImGui.SameLine(0, 8f);
-        Theme.TtChrome.Pill($"iLv {ilvl}", Theme.TtChrome.Ok);
+
+        // gg4 product status chips (right-aligned, bordered pills).
+        ImGui.SameLine(ImGui.GetWindowWidth() - 340f);
+        ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 3f);
+        using (plugin.Fonts.Pixel.PushOrNull())
+        {
+            Theme.TtChrome.PillBox("offline · no backend", Theme.TtChrome.Tonberry);
+            ImGui.SameLine(0, 8f);
+            Theme.TtChrome.PillBox("round-trip v1", Theme.TtChrome.CobaltBright);
+            ImGui.SameLine(0, 8f);
+            Theme.TtChrome.PillBox("CPR linked", Theme.TtChrome.FgFaint);
+        }
         
         ImGui.EndChild();
         ImGui.PopStyleColor();
@@ -487,11 +615,13 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.Spacing();
 
         var nativeOn = cfg.EnableNativeStatPanel;
-        if (ImGui.Checkbox("Enable native stat-panel injection (Materia Advisor, derivations, GCD)", ref nativeOn))
+        if (Theme.TtChrome.ToggleRow(plugin.Fonts, "##native",
+                "Enable native stat-panel injection",
+                "Materia Advisor, derivations, and real GCD inside the Character window. Off = /tt window is the only UI surface (reopen the Character window for changes).",
+                ref nativeOn))
         {
             configService.SetEnableNativeStatPanel(nativeOn);
         }
-        ImGui.TextDisabled("Off = /tt window is the only UI surface. Reopen the Character window for changes.");
         ImGui.Spacing();
 
         // CPR coexistence section.
@@ -509,13 +639,17 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.Spacing();
 
         var force = cfg.ForceDerivationsOverCpr;
-        if (ImGui.Checkbox("Force GG derivations even when CPR is active (will double-render rows)", ref force))
+        if (Theme.TtChrome.ToggleRow(plugin.Fonts, "##force",
+                "Force GG derivations even when CPR is active",
+                "Will double-render rows.", ref force))
         {
             configService.SetForceDerivationsOverCpr(force);
         }
 
         var compact = cfg.CompactDerivationLayout;
-        if (ImGui.Checkbox("Compact one-line derivation layout (denser, saves vertical space)", ref compact))
+        if (Theme.TtChrome.ToggleRow(plugin.Fonts, "##compact",
+                "Compact one-line derivation layout",
+                "Denser; saves vertical space.", ref compact))
         {
             configService.SetCompactDerivationLayout(compact);
         }
@@ -532,38 +666,45 @@ public sealed class MainWindow : Window, IDisposable
         }
 
         var enableDer = cfg.EnableDerivedStatInjection;
-        if (ImGui.Checkbox("Master toggle: derived stat injection", ref enableDer))
+        if (Theme.TtChrome.ToggleRow(plugin.Fonts, "##master",
+                "Master toggle: derived stat injection", "", ref enableDer))
         {
             configService.SetEnableDerivedStatInjection(enableDer);
         }
 
         var crit = cfg.ShowCritDerivations;
-        if (ImGui.Checkbox("Critical Hit  (chance · ×damage · DI · breakpoint)", ref crit))
+        if (Theme.TtChrome.ToggleRow(plugin.Fonts, "##crit",
+                "Critical Hit", "chance · ×damage · DI · breakpoint", ref crit))
         {
             configService.SetShowCritDerivations(crit);
         }
         var det = cfg.ShowDetDerivations;
-        if (ImGui.Checkbox("Determination  (damage increase · breakpoint)", ref det))
+        if (Theme.TtChrome.ToggleRow(plugin.Fonts, "##det",
+                "Determination", "damage increase · breakpoint", ref det))
         {
             configService.SetShowDetDerivations(det);
         }
         var dh = cfg.ShowDhDerivations;
-        if (ImGui.Checkbox("Direct Hit  (chance · DI · breakpoint)", ref dh))
+        if (Theme.TtChrome.ToggleRow(plugin.Fonts, "##dh",
+                "Direct Hit", "chance · DI · breakpoint", ref dh))
         {
             configService.SetShowDhDerivations(dh);
         }
         var speed = cfg.ShowSpeedDerivations;
-        if (ImGui.Checkbox("Skill / Spell Speed  (real GCD · speed damage · breakpoint)", ref speed))
+        if (Theme.TtChrome.ToggleRow(plugin.Fonts, "##speed",
+                "Skill / Spell Speed", "real GCD · speed damage · breakpoint", ref speed))
         {
             configService.SetShowSpeedDerivations(speed);
         }
         var ten = cfg.ShowTenacityRow;
-        if (ImGui.Checkbox("Tenacity row  (tank jobs: +damage · −damage taken)", ref ten))
+        if (Theme.TtChrome.ToggleRow(plugin.Fonts, "##ten",
+                "Tenacity row", "tank jobs: +damage · −damage taken", ref ten))
         {
             configService.SetShowTenacityRow(ten);
         }
         var piety = cfg.ShowPietyRow;
-        if (ImGui.Checkbox("Piety row  (healer jobs: MP/tick)", ref piety))
+        if (Theme.TtChrome.ToggleRow(plugin.Fonts, "##piety",
+                "Piety row", "healer jobs: MP/tick", ref piety))
         {
             configService.SetShowPietyRow(piety);
         }
@@ -573,11 +714,29 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.Spacing();
         Theme.TtChrome.Eyebrow(this.plugin.Fonts, "Logging");
         var verbose = cfg.EnableVerboseInjectorLogging;
-        if (ImGui.Checkbox("Verbose injector logging (Materia Advisor per-update lines)", ref verbose))
+        if (Theme.TtChrome.ToggleRow(plugin.Fonts, "##verbose",
+                "Verbose injector logging",
+                "Materia Advisor per-update lines.", ref verbose))
         {
             configService.SetEnableVerboseInjectorLogging(verbose);
         }
         ImGui.TextDisabled("Recommended on after v0.4.6 update so we can verify the advisor-visibility fix.");
+
+        // v1.5.7 - identity-bar Free Company (Dalamud doesn't expose FC directly; handoff §3.2).
+        ImGui.Spacing();
+        Theme.TtChrome.Eyebrow(this.plugin.Fonts, "Identity bar");
+        if (!fcBufLoaded)
+        {
+            Array.Clear(fcBuf, 0, fcBuf.Length);
+            var existingFc = System.Text.Encoding.UTF8.GetBytes(cfg.FreeCompany ?? string.Empty);
+            Array.Copy(existingFc, fcBuf, Math.Min(existingFc.Length, fcBuf.Length - 1));
+            fcBufLoaded = true;
+        }
+        if (ImGui.InputText("Free Company name", fcBuf, ImGuiInputTextFlags.None))
+        {
+            configService.SetFreeCompany(System.Text.Encoding.UTF8.GetString(fcBuf).TrimEnd('\0'));
+        }
+        ImGui.TextDisabled("Shown on the identity bar. Leave blank to hide the FC line.");
 
         ImGui.Spacing();
         ImGui.Separator();
@@ -681,9 +840,14 @@ public sealed class MainWindow : Window, IDisposable
     private void DrawFeedback()
     {
         Theme.TtChrome.BeginPanel("feedback_panel");
-        Theme.TtChrome.Eyebrow(this.plugin.Fonts, "Feedback");
+        Theme.TtChrome.Eyebrow(this.plugin.Fonts, "Feedback · The Last Flame");
         ImGui.Spacing();
-        Theme.TtChrome.Quip(this.plugin.Fonts, "GearGoblin is in beta. Feedback genuinely shapes what ships next.");
+        using (plugin.Fonts.GaramondBody.PushOrNull())
+        {
+            ImGui.TextWrapped(
+                "Found a bug, a wrong breakpoint, or a meld the advisor missed? Bring it to us. " +
+                "Attach your /ttinfo block so we can reproduce.");
+        }
         ImGui.Spacing();
         ImGui.Spacing();
 
@@ -704,12 +868,10 @@ public sealed class MainWindow : Window, IDisposable
             ImGuiInputTextFlags.None);
         ImGui.Spacing();
 
-        ImGui.Checkbox(
+        Theme.TtChrome.ToggleRow(plugin.Fonts, "##fbdiag",
             "Include diagnostic info (recommended for bugs)",
+            "Attaches the same block /ttinfo prints — plugin version, job, advisor state, etc. No personal info.",
             ref feedbackIncludeDiag);
-        ImGui.TextDisabled(
-            "Attaches the same block /ttinfo prints — plugin version, " +
-            "job, advisor state, etc. No personal info.");
         ImGui.Spacing();
 
         var hasText = !string.IsNullOrWhiteSpace(ReadFeedbackText());
@@ -766,7 +928,49 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.TextDisabled(
             "No analytics, no telemetry, no auto-submit. Nothing leaves your " +
             "machine unless you click one of those buttons.");
+
+        // gg4 manifesto block (lantern + creed).
+        ImGui.Spacing();
+        ImGui.Spacing();
+        DrawManifesto("“No gear. No hope. No pants. Just onions.”",
+            "TONBERRY TACTICS · SHIPPING SINCE PATCH 7.0");
+
         Theme.TtChrome.EndPanel();
+    }
+
+    // gg4 manifesto card: lantern mark + italic quote + pixel attribution.
+    private void DrawManifesto(string quote, string attribution)
+    {
+        Theme.TtChrome.BeginPanel("manifesto_panel");
+        if (plugin.Brand.LanternMark != null)
+        {
+            ImGui.Image(plugin.Brand.LanternMark.Handle, new Vector2(20, 20),
+                Vector2.Zero, Vector2.One, Theme.TtChrome.GoldDim);
+            ImGui.SameLine(0, 10);
+        }
+        ImGui.BeginGroup();
+        using (plugin.Fonts.GaramondItalic.PushOrNull())
+        {
+            ImGui.TextColored(Theme.TtChrome.Fg2, quote);
+        }
+        using (plugin.Fonts.Pixel.PushOrNull())
+        {
+            ImGui.TextColored(Theme.TtChrome.GoldDim, attribution);
+        }
+        ImGui.EndGroup();
+        Theme.TtChrome.EndPanel();
+    }
+
+    private void BuiltWithRow(string name, string desc)
+    {
+        ImGui.TextColored(Theme.TtChrome.CobaltBright, Theme.TtChrome.GlyphCorner);
+        ImGui.SameLine(0, 8);
+        using (plugin.Fonts.GaramondBody.PushOrNull())
+        {
+            ImGui.TextColored(Theme.TtChrome.Fg, name);
+            ImGui.SameLine(0, 6);
+            ImGui.TextColored(Theme.TtChrome.FgMuted, "— " + desc);
+        }
     }
 
     /// <summary>
@@ -911,6 +1115,21 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.TextDisabled("Materia formulas re-derived from public datamining sources");
         ImGui.TextDisabled("(Akhmorning Allagan Studies, FFXIV datamining repo).");
         ImGui.TextDisabled("AtkNode injection patterns adapted from CharacterPanelRefined (MIT).");
+
+        // gg4 "Built with" attribution list.
+        ImGui.Spacing();
+        ImGui.Spacing();
+        using (plugin.Fonts.Pixel.PushOrNull())
+        {
+            ImGui.TextColored(Theme.TtChrome.CobaltBright, $"{Theme.TtChrome.GlyphEyebrow} BUILT WITH");
+        }
+        ImGui.Separator();
+        ImGui.Spacing();
+        BuiltWithRow("Dalamud", "plugin runtime & ImGui rendering.");
+        BuiltWithRow("CharacterPanelRefined", "substat derivations (recommended companion).");
+        BuiltWithRow("Blazor WASM", "the browser-side optimizer at tonberrytactics.pages.dev.");
+        ImGui.Spacing();
+        ImGui.TextDisabled("© The Last Flame · Not affiliated with Square Enix. FFXIV © SQUARE ENIX.");
 
         ImGui.Spacing();
         ImGui.Separator();

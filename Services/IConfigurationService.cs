@@ -23,6 +23,7 @@ public interface IConfigurationService
     void SetShowTenacityRow(bool enabled);
     void SetShowPietyRow(bool enabled);
     void SetEnableVerboseInjectorLogging(bool enabled);
+    void SetFreeCompany(string name);   // v1.5.7 — identity-bar FC (handoff §3.2)
 
     // TODO Phase 1.6: add Changed event for mediator wiring
     // event Action<ConfigurationChange> Changed;

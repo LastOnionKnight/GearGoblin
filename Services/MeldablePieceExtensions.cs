@@ -55,11 +55,12 @@ public static class MeldablePieceExtensions
             Slot          = piece.Slot,
             Name          = piece.Name,
             ItemId        = piece.ItemId,
+            IconId        = piece.IconId,
             ItemLevel     = piece.ItemLevel,
             IsHighQuality = piece.IsHighQuality,
             Slots         = melds,
             CurrentMeldStats = stats,
-            BaseSubstats  = piece.BaseSubstats,
+            BaseSubstats  = new Dictionary<Substat, int>(piece.BaseSubstats),
             SubstatCap    = piece.SubstatCap,
         };
     }

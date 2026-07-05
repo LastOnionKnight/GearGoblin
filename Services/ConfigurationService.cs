@@ -83,4 +83,10 @@ public sealed class ConfigurationService : IConfigurationService
         Current.EnableVerboseInjectorLogging = enabled;
         Save();
     }
+
+    public void SetFreeCompany(string name)
+    {
+        Current.FreeCompany = name ?? string.Empty;
+        Save();
+    }
 }
