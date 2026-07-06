@@ -1,3 +1,8 @@
+## [1.5.7c] - 2026-07-06
+
+### Changed
+- Version bump for trinity lockstep (web PSA video fix). No functional plugin changes.
+
 ## [1.5.7b] - 2026-07-05
 
 ### Changed

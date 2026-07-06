@@ -1,3 +1,6 @@
+v1.5.7c
+- Version bump (web PSA video fix).
+
 v1.5.7b
 - Readability: larger UI fonts and gear icons.
 - Chrome: titlebar gear/collapse/close and Refresh use FontAwesome glyphs.
