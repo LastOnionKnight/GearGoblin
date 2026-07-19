@@ -164,17 +164,24 @@ public static class MateriaTab
             foreach (var piece in pieces)
             {
                 ImGui.TableNextColumn();
-                DrawGearCard(plugin, piece, result.Audits.Where(a => a.Piece == piece.Slot).ToList(), profile);
+                DrawGearCard(plugin, piece,
+                    result.Audits.Where(a => a.Piece == piece.Slot).ToList(),
+                    result.PlanRecommendations.Where(r => r.Piece == piece.Slot).ToList(),
+                    profile);
             }
             ImGui.EndTable();
         }
         ImGui.PopStyleVar();
 
         ImGui.Spacing();
+        ImGui.Spacing();
+        DrawRecommendations(plugin, result.PlanRecommendations, result.TotalProjectedGain);
+
+        ImGui.Spacing();
         DrawLegend(plugin);
     }
 
-    private static void DrawGearCard(Plugin plugin, MeldablePiece piece, List<MeldAudit> audits, JobProfile profile)
+    private static void DrawGearCard(Plugin plugin, MeldablePiece piece, List<MeldAudit> audits, List<MeldRecommendation> recs, JobProfile profile)
     {
         bool isEmpty = piece.EmptySlotCount == piece.Slots.Count && !audits.Any(a => a.Current != null);
         
@@ -242,7 +249,23 @@ public static class MateriaTab
             ImGui.TextColored(Theme.TtChrome.CobaltBright, piece.Slot.ToString().ToUpperInvariant());
         }
 
-        if (isEmpty)
+        // Dots (right→left): solid = current melds, then ghost = recommended-but-empty.
+        float dotX = p.X + w;
+        int currentCount = 0, recCount = 0;
+        foreach (var audit in audits.AsEnumerable().Reverse())
+        {
+            if (audit.Current == null) continue;
+            dotX -= 18f;
+            DrawDot(draw, new Vector2(dotX, p.Y + 58f), GetMateriaColor(audit.Current.Value.Stat));
+            currentCount++;
+        }
+        foreach (var rec in recs.AsEnumerable().Reverse())
+        {
+            dotX -= 18f;
+            DrawGhostDot(draw, new Vector2(dotX, p.Y + 58f), GetMateriaColor(rec.Materia.Stat));
+            recCount++;
+        }
+        if (currentCount == 0 && recCount == 0)
         {
             ImGui.SameLine();
             using (plugin.Fonts.GaramondItalic.PushOrNull())
@@ -250,15 +273,12 @@ public static class MateriaTab
                 ImGui.TextColored(Theme.TtChrome.FgFaint, "no melds");
             }
         }
-        else
+        else if (recCount > 0)
         {
-            // Dots
-            float dotX = p.X + w; // Start from right
-            foreach (var audit in audits.AsEnumerable().Reverse())
+            ImGui.SameLine();
+            using (plugin.Fonts.GaramondItalic.PushOrNull())
             {
-                if (audit.Current == null) continue;
-                dotX -= 18f; // spacing
-                DrawDot(draw, new Vector2(dotX, p.Y + 58f), GetMateriaColor(audit.Current.Value.Stat));
+                ImGui.TextColored(Theme.TtChrome.FgFaint, $"· {recCount} to meld");
             }
         }
         ImGui.EndGroup();
@@ -344,6 +364,67 @@ public static class MateriaTab
     {
         draw.AddCircleFilled(center, 6f, ImGui.GetColorU32(color));
         draw.AddCircle(center, 6f, ImGui.GetColorU32(Theme.TtChrome.Bg2), 12, 1.5f);
+    }
+
+    // Recommended-but-not-yet-melded: dim fill + colored ring, a "ghost" of a
+    // solid current-meld dot.
+    private static void DrawGhostDot(ImDrawListPtr draw, Vector2 center, Vector4 color)
+    {
+        draw.AddCircleFilled(center, 6f, ImGui.GetColorU32(new Vector4(color.X, color.Y, color.Z, 0.25f)));
+        draw.AddCircle(center, 6f, ImGui.GetColorU32(color), 12, 1.5f);
+    }
+
+    // Surfaces the optimizer's PlanRecommendations — the melds to add to empty
+    // slots — which the tab previously computed and discarded.
+    private static void DrawRecommendations(Plugin plugin, List<MeldRecommendation> recs, double totalGain)
+    {
+        using (plugin.Fonts.Pixel.PushOrNull())
+        {
+            ImGui.TextColored(Theme.TtChrome.GoldBright, $"{Theme.TtChrome.GlyphEyebrow} RECOMMENDED MELDS");
+        }
+        if (recs.Count > 0)
+        {
+            ImGui.SameLine();
+            using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
+            {
+                Theme.TtChrome.PillBox($"{recs.Count} suggested", Theme.TtChrome.Ok);
+            }
+        }
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        if (recs.Count == 0)
+        {
+            using (plugin.Fonts.GaramondItalic.PushOrNull())
+            {
+                ImGui.TextColored(Theme.TtChrome.FgMuted, "No further melds recommended — all useful slots are filled.");
+            }
+            return;
+        }
+
+        foreach (var rec in recs)
+        {
+            ImGui.TextColored(GetMateriaColor(rec.Materia.Stat), "●");
+            ImGui.SameLine();
+            using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
+            {
+                ImGui.TextColored(Theme.TtChrome.CobaltBright, rec.Piece.ToString().ToUpperInvariant());
+                ImGui.SameLine(0, 6);
+                ImGui.TextColored(Theme.TtChrome.FgMuted, $"slot {rec.SlotIndex + 1} ←");
+                ImGui.SameLine(0, 6);
+                ImGui.TextColored(Theme.TtChrome.Fg, rec.Materia.Display());
+                if (!rec.IsGuaranteedSlot)
+                {
+                    ImGui.SameLine(0, 6);
+                    ImGui.TextColored(Theme.TtChrome.Warn, "(overmeld)");
+                }
+            }
+            using (plugin.Fonts.GaramondItalic.PushOrNull())
+            {
+                ImGui.TextColored(Theme.TtChrome.FgFaint, "      " + rec.Reasoning);
+            }
+            ImGui.Spacing();
+        }
     }
 
     // Ellipsis-truncate to a pixel width, measured in the currently pushed font.
