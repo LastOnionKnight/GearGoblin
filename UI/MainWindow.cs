@@ -339,7 +339,9 @@ public sealed class MainWindow : Window, IDisposable
 
     private void DrawIdentityBar(Dalamud.Game.ClientState.Objects.SubKinds.IPlayerCharacter player)
     {
-        var jobLong = player.ClassJob.Value.Name.ExtractText();
+        // Lumina's ClassJob.Name column is lowercase ("bard"); the in-game
+        // character sheet renders uppercase ("BARD") — match the game.
+        var jobLong = player.ClassJob.Value.Name.ExtractText().ToUpperInvariant();
         var name = player.Name.TextValue;
         var lvl = player.Level;
         var world = player.HomeWorld.Value.Name.ExtractText();

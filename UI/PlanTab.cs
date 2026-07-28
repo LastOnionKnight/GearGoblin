@@ -1,3 +1,4 @@
+using Dalamud.Interface;
 using GearGoblin.Core;
 // UI/PlanTab.cs
 //
@@ -250,7 +251,16 @@ public static class PlanTab
         {
             using (fonts.JetBrainsMonoBody.PushOrNull())
             {
-                ImGui.TextColored(Theme.TtChrome.Fg, cur.IsHighQuality ? $"{cur.Name} ★" : cur.Name);
+                ImGui.TextColored(Theme.TtChrome.Fg, cur.Name);
+            }
+            if (cur.IsHighQuality)
+            {
+                // HQ star via FontAwesome — no shipped text font carries U+2605,
+                // so a literal "★" renders as a substitution glyph (the v1.5.7c
+                // "diamond" bug).
+                ImGui.SameLine(0, 4);
+                using (fonts.IconFont.PushOrNull())
+                    ImGui.TextColored(Theme.TtChrome.Gold, Dalamud.Interface.FontAwesomeIcon.Star.ToIconString());
             }
             using (fonts.Pixel.PushOrNull())
             {

@@ -390,6 +390,17 @@ public sealed class Plugin : IDalamudPlugin
             sb.AppendLine("Player               : (not logged in)");
         }
 
+        // v1.5.8 — per-slot gear probe (gap diagnostic items 2/3): surfaces
+        // each piece's icon id and the game's HQ flag so icon and HQ-marker
+        // anomalies are diagnosable from a /ttinfo paste.
+        if (player is not null)
+        {
+            var equipped = Inventory.ReadEquipped();
+            sb.AppendLine($"──── Equipped ({equipped.Count}) ────");
+            foreach (var p in equipped)
+                sb.AppendLine($"{p.Slot,-9}: i{p.ItemLevel} icon={p.IconId} hq={(p.IsHighQuality ? "Y" : "n")} · {p.Name}");
+        }
+
         sb.AppendLine("──── Injector state ────");
         sb.AppendLine($"Character panel attached : {(diag.PanelAttached ? "yes" : "no")}");
         sb.AppendLine($"CPR detected             : {(diag.CprDetected ? "yes" : "no")}");

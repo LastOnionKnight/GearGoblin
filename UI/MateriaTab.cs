@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface;
 using GearGoblin.Core;
 using GearGoblin.Materia;
 using GearGoblin.Core.Materia;
@@ -206,8 +207,19 @@ public static class MateriaTab
         using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
             ilvlPillW = ImGui.CalcTextSize(ilvlText).X + 16f;
 
-        // Icon
-        var pieceIcon = DalamudServices.TextureProvider.GetFromGameIcon(new Dalamud.Interface.Textures.GameIconLookup(piece.IconId)).GetWrapOrEmpty();
+        // Icon. GetWrapOrEmpty() never returns null — on load failure it hands
+        // back an invisible texture, which is how the v1.5.7c MainHand card
+        // rendered a blank 20×20 (gap diagnostic item 2). TryGetWrap instead,
+        // with a low-res retry for icon ids that lack a hi-res variant, and
+        // skip the image cleanly if both miss.
+        if (!DalamudServices.TextureProvider
+                .GetFromGameIcon(new Dalamud.Interface.Textures.GameIconLookup(piece.IconId))
+                .TryGetWrap(out var pieceIcon, out _))
+        {
+            DalamudServices.TextureProvider
+                .GetFromGameIcon(new Dalamud.Interface.Textures.GameIconLookup(piece.IconId, hiRes: false))
+                .TryGetWrap(out pieceIcon, out _);
+        }
         float iconAdvance = 0f;
         if (pieceIcon != null)
         {
@@ -223,8 +235,12 @@ public static class MateriaTab
             ImGui.TextColored(Theme.TtChrome.Fg, Truncate(piece.Name, nameMaxW));
             if (piece.IsHighQuality)
             {
+                // HQ star via FontAwesome — no shipped text font carries U+2605,
+                // so a literal "★" renders as a substitution glyph (the v1.5.7c
+                // "diamond" bug).
                 ImGui.SameLine(0, 4);
-                ImGui.TextColored(Theme.TtChrome.Gold, "★");
+                using (plugin.Fonts.IconFont.PushOrNull())
+                    ImGui.TextColored(Theme.TtChrome.Gold, Dalamud.Interface.FontAwesomeIcon.Star.ToIconString());
             }
         }
 
