@@ -40,7 +40,15 @@ public static unsafe class StatReader
             Ten:   attrs[(int)Substat.Tenacity],
             Pie:   attrs[(int)Substat.Piety],
             Level: player.Level,
-            JobId: player.ClassJob.RowId
+            JobId: player.ClassJob.RowId,
+            // v1.5.8 — DoH/DoL stats read off the same BaseParam-indexed
+            // attribute array (crafting-gathering spec). Zero on battle jobs.
+            Craftsmanship: attrs[(int)Substat.Craftsmanship],
+            Control:       attrs[(int)Substat.Control],
+            CP:            attrs[(int)Substat.CP],
+            Gathering:     attrs[(int)Substat.Gathering],
+            Perception:    attrs[(int)Substat.Perception],
+            GP:            attrs[(int)Substat.GP]
         );
     }
 
@@ -56,6 +64,12 @@ public static unsafe class StatReader
         Substat.SpellSpeed    => snap.SpS,
         Substat.Tenacity      => snap.Ten,
         Substat.Piety         => snap.Pie,
+        Substat.Craftsmanship => snap.Craftsmanship,
+        Substat.Control       => snap.Control,
+        Substat.CP            => snap.CP,
+        Substat.Gathering     => snap.Gathering,
+        Substat.Perception    => snap.Perception,
+        Substat.GP            => snap.GP,
         _ => 0,
     };
 }

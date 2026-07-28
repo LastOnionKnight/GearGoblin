@@ -136,9 +136,33 @@ public sealed class GearsetExporter : IGearsetExporter
     }
     private List<GearGoblin.Core.TotalStat> BuildTotalStats(GearGoblin.Core.Materia.StatSnapshot s, IReadOnlyList<EquippedPiece> equipped)
     {
+        // v1.5.8 — DoH/DoL export their three real stats instead of the
+        // battle set (crafting-gathering spec). Cap = the approximate
+        // CraftGatherReference soft max; the web renders it as a fill
+        // reference, not a hard cap.
+        var role = GearGoblin.Core.Materia.JobProfiles.GetOrDefault(s.JobId).Role;
+        if (role == GearGoblin.Core.Materia.Role.Crafter)
+        {
+            return new List<GearGoblin.Core.TotalStat>
+            {
+                new("Craftsmanship", s.Craftsmanship, GearGoblin.Core.Materia.CraftGatherReference.SoftMax(GearGoblin.Core.Materia.Substat.Craftsmanship)),
+                new("Control", s.Control, GearGoblin.Core.Materia.CraftGatherReference.SoftMax(GearGoblin.Core.Materia.Substat.Control)),
+                new("CP", s.CP, GearGoblin.Core.Materia.CraftGatherReference.SoftMax(GearGoblin.Core.Materia.Substat.CP)),
+            };
+        }
+        if (role == GearGoblin.Core.Materia.Role.Gatherer)
+        {
+            return new List<GearGoblin.Core.TotalStat>
+            {
+                new("Gathering", s.Gathering, GearGoblin.Core.Materia.CraftGatherReference.SoftMax(GearGoblin.Core.Materia.Substat.Gathering)),
+                new("Perception", s.Perception, GearGoblin.Core.Materia.CraftGatherReference.SoftMax(GearGoblin.Core.Materia.Substat.Perception)),
+                new("GP", s.GP, GearGoblin.Core.Materia.CraftGatherReference.SoftMax(GearGoblin.Core.Materia.Substat.GP)),
+            };
+        }
+
         var mod = GearGoblin.Core.Materia.LevelTable.Get(s.Level);
         int totalGearCap = equipped.Sum(p => p.SubstatCap);
-        
+
         int subCap = mod.Sub + totalGearCap;
         int mainCap = mod.Main + totalGearCap;
 

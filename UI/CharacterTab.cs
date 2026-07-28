@@ -89,10 +89,38 @@ public static class CharacterTab
 
     private static void DrawGauges(Plugin plugin, StatSnapshot s, JobProfile profile, LevelMod mod)
     {
-        // Draw the gauges similar to the stats strip
-        if (profile.Role == Role.Crafter || profile.Role == Role.Gatherer)
+        // v1.5.8 — DoH/DoL get real gauges (crafting-gathering spec): fill
+        // vs the CraftGatherReference soft max, no OK/OVER cap state, with
+        // an "approx" note. CP/GP read as pool values against the same
+        // reference treatment.
+        if (profile.Role == Role.Crafter)
         {
-            ImGui.TextDisabled("Battle stats not applicable for this class.");
+            DrawGauge(plugin, "Craftsmanship", s.Craftsmanship,
+                CraftGatherReference.SoftMax(Substat.Craftsmanship), Theme.TtChrome.MatDet,
+                "Progress per synthesis step — the crafter's main stat.");
+            DrawGauge(plugin, "Control", s.Control,
+                CraftGatherReference.SoftMax(Substat.Control), Theme.TtChrome.MatCrit,
+                "Quality per touch step — drives HQ/collectability.");
+            DrawGauge(plugin, "CP", s.CP,
+                CraftGatherReference.SoftMax(Substat.CP), Theme.TtChrome.MatSps,
+                "Crafting points — your ability budget per craft.");
+            ImGui.TextColored(Theme.TtChrome.FgFaint,
+                "Reference maxes are approximate current-tier fully-melded values, not caps.");
+            return;
+        }
+        if (profile.Role == Role.Gatherer)
+        {
+            DrawGauge(plugin, "Gathering", s.Gathering,
+                CraftGatherReference.SoftMax(Substat.Gathering), Theme.TtChrome.MatDet,
+                "Success rate on gathering attempts — the gatherer's main stat.");
+            DrawGauge(plugin, "Perception", s.Perception,
+                CraftGatherReference.SoftMax(Substat.Perception), Theme.TtChrome.MatCrit,
+                "HQ/collectability rating on gathered items.");
+            DrawGauge(plugin, "GP", s.GP,
+                CraftGatherReference.SoftMax(Substat.GP), Theme.TtChrome.MatSps,
+                "Gathering points — your ability budget per node.");
+            ImGui.TextColored(Theme.TtChrome.FgFaint,
+                "Reference maxes are approximate current-tier fully-melded values, not caps.");
             return;
         }
 

@@ -486,6 +486,15 @@ public static class MateriaTab
         Substat.SpellSpeed  => Theme.TtChrome.MatSps,
         Substat.Tenacity    => Theme.TtChrome.MatTen,
         Substat.Piety       => Theme.TtChrome.MatPie,
+        // v1.5.8 — DoH/DoL dots reuse battle accents pairwise (main stat =
+        // Det slot, quality stat = Crit slot, pool = SpS slot) so crafter
+        // melds read in color without new theme tokens.
+        Substat.Craftsmanship => Theme.TtChrome.MatDet,
+        Substat.Control       => Theme.TtChrome.MatCrit,
+        Substat.CP            => Theme.TtChrome.MatSps,
+        Substat.Gathering     => Theme.TtChrome.MatDet,
+        Substat.Perception    => Theme.TtChrome.MatCrit,
+        Substat.GP            => Theme.TtChrome.MatSps,
         _ => Theme.TtChrome.FgMuted
     };
 
