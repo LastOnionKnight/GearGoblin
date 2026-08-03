@@ -9,6 +9,7 @@ using GearGoblin.Materia;
 using GearGoblin.Core.Materia;
 using GearGoblin.Services;
 using GearGoblin.Theme;
+using GearGoblin.Planning;
 
 namespace GearGoblin.UI;
 
@@ -38,12 +39,35 @@ public static class MateriaTab
             var profile = JobProfiles.GetOrDefault(s.JobId);
             var mod = LevelTable.Get(s.Level);
 
+            PlanPayloadV1? importedPlan = null;
+            foreach (var dict in plugin.ConfigService.Current.JobPlans.Values)
+            {
+                if (dict.TryGetValue(s.JobId, out var jobData) &&
+                    !string.IsNullOrWhiteSpace(jobData.ImportedPlanJson))
+                {
+                    try
+                    {
+                        importedPlan = System.Text.Json.JsonSerializer.Deserialize<PlanPayloadV1>(jobData.ImportedPlanJson);
+                        break;
+                    }
+                    catch { }
+                }
+            }
+
             Theme.TtChrome.Eyebrow(plugin.Fonts, "Materia · Current Melds");
-            Theme.TtChrome.Quip(plugin.Fonts, "One card per equipped piece. Dots are melded substats, colored by type — hover any card for the full meld breakdown and cap audit.");
+            if (importedPlan != null)
+            {
+                int totalPlan = importedPlan.Melds.Count;
+                Theme.TtChrome.Quip(plugin.Fonts, $"Plan active: {importedPlan.Plugin}. Progress towards {totalPlan} meld targets.");
+            }
+            else
+            {
+                Theme.TtChrome.Quip(plugin.Fonts, "One card per equipped piece. Dots are melded substats, colored by type — hover any card for the full meld breakdown and cap audit.");
+            }
             ImGui.Spacing();
             ImGui.Spacing();
 
-            DrawAudit(plugin, s, profile, mod, inventory);
+            DrawAudit(plugin, s, profile, mod, inventory, importedPlan);
         }
         finally
         {
@@ -51,7 +75,7 @@ public static class MateriaTab
         }
     }
 
-    private static void DrawAudit(Plugin plugin, StatSnapshot s, JobProfile profile, LevelMod mod, IInventoryReader inventory)
+    private static void DrawAudit(Plugin plugin, StatSnapshot s, JobProfile profile, LevelMod mod, IInventoryReader inventory, PlanPayloadV1? importedPlan)
     {
         var allEquipped = inventory.ReadEquipped();
         var pieces = allEquipped
@@ -71,43 +95,60 @@ public static class MateriaTab
         int overCount = 0;
         int wasteCount = 0;
         int cleanCount = 0;
+        int piecesWithMelds = 0;
         int overTotal = 0;
         int totalPieces = pieces.Count;
         List<string> overPieces = new();
         List<string> wasteStats = new();
         
+        int planCompleted = 0;
+        int planTotal = 0;
+        if (importedPlan != null) planTotal = importedPlan.Melds.Count;
+        
         foreach (var p in pieces)
         {
             var pAudits = result.Audits.Where(a => a.Piece == p.Slot).ToList();
-            bool hasWaste = pAudits.Any(a => a.Severity == AuditSeverity.Critical);
-            bool hasOver = !hasWaste && pAudits.Any(a => a.Severity == AuditSeverity.Warning);
+            int currentMelds = pAudits.Count(a => a.Current != null);
             
-            if (hasWaste) 
+            if (currentMelds > 0)
             {
-                wasteCount++;
-                foreach (var w in pAudits.Where(a => a.Severity == AuditSeverity.Critical))
-                    wasteStats.Add(w.Headline); // Simplification: collect headlines
-            }
-            else if (hasOver) 
-            {
-                overCount++;
-                overPieces.Add(p.Slot.ToString());
-                foreach (var w in pAudits.Where(a => a.Severity == AuditSeverity.Warning))
+                piecesWithMelds++;
+                bool hasWaste = pAudits.Any(a => a.Severity == AuditSeverity.Critical);
+                bool hasOver = !hasWaste && pAudits.Any(a => a.Severity == AuditSeverity.Warning);
+                
+                if (hasWaste) 
                 {
-                    var match = System.Text.RegularExpressions.Regex.Match(w.Headline, @"\(-\d+\)");
-                    if (match.Success)
+                    wasteCount++;
+                    foreach (var w in pAudits.Where(a => a.Severity == AuditSeverity.Critical))
+                        wasteStats.Add(w.Headline);
+                }
+                else if (hasOver) 
+                {
+                    overCount++;
+                    overPieces.Add(p.Slot.ToString());
+                    foreach (var w in pAudits.Where(a => a.Severity == AuditSeverity.Warning))
                     {
-                        var valStr = match.Value.Trim('(', ')', '-');
-                        if (int.TryParse(valStr, out int val)) overTotal += val;
+                        var match = System.Text.RegularExpressions.Regex.Match(w.Headline, @"\(-\d+\)");
+                        if (match.Success)
+                        {
+                            var valStr = match.Value.Trim('(', ')', '-');
+                            if (int.TryParse(valStr, out int val)) overTotal += val;
+                        }
                     }
                 }
+                else cleanCount++;
             }
-            else cleanCount++;
+            
+            if (importedPlan != null)
+            {
+                var pTargets = importedPlan.Melds.Where(m => m.Piece == p.Slot.ToString()).ToList();
+                planCompleted += Math.Min(currentMelds, pTargets.Count);
+            }
         }
 
         ImGui.PushStyleColor(ImGuiCol.ChildBg, Theme.TtChrome.Sink);
         ImGui.BeginChild("mat-summary", new Vector2(0, 80), true, ImGuiWindowFlags.NoScrollbar);
-        var sumW = ImGui.GetContentRegionAvail().X / 3f;
+        var sumW = ImGui.GetContentRegionAvail().X / (importedPlan != null ? 4f : 3f);
         
         // Card 1: Overcap
         ImGui.BeginGroup();
@@ -149,11 +190,27 @@ public static class MateriaTab
         using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
         {
             ImGui.SetWindowFontScale(2.0f);
-            ImGui.TextUnformatted($"{cleanCount} / {totalPieces}");
+            ImGui.TextUnformatted($"{cleanCount} / {piecesWithMelds}");
             ImGui.SetWindowFontScale(1.0f);
         }
         using (plugin.Fonts.JetBrainsMonoBody.PushOrNull()) ImGui.TextColored(Theme.TtChrome.FgFaint, $"melded pieces");
         ImGui.EndGroup();
+        
+        if (importedPlan != null)
+        {
+            // Card 4: Plan
+            ImGui.SameLine(sumW * 3);
+            ImGui.BeginGroup();
+            using (plugin.Fonts.Pixel.PushOrNull()) ImGui.TextColored(Theme.TtChrome.CobaltBright, "PLAN");
+            using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
+            {
+                ImGui.SetWindowFontScale(2.0f);
+                ImGui.TextUnformatted($"{planCompleted} / {planTotal}");
+                ImGui.SetWindowFontScale(1.0f);
+            }
+            using (plugin.Fonts.JetBrainsMonoBody.PushOrNull()) ImGui.TextColored(Theme.TtChrome.FgFaint, $"{Math.Max(0, planTotal - planCompleted)} remaining");
+            ImGui.EndGroup();
+        }
         
         ImGui.EndChild();
         ImGui.PopStyleColor();
@@ -165,10 +222,14 @@ public static class MateriaTab
             foreach (var piece in pieces)
             {
                 ImGui.TableNextColumn();
+                List<PlanMeldV1>? planTargets = null;
+                if (importedPlan != null)
+                    planTargets = importedPlan.Melds.Where(m => m.Piece == piece.Slot.ToString()).ToList();
+                
                 DrawGearCard(plugin, piece,
                     result.Audits.Where(a => a.Piece == piece.Slot).ToList(),
                     result.PlanRecommendations.Where(r => r.Piece == piece.Slot).ToList(),
-                    profile);
+                    profile, planTargets);
             }
             ImGui.EndTable();
         }
@@ -182,7 +243,7 @@ public static class MateriaTab
         DrawLegend(plugin);
     }
 
-    private static void DrawGearCard(Plugin plugin, MeldablePiece piece, List<MeldAudit> audits, List<MeldRecommendation> recs, JobProfile profile)
+    private static void DrawGearCard(Plugin plugin, MeldablePiece piece, List<MeldAudit> audits, List<MeldRecommendation> recs, JobProfile profile, List<PlanMeldV1>? planTargets)
     {
         bool isEmpty = piece.EmptySlotCount == piece.Slots.Count && !audits.Any(a => a.Current != null);
         
@@ -252,7 +313,17 @@ public static class MateriaTab
         }
 
         // Aggregate Badge
-        DrawAuditBadge(plugin, audits, p.X + w, p.Y + 28f, profile);
+        float badgeLeft = DrawAuditBadge(plugin, audits, p.X + w, p.Y + 28f, profile, out string upgradeText);
+        
+        using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
+        {
+            if (!string.IsNullOrEmpty(upgradeText))
+            {
+                var upSize = ImGui.CalcTextSize(upgradeText);
+                ImGui.SetCursorScreenPos(new Vector2(badgeLeft - upSize.X - 8f, p.Y + 30f));
+                ImGui.TextColored(Theme.TtChrome.GoldDim, upgradeText);
+            }
+        }
 
         ImGui.EndGroup();
 
@@ -275,12 +346,49 @@ public static class MateriaTab
             DrawDot(draw, new Vector2(dotX, p.Y + 58f), GetMateriaColor(audit.Current.Value.Stat));
             currentCount++;
         }
-        foreach (var rec in recs.AsEnumerable().Reverse())
+        
+        bool showPlanIndicator = false;
+        string planIndicatorText = "";
+        
+        if (planTargets != null && planTargets.Count > 0)
         {
-            dotX -= 18f;
-            DrawGhostDot(draw, new Vector2(dotX, p.Y + 58f), GetMateriaColor(rec.Materia.Stat));
-            recCount++;
+            int remaining = planTargets.Count - currentCount;
+            if (remaining > 0)
+            {
+                showPlanIndicator = true;
+                var remTargets = planTargets.Skip(currentCount).ToList();
+                foreach (var rt in remTargets.AsEnumerable().Reverse())
+                {
+                    dotX -= 18f;
+                    Substat stat;
+                    if (!Enum.TryParse<Substat>(rt.StatName, true, out stat)) stat = Substat.None;
+                    DrawGhostDot(draw, new Vector2(dotX, p.Y + 58f), GetMateriaColor(stat));
+                    recCount++;
+                }
+                var groups = remTargets.GroupBy(t => t.MateriaName).Select(g => $"{g.Key}{(g.Count() > 1 ? $" × {g.Count()}" : "")}");
+                planIndicatorText = "Plan: " + string.Join(", ", groups);
+            }
         }
+        else
+        {
+            foreach (var rec in recs.AsEnumerable().Reverse())
+            {
+                dotX -= 18f;
+                DrawGhostDot(draw, new Vector2(dotX, p.Y + 58f), GetMateriaColor(rec.Materia.Stat));
+                recCount++;
+            }
+        }
+        
+        if (showPlanIndicator)
+        {
+            using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
+            {
+                string planTxt = "📋 " + planIndicatorText;
+                ImGui.SetCursorScreenPos(new Vector2(p.X, p.Y + 24f));
+                ImGui.TextColored(Theme.TtChrome.CobaltBright, planTxt);
+            }
+        }
+        
         if (currentCount == 0 && recCount == 0)
         {
             ImGui.SameLine();
@@ -312,14 +420,19 @@ public static class MateriaTab
         }
     }
 
-    private static void DrawAuditBadge(Plugin plugin, List<MeldAudit> audits, float rightX, float y, JobProfile profile)
+    private static float DrawAuditBadge(Plugin plugin, List<MeldAudit> audits, float rightX, float y, JobProfile profile, out string upgradeText)
     {
-        if (audits.Count == 0 || !audits.Any(a => a.Current != null)) return;
+        upgradeText = "";
+        if (audits.Count == 0 || !audits.Any(a => a.Current != null)) return rightX;
 
         bool hasWaste = false;
         bool hasOver = false;
+        bool hasUpgrade = false;
         string wasteText = "";
         int totalOvercap = 0;
+        
+        int upgradeCount = 0;
+        string firstUpgrade = "";
 
         foreach (var a in audits)
         {
@@ -344,7 +457,23 @@ public static class MateriaTab
                     }
                 }
             }
+            else if (a.Severity == AuditSeverity.Minor)
+            {
+                hasUpgrade = true;
+                upgradeCount++;
+                if (string.IsNullOrEmpty(firstUpgrade) && a.SuggestedReplacement.HasValue)
+                {
+                    var sr = a.SuggestedReplacement.Value;
+                    firstUpgrade = $"→ {sr.Stat.Display()} {sr.Tier.Roman()} (+{sr.Value})";
+                }
+            }
         }
+
+        if (upgradeCount > 1)
+        {
+            firstUpgrade += $" +{upgradeCount - 1} more";
+        }
+        upgradeText = firstUpgrade;
 
         string text = "clean";
         Vector4 color = Theme.TtChrome.Ok;
@@ -358,6 +487,11 @@ public static class MateriaTab
         {
             text = $"+{Math.Max(totalOvercap, 1)} overcap";
             color = Theme.TtChrome.Warn;
+        }
+        else if (hasUpgrade)
+        {
+            text = "upgrade";
+            color = Theme.TtChrome.GoldDim;
         }
 
         using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
@@ -373,6 +507,7 @@ public static class MateriaTab
 
             ImGui.SetCursorScreenPos(new Vector2(rectMin.X + padding.X, rectMin.Y + padding.Y));
             ImGui.TextColored(color, text);
+            return rectMin.X;
         }
     }
 
@@ -457,6 +592,8 @@ public static class MateriaTab
     {
         int overcap = 0;
         bool waste = false;
+        bool upgrade = false;
+        string reasoning = "";
         foreach (var a in audits)
         {
             if (a.Severity == AuditSeverity.Critical) waste = true;
@@ -467,13 +604,32 @@ public static class MateriaTab
                 if (end > start && int.TryParse(a.Headline.Substring(start, end - start), out int parsed))
                     overcap += parsed;
             }
+            else if (a.Severity == AuditSeverity.Minor)
+            {
+                upgrade = true;
+                if (string.IsNullOrEmpty(reasoning) && a.SuggestedReplacement.HasValue)
+                {
+                    var sr = a.SuggestedReplacement.Value;
+                    reasoning = $"Replace with {sr.Stat.Display()} {sr.Tier.Roman()} (+{sr.Value})";
+                }
+            }
         }
 
         using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
         {
             if (waste) Theme.TtChrome.PillBox("ZERO-VALUE MELD", Theme.TtChrome.Over);
             else if (overcap > 0) Theme.TtChrome.PillBox($"+{overcap} OVERCAP", Theme.TtChrome.Warn);
+            else if (upgrade) Theme.TtChrome.PillBox("UPGRADE AVAILABLE", Theme.TtChrome.GoldDim);
             else Theme.TtChrome.PillBox("CLEAN", Theme.TtChrome.Ok);
+        }
+        
+        if (upgrade && !waste && overcap == 0)
+        {
+            ImGui.Spacing();
+            using (plugin.Fonts.GaramondItalic.PushOrNull())
+            {
+                ImGui.TextColored(Theme.TtChrome.GoldDim, reasoning);
+            }
         }
     }
 
