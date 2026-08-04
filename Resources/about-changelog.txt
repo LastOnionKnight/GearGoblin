@@ -1,3 +1,6 @@
+v1.5.7d
+- Fix-Forward: Restore Recommendation Surface + Plan Display + Summary Count
+
 v1.5.7c
 - Version bump (web PSA video fix).
 
