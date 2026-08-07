@@ -1,3 +1,16 @@
+## [1.6.0] - 2026-08-07
+
+### Added
+- **Trinity Lockstep**: Bumped version to v1.6.0 and lockstep with the web companion and core library.
+- **GG-PLAN Persistence**: Imported plans are now correctly persisted to plugin configuration, activating the "Plan active" UI.
+
+## [1.5.7d] - 2026-08-03
+
+### Fixed
+- **Materia Advisor**: Fixed math in the CLEAN summary block to accurately reflect overcap and remaining slots.
+- **UI Recommendations**: Added `UPGRADE AVAILABLE` and `Replace with` labels to the materia slot recommendations.
+- **UI Context**: Surfaced the `Plan active:` indicator block in `MateriaTab`.
+
 ## [1.5.7c] - 2026-07-06
 
 ### Changed

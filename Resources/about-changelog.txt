@@ -1,26 +1,40 @@
-v1.5.7d
-- Fix-Forward: Restore Recommendation Surface + Plan Display + Summary Count
+## [1.6.0] - 2026-08-07
 
-v1.5.7c
-- Version bump (web PSA video fix).
+### Added
+- **Trinity Lockstep**: Bumped version to v1.6.0 and lockstep with the web companion and core library.
+- **GG-PLAN Persistence**: Imported plans are now correctly persisted to plugin configuration, activating the "Plan active" UI.
 
-v1.5.7b
-- Readability: larger UI fonts and gear icons.
-- Chrome: titlebar gear/collapse/close and Refresh use FontAwesome glyphs.
-- Features: gear opens Settings, collapse minimizes to the titlebar.
+## [1.5.7d] - 2026-08-03
+
+### Fixed
+- **Materia Advisor**: Fixed math in the CLEAN summary block to accurately reflect overcap and remaining slots.
+- **UI Recommendations**: Added `UPGRADE AVAILABLE` and `Replace with` labels to the materia slot recommendations.
+- **UI Context**: Surfaced the `Plan active:` indicator block in `MateriaTab`.
+
+## [1.5.7c] - 2026-07-06
+
+### Changed
+- Version bump for trinity lockstep (web PSA video fix). No functional plugin changes.
+
+## [1.5.7b] - 2026-07-05
+
+### Changed
+- **Readability**: Larger UI fonts and gear icons for improved legibility across all panels.
+- **Chrome Glyphs**: Titlebar gear/collapse/close and identity bar Refresh now use FontAwesome glyphs (resolves missing font glyph risks).
+- **Window Management**: The titlebar gear icon now opens Settings, and the collapse icon minimizes the plugin to just the titlebar.
 
 ## [1.5.7] - 2026-07-05
 
 ### Added
-- **Native FFXIV Job Stones**: Job icons now load from the FFXIV UI texture sheets, resolving missing static asset issues (e.g. for VPR).
-- **Materia Tab Summary Bar**: A new three-card aggregator over the Materia grid reports total overcap stat waste, counts zero-value melds, and tracks clean pieces.
+- **Native FFXIV Job Stones**: Job icons now natively load from the FFXIV UI texture sheets via `ITextureProvider`, resolving missing static asset issues (e.g. for VPR).
+- **Materia Tab Summary Bar**: A new three-card aggregator over the Materia grid reports total overcap stat waste, counts zero-value melds, and tracks clean (optimally melded) piece counts.
 - **Identity Bar Data Hooks**: The identity bar now dynamically reports the character's Job, Level, iLvl, World, and Data Center. Free Company is powered by a new fallback entry in Settings.
 
 ### Changed
-- **Full gg4 Design Match**: Comprehensive application of the Tonberry Tactics visual language across all tabs.
+- **Full gg4 Design Match**: Comprehensive application of the Tonberry Tactics visual language across all tabs (MainWindow, Character, Plan, Materia, Settings, About).
 - **Chrome Restyling**: Titlebar replaced with a custom NoTitleBar window drag band, "Tonberry Tactics" wordmark, version pill, and window controls.
 - **Settings Tab**: All native checkboxes replaced with cobalt/gold `ToggleSwitch` primitives.
-- **Character Tab Gauges**: Progress bars now reflect accurate, data-driven fill percentages based on real stat caps and clamping.
+- **Character Tab Gauges**: Progress bars now reflect accurate, data-driven fill percentages based on real stat caps and clamping, removing previously fabricated gauge values.
 - **Plan Tab Verdicts**: Verdict chips (MATCH, REMELD, UPGRADE, TARGET LOWER) now compute accurately against equipped gear vs target set.
 - **Materia Tab Legibility**: Improved tooltip clarity by deduplicating values; HQ stars now render after the item name; iLvl values shifted to gold pills.
 - **Stack Underflow Fix**: Resolved an ImGui style-stack assertion crash in the identity bar refresh cycle.
@@ -121,24 +135,3 @@ v1.5.7b
 ### Changed
 - Materia Advisor: Fixed cap-math validation gap where all Casting armor pieces were erroneously capped using the 140% multiplier for two-handed weapons due to over-extrapolating the BaseParamModifier. Now correctly uses EquipSlotCategory for armor/accessories slot scaling (see v113-Scope-Decision_20260531_2211Z.md).
 - Web Export (Parity Fix): TonberryTactics web adapter now correctly assigns a 100%->7% overmeld SuccessRate when constructing empty meld slots, preventing empty slots from being completely skipped by the optimizer due to a silent score multiplier of 0.0.
-## [1.1.2] - 2026-05-31
-### Changed
-- Materia Advisor (Hotfix): Corrected the BaseParamModifier mapping for the substat cap formula. The v1.1.1 mapping was theoretically flawed and incorrectly suppressed 2H weapons, head, hands, feet, and accessories. The new empirical mapping correctly identifies row IDs directly from Item.csv (1=1H, 2=Shield, 3=Accessories, 4=Head/Hands/Feet, 5=2H, 6=Body/Legs).
-## [1.1.1] - 2026-05-31
-### Changed
-- Converted GearGoblin.Core to a git submodule to resolve a local-path reference error that blocked v1.1.0 from building in CI.
-- Materia Advisor: Corrected substat cap calculation. v1.0.6 misread Item.BaseParamModifier as the literal stat multiplier; v1.1.0 swapped to EquipSlotCategory, which classifies most weapons as MainHand regardless of grip and broke 2H weapons differently. v1.1.1 implements the correct mapping � BaseParamModifier row IDs (1-6) -> stat multipliers (100/140/40/60/40/0) per the FFXIV datamined table, cross-referenced against CharacterPanelRefined. Phantom Rapier MainHand now correctly computes a cap of ~414, matching the in-game native panel.
-  See _briefs\CapMath-v106-vs-v110-Audit_20260531_2101Z.md for full derivation and CSV citations.
-## [1.1.0] - 2026-05-30
-### Changed
-- Refactored GearGoblin Core math. Lifted Materia logic from plugin and web app into GearGoblin.Core to guarantee parity.
-- Fixed substat cap bug where capped stats were being incorrectly recommended.
-## [1.0.6] - 2026-05-30
-- Hotfix: TonberryTactics Web App now correctly accepts the new `GG-EXPORT:v2:` string schema version (fixed "Schema version mismatch" error).
-
-## [1.0.5] - 2026-05-30
-- Upgraded export payload to `GG-EXPORT:v2:` to include BaseSubstats and SubstatCap.
-- TonberryTactics Web App now correctly enforces per-piece substat caps for materia recommendations.
-
-## [1.0.4] - 2026-05-30
-- Hotfix: Resolved a logic flaw in the Materia Advisor optimizer where materia was still recommended for capped substats because the optimizer was incorrectly assessing a small penalty rather than zeroing out the stat gain.

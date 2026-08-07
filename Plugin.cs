@@ -314,24 +314,44 @@ public sealed class Plugin : IDalamudPlugin
                 ? Importer.ImportFromString(args)
                 : Importer.ImportFromClipboard();
 
-            if (!result.Success)
+            if (!result.Success || result.Payload == null || result.RawJson == null)
             {
                 DalamudServices.ChatGui.PrintError(
-                    $"[Tonberry Tactics] Import failed: {result.ErrorMessage}");
+                    $"[Tonberry Tactics] Import failed: {result.ErrorMessage ?? "Unknown error"}");
                 return;
             }
 
-            // v0.6.5 — Scaffold notice updated to reflect actual state.
-            // The previous "next build" promise rode through v0.4.7 → v0.6.4
-            // (seven releases) without bodies being filled in. The honest
-            // version below ships in v0.6.5; the real persistence + Plan-tab
-            // checklist workflow lands in v0.6.7 ("Round-trip closed").
+            ulong contentId = 1; // Fallback since IClientState.LocalContentId was removed in API 10
+
+            uint jobId = result.Payload.SourceCharacter.Job;
+            var config = ConfigService.Current;
+
+            if (!config.JobPlans.ContainsKey(contentId))
+            {
+                config.JobPlans[contentId] = new System.Collections.Generic.Dictionary<uint, JobPlanData>();
+            }
+            if (!config.JobPlans[contentId].ContainsKey(jobId))
+            {
+                config.JobPlans[contentId][jobId] = new JobPlanData();
+            }
+
+            var jobData = config.JobPlans[contentId][jobId];
+            jobData.Mode = PlanMode.Imported;
+            jobData.ImportedPlanJson = result.RawJson;
+            jobData.ImportedAt = DateTime.UtcNow;
+            
+            jobData.MeldCompletion.Clear();
+            for (int i = 0; i < result.Payload.Melds.Count; i++)
+            {
+                jobData.MeldCompletion.Add(false);
+            }
+
+            ConfigService.Save();
+
             DalamudServices.ChatGui.Print(
-                "[Tonberry Tactics] Plan parsed successfully. " +
-                $"({result.Payload?.Melds.Count ?? 0} meld(s) recommended for " +
-                $"{result.Payload?.SourceCharacter.JobAbbreviation ?? "?"}.) " +
-                "In-game apply checklist + plan persistence ships in v0.6.7. " +
-                "For now: visit tonberrytactics.pages.dev to view the plan.");
+                "[Tonberry Tactics] Plan imported successfully and set to Active! " +
+                $"({result.Payload.Melds.Count} meld(s) recommended for " +
+                $"{result.Payload.SourceCharacter.JobAbbreviation}.)");
 
             foreach (var warning in result.Warnings)
             {

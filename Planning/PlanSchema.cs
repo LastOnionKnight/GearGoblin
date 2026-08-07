@@ -80,4 +80,5 @@ public sealed record PlanImportResult(
     PlanPayloadV1? Payload,
     bool Success,
     string? ErrorMessage,
-    IReadOnlyList<string> Warnings);
+    IReadOnlyList<string> Warnings,
+    string? RawJson = null);

@@ -172,17 +172,14 @@ public sealed class GearsetImporter : IGearsetImporter
         // Plan tab can ask the user to confirm before applying.
 
         // ── Step 6: persist into Configuration ─────────────────────
-        // TODO(v0.4.7 build): write the JSON body into
-        // Configuration.JobPlans[contentId][jobId].ImportedPlanJson,
-        // set Mode = PlanMode.Imported, set ImportedAt = UtcNow,
-        // reset MeldCompletion to a list of falses sized to
-        // payload.Melds.Count, then call Configuration.Save().
+        // Handled by Plugin.cs upon successful import.
 
         return new PlanImportResult(
             Payload:      payload,
             Success:      true,
             ErrorMessage: null,
-            Warnings:     warnings);
+            Warnings:     warnings,
+            RawJson:      json);
     }
 
     private static PlanImportResult Failure(string message) =>
