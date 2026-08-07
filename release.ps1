@@ -38,9 +38,9 @@ $ErrorActionPreference = "Stop"
 
 # ---- 1. Find the csproj ------------------------------------------------------
 
-$csprojFiles = Get-ChildItem -Path . -Filter "*.csproj" -File
+$csprojFiles = Get-ChildItem -Path $PSScriptRoot -Filter "*.csproj" -File
 if ($csprojFiles.Count -eq 0) {
-    Write-Host "ERROR: No .csproj file found in $(Get-Location)." -ForegroundColor Red
+    Write-Host "ERROR: No .csproj file found in $PSScriptRoot." -ForegroundColor Red
     Write-Host "Run this script from the project root." -ForegroundColor Yellow
     exit 1
 }
@@ -58,7 +58,7 @@ Write-Host "  release.ps1" -ForegroundColor Cyan
 Write-Host "==================================================" -ForegroundColor Cyan
 Write-Host "  Project:  $projectName" -ForegroundColor White
 Write-Host "  csproj:   $($csproj.Name)" -ForegroundColor White
-Write-Host "  cwd:      $(Get-Location)" -ForegroundColor White
+Write-Host "  cwd:      $PSScriptRoot" -ForegroundColor White
 
 # ---- 2. Read the version from csproj -----------------------------------------
 
@@ -166,7 +166,7 @@ if (-not $SkipBuild) {
     Write-Host "Running build gate: dotnet build --configuration Release..." -ForegroundColor Cyan
 
     # Extract changelog for embedded resource
-    $changelogPath = Join-Path (Get-Location) "CHANGELOG.md"
+    $changelogPath = Join-Path $PSScriptRoot "CHANGELOG.md"
     if (Test-Path $changelogPath) {
         $utf8 = New-Object System.Text.UTF8Encoding $false
         $changelogContent = [System.IO.File]::ReadAllText($changelogPath, $utf8)
@@ -176,7 +176,7 @@ if (-not $SkipBuild) {
         for ($i = 1; $i -lt $numToTake; $i++) {
             $extracted += "## [" + $parts[$i]
         }
-        $resourcePath = Join-Path (Get-Location) "Resources\about-changelog.txt"
+        $resourcePath = Join-Path $PSScriptRoot "Resources\about-changelog.txt"
         $dir = Split-Path $resourcePath
         if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
         $utf8NoBom = New-Object System.Text.UTF8Encoding $false
@@ -204,7 +204,7 @@ if (-not $SkipBuild) {
 # ---- 4. Generate commit message from CHANGELOG (if it exists) ----------------
 
 if (-not $Message) {
-    $changelogPath = Join-Path (Get-Location) "CHANGELOG.md"
+    $changelogPath = Join-Path $PSScriptRoot "CHANGELOG.md"
     if (Test-Path $changelogPath) {
         $utf8 = New-Object System.Text.UTF8Encoding $false
         $changelog = [System.IO.File]::ReadAllText($changelogPath, $utf8)
