@@ -4,7 +4,7 @@
     "Name": "Tonberry Tactics",
     "InternalName": "GearGoblin",
     "AssemblyVersion": "1.6.0.0",
-    "Description": "In-game half of Tonberry Tactics. v0.6.5.4 is the H6 candidate for BUG-001 (Materia Advisor header ghost text): shortens the advisor header label to test text-overflow theory; unifies /ttinfo and header-pill version strings via a single ResolveVersion() call so they always agree. See CHANGELOG.md for the full hypothesis history.",
+    "Description": "In-game half of Tonberry Tactics. v1.6.0 is the Dawntrail era for BUG-001 (Materia Advisor header ghost text): shortens the advisor header label to test text-overflow theory; unifies /ttinfo and header-pill version strings via a single ResolveVersion() call so they always agree. See CHANGELOG.md for the full hypothesis history.",
     "Punchline": "BiS planner with acquisition tracking and materia advisor.",
     "RepoUrl": "https://github.com/LastOnionKnight/GearGoblin",
     "ApplicableVersion": "any",
@@ -27,3 +27,4 @@
     "LastUpdate": 1786123125
   }
 ]
+
