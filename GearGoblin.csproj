@@ -4,10 +4,10 @@
     <Author>LastOnionKnight</Author>
     <Name>Tonberry Tactics</Name>
     <InternalName>GearGoblin</InternalName>
-    <AssemblyVersion>1.6.0.0</AssemblyVersion>
-    <FileVersion>1.6.0.0</FileVersion>
-    <Version>1.6.0.0</Version>
-    <InformationalVersion>1.6.0</InformationalVersion>
+    <AssemblyVersion>1.6.1.0</AssemblyVersion>
+    <FileVersion>1.6.1.0</FileVersion>
+    <Version>1.6.1.0</Version>
+    <InformationalVersion>1.6.1</InformationalVersion>
     <!-- v0.6.7 Ã¢â‚¬â€ Track 2 era begins. First surface in the new
          ember/frost-blue visual language that replaces TlfTheme
          (gold/navy) over the v0.6.7 Ã¢â€ â€™ v1.0 migration arc.
@@ -100,6 +100,7 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.8" />
   </ItemGroup>
 </Project>
+
 
 
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.6.1] - 2026-08-14
+- **Lockstep Patch**: Version bump to sync with FFXIV Patch 2026.08.11.
+
+
+
 ## [1.6.0] - 2026-08-07
 
 ### Added
@@ -365,6 +370,11 @@ v0.6.6.4 polishes the gear table (striped rows, gold-tier highlight, HQ ★, Sou
 - **`cardHeight` dynamic sizing of `BeginChild`** — verified pattern from v0.6.6.1 StatsStrip cards.
 
 # Changelog
+
+## [1.6.1] - 2026-08-14
+- **Lockstep Patch**: Version bump to sync with FFXIV Patch 2026.08.11.
+
+
 
 All notable changes to Tonberry Tactics (the in-game plugin, formerly
 "GearGoblin") are documented here. Format based on
@@ -2281,6 +2291,7 @@ All four are fixed in `Services/StatusPanelInjector.cs`.
 [0.3.2]: https://github.com/LastOnionKnight/GearGoblin/releases/tag/v0.3.2
 [0.3.1]: https://github.com/LastOnionKnight/GearGoblin/releases/tag/v0.3.1
 [0.3.0]: https://github.com/LastOnionKnight/GearGoblin/releases/tag/v0.3.0
+
 
 
 
