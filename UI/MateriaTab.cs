@@ -617,13 +617,31 @@ public static class MateriaTab
 
         using (plugin.Fonts.JetBrainsMonoBody.PushOrNull())
         {
-            if (waste) Theme.TtChrome.PillBox("ZERO-VALUE MELD", Theme.TtChrome.Over);
-            else if (overcap > 0) Theme.TtChrome.PillBox($"+{overcap} OVERCAP", Theme.TtChrome.Warn);
-            else if (upgrade) Theme.TtChrome.PillBox("UPGRADE AVAILABLE", Theme.TtChrome.GoldDim);
-            else Theme.TtChrome.PillBox("CLEAN", Theme.TtChrome.Ok);
+            bool drawnAny = false;
+            if (waste)
+            {
+                Theme.TtChrome.PillBox("ZERO-VALUE MELD", Theme.TtChrome.Over);
+                drawnAny = true;
+            }
+            if (overcap > 0)
+            {
+                if (drawnAny) ImGui.SameLine();
+                Theme.TtChrome.PillBox($"+{overcap} OVERCAP", Theme.TtChrome.Warn);
+                drawnAny = true;
+            }
+            if (upgrade)
+            {
+                if (drawnAny) ImGui.SameLine();
+                Theme.TtChrome.PillBox("UPGRADE AVAILABLE", Theme.TtChrome.GoldDim);
+                drawnAny = true;
+            }
+            if (!drawnAny)
+            {
+                Theme.TtChrome.PillBox("CLEAN", Theme.TtChrome.Ok);
+            }
         }
         
-        if (upgrade && !waste && overcap == 0)
+        if (upgrade && !waste)
         {
             ImGui.Spacing();
             using (plugin.Fonts.GaramondItalic.PushOrNull())
