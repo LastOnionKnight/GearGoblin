@@ -482,7 +482,7 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 3f);
         using (plugin.Fonts.Pixel.PushOrNull())
         {
-            Theme.TtChrome.PillBox("offline · no backend", Theme.TtChrome.Tonberry);
+            Theme.TtChrome.PillBox("thick client · no telemetry", Theme.TtChrome.Tonberry);
             ImGui.SameLine(0, 8f);
             Theme.TtChrome.PillBox("round-trip v1", Theme.TtChrome.CobaltBright);
             ImGui.SameLine(0, 8f);
