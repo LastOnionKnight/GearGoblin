@@ -1,97 +1,66 @@
-// Plugin.cs
-//
-// v0.4.6 — adds the /goblininfo slash command, which dumps the current
-// StatusPanelInjector diagnostic snapshot to chat in a copy-paste-friendly
-// format. Same payload is also offered via a button on the Diagnostics tab.
-// Bug reports become "paste me your /goblininfo" instead of "send me a
-// screenshot of the Character window and your /xllog."
-//
-// Lineage:
-//   v0.4.0  Plugin scaffolding + StatusPanelInjector wiring
-//   v0.4.1  /goblinexport command + GearsetExporter
-//   v0.4.6  /goblininfo command + BuildGoblinInfoString() (this release)
-
 using System;
+using System.Collections.Generic;
 using System.Text;
+using Dalamud.Bindings.ImGui;
 using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using GearGoblin.Services;
 using GearGoblin.UI;
-using Dalamud.Bindings.ImGui;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GearGoblin;
 
+/// <summary>
+/// Dalamud entry point for the in-game Tonberry Tactics client.
+/// The assembly/internal name remains GearGoblin for configuration compatibility.
+/// </summary>
 public sealed class Plugin : IDalamudPlugin
 {
-    // v0.4.7.1 "Brand Convergence": the user-facing name is now "Tonberry Tactics",
-    // matching the website. We deliberately keep the *internal* identifiers
-    // (csproj InternalName, namespace, WindowSystem name) as "GearGoblin" so
-    // existing user configs and saved window state survive. Full code-namespace
-    // rename is scoped to v0.5.0 with the Core refactor.
     public string Name => "Tonberry Tactics";
 
-    // v0.4.7.1: /tt* are the new primary commands. /goblin* remain as
-    // deprecated aliases through v0.5.x and will be removed at v1.0 (migration
-    // strategy C from the v0.4.8 product Q&A: graceful staged transition).
     private const string CommandName       = "/tt";
     private const string ExportCommandName = "/ttexport";
     private const string InfoCommandName   = "/ttinfo";
     private const string ImportCommandName = "/ttimport";
 
-    // Legacy aliases (kept for migration through v0.5.x)
+    // Compatibility aliases. Hidden from command help but kept for old muscle memory.
     private const string LegacyCommandName       = "/goblin";
     private const string LegacyExportCommandName = "/goblinexport";
     private const string LegacyInfoCommandName   = "/goblininfo";
     private const string LegacyImportCommandName = "/goblinimport";
 
-    // New alias /tactics
     private const string TacticsCommandName       = "/tactics";
     private const string TacticsExportCommandName = "/tacticsexport";
     private const string TacticsInfoCommandName   = "/tacticsinfo";
     private const string TacticsImportCommandName = "/tacticsimport";
 
-    // Property removed per Phase 1 migration.
     public IConfigurationService ConfigService { get; }
-    public WindowSystem  WindowSystem  { get; } = new("GearGoblin");
+    public WindowSystem WindowSystem { get; } = new("GearGoblin");
     public IServiceProvider Provider { get; }
 
     public IInventoryReader Inventory { get; }
-    public IGearsetExporter  Exporter  { get; }   // v0.4.1
-    public IGearsetImporter  Importer  { get; }   // v0.4.7 (scaffold; full body next session)
-
-    // v0.4.0: native injection into the CharacterStatus addon.
+    public IGearsetExporter Exporter { get; }
+    public IGearsetImporter Importer { get; }
     public IStatusPanelInjector StatusPanel { get; }
-
-    // v0.4.7.1: brand artwork loaded from Assets/ at startup.
     public BrandResources Brand { get; }
-
-    // v0.6.0: custom font handles via IFontAtlas Phase 2.
     public Theme.FontAtlasManager Fonts { get; }
 
     private readonly MainWindow mainWindow;
 
     public Plugin(IDalamudPluginInterface pluginInterface)
     {
-        // Inject Dalamud services into the static container.
         pluginInterface.Create<DalamudServices>();
 
-        // Config Service will initialize the configuration in its constructor.
-
-        // Build the DI container.
         Provider = ServiceContainer.CreateProvider(this);
-
-        // Services.
         ConfigService = Provider.GetRequiredService<IConfigurationService>();
         Inventory   = Provider.GetRequiredService<IInventoryReader>();
-        Exporter    = Provider.GetRequiredService<IGearsetExporter>();                       // v0.4.1
-        Importer    = Provider.GetRequiredService<IGearsetImporter>();                            // v0.4.7 (scaffold)
+        Exporter    = Provider.GetRequiredService<IGearsetExporter>();
+        Importer    = Provider.GetRequiredService<IGearsetImporter>();
         StatusPanel = Provider.GetRequiredService<IStatusPanelInjector>();
-        Brand       = new BrandResources();                                 // v0.4.7.1
-        Fonts       = new Theme.FontAtlasManager(pluginInterface);          // v0.6.0
+        Brand       = new BrandResources();
+        Fonts       = new Theme.FontAtlasManager(pluginInterface);
 
-        // UI.
         mainWindow = new MainWindow(this);
         WindowSystem.AddWindow(mainWindow);
 
@@ -99,217 +68,138 @@ public sealed class Plugin : IDalamudPlugin
         DalamudServices.PluginInterface.UiBuilder.OpenConfigUi += ToggleMain;
         DalamudServices.PluginInterface.UiBuilder.OpenMainUi   += ToggleMain;
 
-        // Commands — primary set (/tt*).
+        RegisterCommands();
+
+        DalamudServices.Log.Info(
+            $"Tonberry Tactics v{GetType().Assembly.GetName().Version} loaded (InternalName=GearGoblin)."
+        );
+    }
+
+    public void Dispose()
+    {
+        StatusPanel.Dispose();
+        Fonts.Dispose();
+        Brand.Dispose();
+
+        DalamudServices.PluginInterface.UiBuilder.Draw         -= DrawUI;
+        DalamudServices.PluginInterface.UiBuilder.OpenConfigUi -= ToggleMain;
+        DalamudServices.PluginInterface.UiBuilder.OpenMainUi   -= ToggleMain;
+
+        RemoveCommands();
+
+        WindowSystem.RemoveAllWindows();
+        mainWindow.Dispose();
+
+        if (Provider is IDisposable disposableProvider)
+            disposableProvider.Dispose();
+    }
+
+    private void RegisterCommands()
+    {
         DalamudServices.CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
             HelpMessage = "Open Tonberry Tactics. Usage: /tt"
         });
         DalamudServices.CommandManager.AddHandler(ExportCommandName, new CommandInfo(OnExportCommand)
         {
-            HelpMessage = "Export your equipped gearset to clipboard for use in the Tonberry Tactics website."
+            HelpMessage = "Export equipped gear and current stats to the Tonberry Tactics web companion."
         });
         DalamudServices.CommandManager.AddHandler(InfoCommandName, new CommandInfo(OnInfoCommand)
         {
-            HelpMessage = "Print Tonberry Tactics diagnostics to chat. Useful for bug reports."
+            HelpMessage = "Copy Tonberry Tactics diagnostics and open the Diagnostics tab."
         });
         DalamudServices.CommandManager.AddHandler(ImportCommandName, new CommandInfo(OnImportCommand)
         {
-            HelpMessage = "Import a GG-PLAN:v1: plan string from clipboard. Pair with /ttexport."
+            HelpMessage = "Import a GG-PLAN:v1 plan from the clipboard or inline text."
         });
 
-        // Tactics aliases (/tactics*)
-        DalamudServices.CommandManager.AddHandler(TacticsCommandName, new CommandInfo(OnCommand)
-        {
-            HelpMessage = "Open Tonberry Tactics (Alias). Usage: /tactics",
-            ShowInHelp = false
-        });
-        DalamudServices.CommandManager.AddHandler(TacticsExportCommandName, new CommandInfo(OnExportCommand)
-        {
-            HelpMessage = "Export your equipped gearset to clipboard (Alias).",
-            ShowInHelp = false
-        });
-        DalamudServices.CommandManager.AddHandler(TacticsInfoCommandName, new CommandInfo(OnInfoCommand)
-        {
-            HelpMessage = "Print Tonberry Tactics diagnostics to chat (Alias).",
-            ShowInHelp = false
-        });
-        DalamudServices.CommandManager.AddHandler(TacticsImportCommandName, new CommandInfo(OnImportCommand)
-        {
-            HelpMessage = "Import a GG-PLAN:v1: plan string from clipboard (Alias).",
-            ShowInHelp = false
-        });
+        AddHiddenAlias(TacticsCommandName, OnCommand, "Open Tonberry Tactics.");
+        AddHiddenAlias(TacticsExportCommandName, OnExportCommand, "Export equipped gear.");
+        AddHiddenAlias(TacticsInfoCommandName, OnInfoCommand, "Copy Tonberry Tactics diagnostics.");
+        AddHiddenAlias(TacticsImportCommandName, OnImportCommand, "Import a Tonberry Tactics plan.");
 
-        // Legacy aliases (/goblin*)
-        DalamudServices.CommandManager.AddHandler(LegacyCommandName, new CommandInfo(OnCommand)
-        {
-            HelpMessage = "Open Tonberry Tactics (Legacy alias). Usage: /goblin",
-            ShowInHelp = false
-        });
-        DalamudServices.CommandManager.AddHandler(LegacyExportCommandName, new CommandInfo(OnExportCommand)
-        {
-            HelpMessage = "Export your equipped gearset to clipboard (Legacy alias).",
-            ShowInHelp = false
-        });
-        DalamudServices.CommandManager.AddHandler(LegacyInfoCommandName, new CommandInfo(OnInfoCommand)
-        {
-            HelpMessage = "Print Tonberry Tactics diagnostics to chat (Legacy alias).",
-            ShowInHelp = false
-        });
-        DalamudServices.CommandManager.AddHandler(LegacyImportCommandName, new CommandInfo(OnImportCommand)
-        {
-            HelpMessage = "Import a GG-PLAN:v1: plan string from clipboard (Legacy alias).",
-            ShowInHelp = false
-        });
-
-        DalamudServices.Log.Info($"Tonberry Tactics (formerly GearGoblin) v{GetType().Assembly.GetName().Version} loaded.");
+        AddHiddenAlias(LegacyCommandName, OnCommand, "Open Tonberry Tactics (legacy alias).");
+        AddHiddenAlias(LegacyExportCommandName, OnExportCommand, "Export equipped gear (legacy alias).");
+        AddHiddenAlias(LegacyInfoCommandName, OnInfoCommand, "Copy diagnostics (legacy alias).");
+        AddHiddenAlias(LegacyImportCommandName, OnImportCommand, "Import a plan (legacy alias).");
     }
 
-    public void Dispose()
+    private static void AddHiddenAlias(string command, IReadOnlyCommandInfo.HandlerDelegate handler, string help)
     {
-        // Tear down in reverse construction order. StatusPanel must dispose
-        // before the WindowSystem so its click-handler unregistration runs
-        // while Dalamud's services are still alive. Fonts disposes before
-        // the WindowSystem too so MainWindow can't draw stale handles.
-        StatusPanel?.Dispose();
-        Fonts?.Dispose();                                                   // v0.6.0
-        Brand?.Dispose();                                                   // v0.4.7.1
+        DalamudServices.CommandManager.AddHandler(command, new CommandInfo(handler)
+        {
+            HelpMessage = help,
+            ShowInHelp = false,
+        });
+    }
 
-        DalamudServices.PluginInterface.UiBuilder.Draw         -= DrawUI;
-        DalamudServices.PluginInterface.UiBuilder.OpenConfigUi -= ToggleMain;
-        DalamudServices.PluginInterface.UiBuilder.OpenMainUi   -= ToggleMain;
+    private static void RemoveCommands()
+    {
+        string[] commands =
+        {
+            CommandName, ExportCommandName, InfoCommandName, ImportCommandName,
+            TacticsCommandName, TacticsExportCommandName, TacticsInfoCommandName, TacticsImportCommandName,
+            LegacyCommandName, LegacyExportCommandName, LegacyInfoCommandName, LegacyImportCommandName,
+        };
 
-        // Primary commands.
-        DalamudServices.CommandManager.RemoveHandler(CommandName);
-        DalamudServices.CommandManager.RemoveHandler(ExportCommandName);
-        DalamudServices.CommandManager.RemoveHandler(InfoCommandName);
-        DalamudServices.CommandManager.RemoveHandler(ImportCommandName);
-        
-        DalamudServices.CommandManager.RemoveHandler(LegacyCommandName);
-        DalamudServices.CommandManager.RemoveHandler(LegacyExportCommandName);
-        DalamudServices.CommandManager.RemoveHandler(LegacyInfoCommandName);
-        DalamudServices.CommandManager.RemoveHandler(LegacyImportCommandName);
-
-        WindowSystem.RemoveAllWindows();
-        mainWindow.Dispose();
+        foreach (var command in commands)
+            DalamudServices.CommandManager.RemoveHandler(command);
     }
 
     private void OnCommand(string command, string args) => ToggleMain();
 
-    /// <summary>
-    /// v0.4.1: /goblinexport command. Serializes the currently-equipped
-    /// gearset (job, level, items, melded materia) to a base64-encoded JSON
-    /// string and copies it to the system clipboard for use in the Tonberry
-    /// Tactics web app at tonberrytactics.pages.dev. Pure read; doesn't open
-    /// any UI.
-    /// </summary>
     private void OnExportCommand(string command, string args) => Exporter.ExportToClipboard();
 
-    /// <summary>
-    /// /ttinfo command. Builds the StatusPanelInjector diagnostic snapshot,
-    /// copies it to the system clipboard, and opens the standalone Tonberry
-    /// Tactics window so the Diagnostics tab is one click away.
-    ///
-    /// v0.6.5.1 redesign — the previous implementation printed the diagnostic
-    /// block to chat line-by-line via a foreach over <c>info.Split('\n')</c>.
-    /// That pattern was responsible for the v0.6.5 hard crash inside FFXIV's
-    /// native <c>Client::System::String::Utf8String::SetString</c> at
-    /// <c>+0x23</c> (RDX=null source pointer), triggered from
-    /// <c>Dalamud.Game.Gui.ChatGui.UpdateQueue</c> during a framework tick:
-    /// some lines of the dump (notably the trailing empty entry produced by
-    /// <c>AppendLine</c>'s CRLF terminator splitting on <c>'\n'</c>) marshaled
-    /// into a null native string under the right tick timing, and the game's
-    /// SetString dereferenced the null pointer. The bug was latent across
-    /// every release from v0.4.6 to v0.6.5; v0.6.5 just got unlucky and
-    /// surfaced it.
-    ///
-    /// The fix removes the multi-line ChatGui.Print pattern entirely.
-    /// Clipboard write + ImGui calls are dispatched onto the framework
-    /// thread (RunOnFrameworkThread) because ImGui.SetClipboardText reads
-    /// from the active ImGui context, which only exists during the render
-    /// tick. The single short ASCII confirmation line printed to chat
-    /// (one Print call, no foreach, no empty entries) is the only chat
-    /// I/O this command does now.
-    /// </summary>
     private void OnInfoCommand(string command, string args)
     {
         try
         {
-            // Build the diagnostic block first. StringBuilder work is thread-safe
-            // and StatusPanel.GetDiagnostics() is a snapshot read.
             var info = BuildGoblinInfoString();
 
-            // ImGui clipboard write needs the render-thread ImGui context.
-            // Schedule it for the next framework tick.
             DalamudServices.Framework.RunOnFrameworkThread(() =>
             {
                 try
                 {
                     ImGui.SetClipboardText(info);
                 }
-                catch (Exception clipEx)
+                catch (Exception ex)
                 {
-                    // Clipboard failure is non-fatal — user still has the window.
-                    DalamudServices.Log.Warning(clipEx,
-                        "OnInfoCommand: ImGui.SetClipboardText threw; user will need to use the Diagnostics-tab button instead.");
+                    DalamudServices.Log.Warning(ex,
+                        "Unable to write /ttinfo payload to the ImGui clipboard.");
                 }
             });
 
-            // Open the window. IsOpen is just a bool flag the next render
-            // tick reads — safe to set from any thread.
             mainWindow.IsOpen = true;
 
-            // One short ASCII confirmation line. This is the ONLY ChatGui.Print
-            // this command makes, and it does not iterate a Split() result, so
-            // it cannot reproduce the multi-line empty-entry path that caused
-            // the v0.6.5 crash. Wrapped in try/catch defensively anyway.
             try
             {
                 DalamudServices.ChatGui.Print(
-                    "[Tonberry Tactics] Diagnostics copied to clipboard. " +
-                    "Opening the Tonberry Tactics window — see the Diagnostics tab for live state.");
+                    "[Tonberry Tactics] Diagnostics copied to clipboard. Opening Diagnostics."
+                );
             }
-            catch (Exception printEx)
+            catch (Exception ex)
             {
-                DalamudServices.Log.Warning(printEx,
-                    "OnInfoCommand: confirmation ChatGui.Print threw; ignoring.");
+                DalamudServices.Log.Warning(ex, "Unable to print /ttinfo confirmation to chat.");
             }
         }
         catch (Exception ex)
         {
-            DalamudServices.Log.Error(ex, "OnInfoCommand: BuildGoblinInfoString or dispatch threw.");
+            DalamudServices.Log.Error(ex, "/ttinfo failed.");
             try
             {
                 DalamudServices.ChatGui.PrintError($"[Tonberry Tactics] /ttinfo failed: {ex.Message}");
             }
             catch
             {
-                // Already in a failure path; nothing to do.
+                // Already on the error path; do not let chat failure escape.
             }
         }
     }
 
-    /// <summary>
-    /// v0.4.7: /goblinimport command. Reads a GG-PLAN:v1: string from the
-    /// system clipboard (or from <paramref name="args"/> if the user passed
-    /// the wire string inline), validates it via GearsetImporter, and
-    /// persists the resulting plan into Configuration.JobPlans under
-    /// PlanMode.Imported. Surfaces results to chat.
-    ///
-    /// <para>
-    /// Status as of v0.4.7 scaffold commit: the validation flow exists in
-    /// GearsetImporter (prefix check, base64 decode, JSON parse, schema
-    /// version, emitter identity), but the clipboard read and the
-    /// Configuration persist steps are still TODO. This handler is
-    /// registered and reachable; it just reports honestly that the wiring
-    /// isn't complete yet. Replace this comment when the persist body lands.
-    /// </para>
-    /// </summary>
     private void OnImportCommand(string command, string args)
     {
         try
         {
-            // If the user passed the wire string inline (e.g. /ttimport GG-PLAN:v1:abc),
-            // route to ImportFromString; otherwise pull from clipboard.
             var result = !string.IsNullOrWhiteSpace(args)
                 ? Importer.ImportFromString(args)
                 : Importer.ImportFromClipboard();
@@ -317,142 +207,113 @@ public sealed class Plugin : IDalamudPlugin
             if (!result.Success || result.Payload == null || result.RawJson == null)
             {
                 DalamudServices.ChatGui.PrintError(
-                    $"[Tonberry Tactics] Import failed: {result.ErrorMessage ?? "Unknown error"}");
+                    $"[Tonberry Tactics] Import failed: {result.ErrorMessage ?? "Unknown error"}"
+                );
                 return;
             }
 
-            ulong contentId = 1; // Fallback since IClientState.LocalContentId was removed in API 10
+            // Dalamud API 15 exposes the stable local-character content ID through
+            // IPlayerState. Never collapse per-character plans into a synthetic key.
+            if (!DalamudServices.PlayerState.IsLoaded || DalamudServices.PlayerState.ContentId == 0)
+            {
+                DalamudServices.ChatGui.PrintError(
+                    "[Tonberry Tactics] Import failed: local character identity is not available yet."
+                );
+                return;
+            }
 
+            ulong contentId = DalamudServices.PlayerState.ContentId;
             uint jobId = result.Payload.SourceCharacter.Job;
             var config = ConfigService.Current;
 
-            if (!config.JobPlans.ContainsKey(contentId))
+            if (!config.JobPlans.TryGetValue(contentId, out var characterPlans))
             {
-                config.JobPlans[contentId] = new System.Collections.Generic.Dictionary<uint, JobPlanData>();
-            }
-            if (!config.JobPlans[contentId].ContainsKey(jobId))
-            {
-                config.JobPlans[contentId][jobId] = new JobPlanData();
+                characterPlans = new Dictionary<uint, JobPlanData>();
+                config.JobPlans[contentId] = characterPlans;
             }
 
-            var jobData = config.JobPlans[contentId][jobId];
+            if (!characterPlans.TryGetValue(jobId, out var jobData))
+            {
+                jobData = new JobPlanData();
+                characterPlans[jobId] = jobData;
+            }
+
             jobData.Mode = PlanMode.Imported;
             jobData.ImportedPlanJson = result.RawJson;
             jobData.ImportedAt = DateTime.UtcNow;
-            
+            jobData.LastUpdated = DateTime.UtcNow;
+
             jobData.MeldCompletion.Clear();
             for (int i = 0; i < result.Payload.Melds.Count; i++)
-            {
                 jobData.MeldCompletion.Add(false);
-            }
 
             ConfigService.Save();
 
             DalamudServices.ChatGui.Print(
-                "[Tonberry Tactics] Plan imported successfully and set to Active! " +
-                $"({result.Payload.Melds.Count} meld(s) recommended for " +
-                $"{result.Payload.SourceCharacter.JobAbbreviation}.)");
+                "[Tonberry Tactics] Plan imported and set active. " +
+                $"{result.Payload.Melds.Count} meld(s) for {result.Payload.SourceCharacter.JobAbbreviation}."
+            );
 
             foreach (var warning in result.Warnings)
-            {
                 DalamudServices.ChatGui.Print($"[Tonberry Tactics] Warning: {warning}");
-            }
         }
         catch (Exception ex)
         {
-            DalamudServices.Log.Error(ex, "OnImportCommand: importer threw.");
+            DalamudServices.Log.Error(ex, "/ttimport failed.");
             DalamudServices.ChatGui.PrintError($"[Tonberry Tactics] /ttimport failed: {ex.Message}");
         }
     }
 
-    /// <summary>
-    /// v0.4.6: build a human-readable, copy-paste-friendly diagnostic block.
-    /// Used by both the /goblininfo slash command and the Diagnostics tab's
-    /// "Copy to clipboard" button.
-    ///
-    /// <para>
-    /// Output shape (~15 lines): plugin version + player + job + iLvl,
-    /// then every field of the StatusPanelInjector.DiagnosticSnapshot, then
-    /// a trailing instruction line directing users to attach their /xllog
-    /// if reporting a bug. Wrapped in '─────' separator lines so it's
-    /// visually distinct in chat or in a GitHub issue.
-    /// </para>
-    /// </summary>
+    /// <summary>Build the diagnostics payload used by /ttinfo and the Diagnostics tab.</summary>
     public string BuildGoblinInfoString()
     {
         var sb = new StringBuilder();
         var diag = StatusPanel.GetDiagnostics();
+        string version = MainWindow.ResolveVersion();
 
-        // v0.6.6 — version resolution unified with the in-game header pill
-        // via UI.MainWindow.ResolveVersion(). Previously this function had
-        // its own copy of the version-formatter logic (Major.Minor.Build +
-        // Revision-if-non-zero), which meant /ttinfo showed AssemblyVersion-
-        // formatted numbers while the header pill could be showing the
-        // AssemblyInformationalVersion string (e.g. v0.6.5.3a's "0.6.5.3a"
-        // pill vs /ttinfo's "0.6.6"). Now both use the same resolver:
-        // InformationalVersion preferred, AssemblyVersion-formatting fallback.
-        string v = UI.MainWindow.ResolveVersion();
-
-        // v0.6.5.2 — branding sweep: header now reads "Tonberry Tactics /ttinfo"
-        // (was "GearGoblin /goblininfo" — a miss from the v0.6.5 chat-message
-        // branding sweep that this diagnostic block was never updated to match).
-        sb.AppendLine("───── Tonberry Tactics /ttinfo ─────");
-        sb.AppendLine($"Plugin version       : v{v}");
+        sb.AppendLine("----- Tonberry Tactics /ttinfo -----");
+        sb.AppendLine($"Plugin version       : v{version}");
 
         var player = DalamudServices.ObjectTable.LocalPlayer;
         if (player is not null)
         {
             var job = player.ClassJob.Value.Abbreviation.ExtractText();
-            sb.AppendLine($"Player               : {player.Name} — {job} Lv {player.Level}");
+            sb.AppendLine($"Player               : {player.Name} - {job} Lv {player.Level}");
+            sb.AppendLine($"Content ID available : {(DalamudServices.PlayerState.ContentId != 0 ? "yes" : "no")}");
+
+            var equipped = Inventory.ReadEquipped();
+            sb.AppendLine($"---- Equipped ({equipped.Count}) ----");
+            foreach (var p in equipped)
+            {
+                sb.AppendLine(
+                    $"{p.Slot,-9}: i{p.ItemLevel} icon={p.IconId} hq={(p.IsHighQuality ? "Y" : "n")} - {p.Name}"
+                );
+            }
         }
         else
         {
             sb.AppendLine("Player               : (not logged in)");
         }
 
-        // v1.5.8 — per-slot gear probe (gap diagnostic items 2/3): surfaces
-        // each piece's icon id and the game's HQ flag so icon and HQ-marker
-        // anomalies are diagnosable from a /ttinfo paste.
-        if (player is not null)
-        {
-            var equipped = Inventory.ReadEquipped();
-            sb.AppendLine($"──── Equipped ({equipped.Count}) ────");
-            foreach (var p in equipped)
-                sb.AppendLine($"{p.Slot,-9}: i{p.ItemLevel} icon={p.IconId} hq={(p.IsHighQuality ? "Y" : "n")} · {p.Name}");
-        }
-
-        sb.AppendLine("──── Injector state ────");
+        sb.AppendLine("---- Injector state ----");
         sb.AppendLine($"Character panel attached : {(diag.PanelAttached ? "yes" : "no")}");
         sb.AppendLine($"CPR detected             : {(diag.CprDetected ? "yes" : "no")}");
         sb.AppendLine($"Derivations enabled      : {(diag.DerivationsEnabled ? "yes" : "no")}");
         sb.AppendLine($"Advisor section injected : {(diag.AdvisorSectionPresent ? "yes" : "no")}");
         sb.AppendLine($"Advisor recommendations  : {diag.AdvisorRecCount}");
         sb.AppendLine($"Advisor empty-state      : {(diag.AdvisorEmptyState ? "yes (all materia optimal)" : "no")}");
-        sb.AppendLine($"Advisor errored          : {(diag.AdvisorErrored ? "YES — check /xllog" : "no")}");
+        sb.AppendLine($"Advisor errored          : {(diag.AdvisorErrored ? "YES - check /xllog" : "no")}");
         sb.AppendLine($"Outer-addon height grew  : {diag.InjectedHeightPx} px");
         sb.AppendLine($"Last inject result       : {diag.LastInjectResult}");
-        sb.AppendLine($"Last inject time (UTC)   : {(diag.LastInjectTime == default ? "—" : diag.LastInjectTime.ToString("HH:mm:ss"))}");
-        sb.AppendLine($"Last update tick (UTC)   : {(diag.LastUpdateTime == default ? "—" : diag.LastUpdateTime.ToString("HH:mm:ss"))}");
-        sb.AppendLine("─────────────────────────────");
-
-        // v0.6.5.2 — the previous footer hardcoded "StatusPanelInjector v0.4.6"
-        // as the /xllog search term. Two problems: (1) the v0.4.6 has been
-        // wrong for every release since v0.4.7, since log lines now reference
-        // whatever the current version is; (2) "StatusPanelInjector" alone is
-        // the right search prefix that matches log lines across versions.
-        sb.AppendLine("If reporting a bug, attach the relevant /xllog lines (search 'StatusPanelInjector' or 'BrandResources').");
+        sb.AppendLine($"Last inject time (UTC)   : {(diag.LastInjectTime == default ? "-" : diag.LastInjectTime.ToString("HH:mm:ss"))}");
+        sb.AppendLine($"Last update tick (UTC)   : {(diag.LastUpdateTime == default ? "-" : diag.LastUpdateTime.ToString("HH:mm:ss"))}");
+        sb.AppendLine("-----------------------------");
+        sb.AppendLine("If reporting a bug, attach relevant /xllog lines (search 'StatusPanelInjector' or 'BrandResources').");
 
         return sb.ToString();
     }
 
-    /// <summary>
-    /// Toggle the standalone /goblin window. Public so the v0.4.0
-    /// StatusPanelInjector can invoke it from the in-addon Materia Advisor
-    /// footer's click handler.
-    /// </summary>
     public void ToggleMain() => mainWindow.Toggle();
 
     private void DrawUI() => WindowSystem.Draw();
 }
-
-
