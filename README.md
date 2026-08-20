@@ -1,192 +1,154 @@
 # Tonberry Tactics — GearGoblin Plugin
 
-**Current version: 1.6.1**
+**Current released version: 1.6.1**  
+**Current `main`: unreleased 1.6.2 stabilization work**
 
-GearGoblin is the internal/plugin name for the in-game half of **Tonberry Tactics**, a Final Fantasy XIV gearing and materia planning system built as a Dalamud plugin plus a Blazor WebAssembly companion app.
+GearGoblin is the internal/plugin name for the in-game half of **Tonberry Tactics**, a Final Fantasy XIV character optimization platform built as a Dalamud plugin, a shared Core library, and a Blazor WebAssembly companion app.
 
-The plugin reads the currently logged-in character, equipped gear, melds, job, level, item level, and relevant stats; audits the current setup; compares it against an Etro or XIVGear target; and exchanges versioned gear/plan payloads with the Tonberry Tactics web companion.
+The long-term product target is an **Ask Mr. Robot-style optimizer for FFXIV**: read the character and owned gear, evaluate target sets, recommend upgrades/melds/food/potions, and eventually answer “what should I do next?” under job, encounter, currency, weekly-lockout, and player constraints.
 
 The public-facing product name is **Tonberry Tactics**. The internal name remains `GearGoblin` so existing Dalamud configuration and window state continue to work.
 
-## Current status
+## Ecosystem
 
-Version **1.6.1** is the current lockstep release of the three-project system:
+```text
+LastOnionKnight/GearGoblin       — Dalamud plugin / live game-state reader
+LastOnionKnight/GearGoblin-Core  — shared formulas, optimizer, schemas
+LastOnionKnight/TonberryTactics  — browser planning companion
+```
 
-- `LastOnionKnight/GearGoblin` — Dalamud plugin
-- `LastOnionKnight/GearGoblin-Core` — shared optimizer/formula library
-- `LastOnionKnight/TonberryTactics` — Blazor WebAssembly companion
+The three projects use trinity lockstep versioning for releases.
 
-All three are intended to ship at the same product version. Core is consumed by both front ends as the `external/GearGoblin.Core` git submodule.
-
-GearGoblin currently targets:
+Current runtime target:
 
 - Dalamud API 15
 - .NET 10 / `net10.0-windows`
-- GearGoblin.Core 1.6.1
-
-The project is under active development and is distributed through the custom plugin repository in this repo.
+- shared `GearGoblin.Core` submodule at `external/GearGoblin.Core`
 
 ## Primary commands
 
 ```text
 /tt          Open Tonberry Tactics
-/ttexport    Export equipped gear and current stats to the clipboard
-/ttimport    Import a GG-PLAN:v1 plan from the clipboard or inline text
+/ttexport    Export equipped gear and current stats
+/ttimport    Import a GG-PLAN:v1 plan
 /ttinfo      Copy diagnostics and open the Diagnostics tab
 ```
 
-Older `/goblin*` and `/tactics*` aliases still exist in the codebase for compatibility, but `/tt*` is the current command family.
+`/tactics*` and `/goblin*` remain compatibility aliases. All registered command families are removed during plugin disposal.
 
-## What the plugin does today
+## Character and gear ingestion
 
-### Character
-
-The Character tab is the primary in-plugin character surface. It reads the current player and displays:
+The plugin reads live character state through Dalamud and local game data through Lumina, including:
 
 - current job and level
-- average item level
-- battle substats and derived context
-- Crafter/Gatherer stats for DoH/DoL jobs
-- current equipped gear
-- materia state and recommendations
+- stable character Content ID through API 15 `IPlayerState`
+- equipped items and item levels
+- HQ state
+- materia and grades
+- per-piece base substats/caps
+- current battle stats
+- current DoH/DoL stats
 
-Battle jobs use the shared Core formulas and job profiles. DoH/DoL jobs are currently display-only for optimization: Craftsmanship, Control, CP, Gathering, Perception, and GP are read and surfaced, but crafting/gathering meld optimization is intentionally not enabled yet.
+Imported plans are persisted per:
 
-### Materia Advisor
+```text
+ContentId
+└── JobId
+    └── JobPlanData
+```
 
-The Materia tab uses `GearGoblin.Core.Materia.MeldOptimizer` against the currently equipped set.
+The old synthetic `contentId = 1` compatibility fallback is retired.
 
-It currently supports:
+## Materia Advisor
+
+The plugin uses `GearGoblin.Core.Materia.MeldOptimizer` for shared recommendation and audit behavior.
+
+Current capabilities include:
 
 - empty-slot recommendations
-- per-piece substat-cap enforcement
+- per-piece cap enforcement
 - overcap detection
-- zero-value / wrong-stat detection
-- outdated or replaceable meld auditing
-- Tier XII endgame materia recommendations
-- Pure Math and Balance-weight infrastructure in Core
+- wrong/zero-value stat detection
+- outdated/replacement auditing
+- Pure Math and Balance-weight modes
+- Tier XII combat materia projection from the shared Core tier table
 - all 21 standard combat jobs
-- DoH/DoL readback without battle-formula scoring
+- DoH/DoL identification/display with battle optimization intentionally disabled
 
-The current UI renders gear as per-piece cards, with meld indicators, audit status, summary counts, and recommended replacements.
+Current Tier XII combat projection is **+54**. Core owns the authoritative projection table so the plugin and web cannot drift independently.
 
-### Plan / BiS comparison
+## Plan / BiS comparison
 
-The Plan tab accepts Etro and XIVGear links and compares the target set against currently equipped gear slot by slot.
+The Plan tab accepts Etro and XIVGear targets and compares them against equipped gear.
 
-Current verdicts include:
+Current target ingestion includes:
 
-- MATCH
-- REMELD
-- UPGRADE
-- SWAP
-- TARGET LOWER
-- ACQUIRE
+- Etro gearset fetch/parse
+- current XIVGear URL-based data fetch path
+- Lumina hydration of target item name and item level
+- source materia resolution where the payload provides usable IDs
+- XIVGear selected food Item ID capture for future Raider Solver work
 
-The common target model is `Planning/BisGearset.cs`; source-specific parsing lives in `EtroParser` and `XivGearParser`.
+Verdicts include:
 
-Known limitation: item parsing is more complete than source-materia parsing. XIVGear currently creates incomplete meld metadata and Etro does not yet fully hydrate target melds. Until that is corrected, item-level/slot comparison is more trustworthy than an "item + melds identical" verdict.
+- `MATCH` — target item and known target melds match
+- `ITEM MATCH` — correct item; source meld details are unresolved/incomplete
+- `REMELD`
+- `UPGRADE`
+- `SWAP`
+- `TARGET LOWER`
+- `ACQUIRE`
 
-### Web round trip
+Unknown item level is not treated as zero for upgrade/downgrade decisions.
 
-`/ttexport` currently emits:
+## Web round trip
+
+Current plugin export:
 
 ```text
 GG-EXPORT:v2:<base64-json>
 ```
 
-The v2 export contains the character, equipped items, melds, per-piece base substats/caps, and current total stats.
+The v2 payload carries character, gear, materia, total stats, and per-piece cap/base-stat context.
 
-The Tonberry Tactics web app accepts v1 and v2 exports, runs the shared Core optimizer, and emits:
+Current web-to-plugin plan:
 
 ```text
 GG-PLAN:v1:<base64-json>
 ```
 
-`/ttimport` consumes the plan, persists the imported recommendation data, and surfaces the active plan in the plugin.
-
-Known limitation: imported plan persistence currently uses a compatibility fallback rather than a real per-character content ID. That must be corrected before multi-character plan storage is considered reliable.
-
-### Native CharacterStatus injection
-
-The plugin still contains the legacy `StatusPanelInjector` path for native Character-window derived rows, breakpoint hints, Materia Advisor output, and CharacterPanelRefined coexistence.
-
-The standalone Tonberry Tactics Character tab is the preferred long-term surface because it avoids native AtkNode lifecycle/collision problems. The injector remains present for compatibility while that migration is completed.
-
-### Diagnostics and feedback
-
-The plugin includes:
-
-- Settings tab
-- Diagnostics tab
-- `/ttinfo` clipboard diagnostics
-- Force Reinject support for the legacy CharacterStatus injector
-- in-window feedback tooling
+The web remains backward-compatible with `GG-EXPORT:v1`.
 
 ## Architecture
 
 ```text
 GearGoblin/
-├─ Plugin.cs                     Dalamud entry point and command registration
-├─ Configuration.cs              persisted plugin/job-plan settings
-├─ DalamudServices.cs            injected Dalamud service container
+├─ Plugin.cs
+├─ Configuration.cs
+├─ DalamudServices.cs
 ├─ Materia/
-│  └─ StatReader.cs              live PlayerState stat reader
+│  └─ StatReader.cs
 ├─ Planning/
-│  ├─ BisFetcher.cs              Etro/XIVGear network fetch
-│  ├─ BisGearset.cs              neutral target-set model
+│  ├─ BisFetcher.cs
+│  ├─ BisGearset.cs
+│  ├─ BisItemResolver.cs
 │  ├─ EtroParser.cs
 │  └─ XivGearParser.cs
 ├─ Services/
-│  ├─ InventoryReader.cs         equipped gear + materia reader
-│  ├─ GearsetExporter.cs         GG-EXPORT:v2 producer
-│  ├─ GearsetImporter.cs         GG-PLAN:v1 consumer
+│  ├─ InventoryReader.cs
+│  ├─ GearsetExporter.cs
+│  ├─ GearsetImporter.cs
 │  ├─ ConfigurationService.cs
-│  └─ StatusPanelInjector.cs     legacy native CharacterStatus injection
+│  └─ StatusPanelInjector.cs
 ├─ UI/
 │  ├─ MainWindow.cs
 │  ├─ CharacterTab.cs
 │  ├─ PlanTab.cs
 │  └─ MateriaTab.cs
-├─ Theme/                        Tonberry Tactics UI chrome/fonts
-└─ external/GearGoblin.Core/    shared Core git submodule
+└─ external/GearGoblin.Core/
 ```
-
-## Shared Core
-
-Optimizer and formula logic lives in `GearGoblin.Core` rather than being independently reimplemented in the plugin and web app.
-
-Core currently owns the important shared types and logic for:
-
-- job profiles and roles
-- battle substats
-- materia catalog/tier data
-- stat snapshots and level modifiers
-- cap math
-- damage/stat formulas
-- meld-slot models
-- materia optimization and audit logic
-- export schema types used by the current gear round trip
-
-This split exists specifically to keep the web and plugin from producing different answers for the same character.
-
-## Installation
-
-Until distribution changes, install from the custom Dalamud repository:
-
-```text
-https://raw.githubusercontent.com/LastOnionKnight/GearGoblin/main/repo.json
-```
-
-Add it under:
-
-`/xlsettings` → Experimental → Custom Plugin Repositories
-
-Then install **Tonberry Tactics** from `/xlplugins`.
 
 ## Build
-
-Dalamud development assemblies are expected at the standard XIVLauncher development path, or through `DALAMUD_HOME` if configured locally.
 
 ```powershell
 git submodule update --init --recursive
@@ -194,41 +156,39 @@ dotnet restore
 dotnet build -c Release
 ```
 
-The project uses `Dalamud.NET.Sdk/15.0.0` and targets .NET 10.
-
 ## Release flow
 
-Tagged versions trigger `.github/workflows/release.yml`, which builds the plugin, creates `latest.zip`, publishes the GitHub release, and updates `repo.json`.
+Tagged releases run `.github/workflows/release.yml`. Tag-triggered builds now compile the tagged commit rather than forcibly checking out `main`, then publish `latest.zip` and update `repo.json`.
 
-The repository also contains `release.ps1` for the normal local release flow.
-
-The plugin, Core, and web companion follow **trinity lockstep** versioning. A release should leave all three projects on the same product version unless the divergence is explicitly intentional and documented.
+The plugin, Core, and web companion should be released in trinity lockstep unless divergence is explicitly documented.
 
 ## Current known debt
 
-The following are known follow-on items, not claims of completed functionality:
+The major remaining work is solver capability rather than UI plumbing:
 
-- make Raider mode a first-class workflow rather than only a BiS URL/config concept
-- add dynamic raid food and potion recommendations
-- complete Etro/XIVGear target-meld parsing
-- replace the imported-plan content-ID compatibility fallback with real per-character identity
-- finish migration away from native CharacterStatus injection
-- continue DoH/DoL optimization beyond display-only stat support
-- keep plan/export schema versions backward-compatible as new recommendation types are added
+- replace generic cross-stat ranking with a normalized expected-output objective
+- add job/GCD-aware gearset solving
+- add Raider food + potion optimization
+- evolve the plan schema for consumables and full-set recommendations
+- add Best-in-Bags and full candidate-gear solving
+- add acquisition/currency/weekly-lockout planning
+- continue DoH/DoL optimization beyond display-only support
+- finish migration away from the legacy native CharacterStatus injector where practical
+- expand/validate external target parsing as Etro/XIVGear schemas evolve
 
-## Next planned feature: Raider consumables
+## Next milestone
 
-The next major Raider feature is a **food and potion advisor** that recommends current raid consumables from live game data instead of hardcoded item names.
+The next major development branch is the **v1.7 Solver Foundation**. Its first visible feature is Raider Consumables, but food/potions are intended to be solved as part of the character/gear objective rather than maintained as a hardcoded per-job lookup table.
 
-The intended direction is:
+## Installation
 
-- derive the current job and real stat totals
-- enumerate current food/medicine through Lumina data
-- calculate actual HQ gains with percentage and cap rules
-- score food against the character's real gearing needs and GCD constraints
-- recommend the correct current main-stat potion for the job
-- allow a loaded BiS plan to override the calculated choice when the source explicitly specifies consumables
-- carry consumable recommendations through the Tonberry Tactics round trip in a future schema revision
+Custom Dalamud repository:
+
+```text
+https://raw.githubusercontent.com/LastOnionKnight/GearGoblin/main/repo.json
+```
+
+Add it under `/xlsettings` → Experimental → Custom Plugin Repositories, then install **Tonberry Tactics** from `/xlplugins`.
 
 ## Companion repositories
 
@@ -236,13 +196,6 @@ The intended direction is:
 - Core: https://github.com/LastOnionKnight/GearGoblin-Core
 - Live web app: https://tonberrytactics.pages.dev
 
-## Credits
+## License / credits
 
-- CharacterPanelRefined — MIT-licensed native CharacterStatus injection patterns; license retained under `LICENSES/`
-- FFXIV public/datamined game data used for job, item, materia, and formula work
-- Akhmorning / Allagan Studies formula research
-- The Balance community material used as reference for community-priority presets
-
-## License
-
-See the repository license files and source headers for component-specific licensing. Third-party code retains its original license notices.
+See repository license files and source headers for component-specific terms. Third-party code and assets retain their original licenses. Formula/reference work uses public FFXIV game data and community-verified research as documented in source.
