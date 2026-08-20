@@ -13,12 +13,20 @@ jobs:
   build:
     runs-on: windows-latest
     steps:
-      - name: Checkout
+      - name: Require version tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF}" != refs/tags/v* ]]; then
+            echo "Release workflow must run from a v* tag. Current ref: ${GITHUB_REF}"
+            exit 1
+          fi
+
+      - name: Checkout tagged commit
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: recursive
-          ref: main
 
       - name: Setup .NET 10
         uses: actions/setup-dotnet@v4
@@ -41,8 +49,8 @@ jobs:
         run: |
           TAG="${GITHUB_REF_NAME}"
           VER="${TAG#v}"
-          
-          # Parse like 1.5.7b
+
+          # Parse versions such as 1.5.7b into a four-part AssemblyVersion.
           if [[ "$VER" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)([a-zA-Z]*)$ ]]; then
             a="${BASH_REMATCH[1]}"
             b="${BASH_REMATCH[2]}"
@@ -60,10 +68,24 @@ jobs:
             [ -z "$d" ] && d=0
             ASMVER="${a}.${b}.${c}.${d}"
           fi
-          
+
           echo "tag=$TAG"       >> "$GITHUB_OUTPUT"
           echo "ver=$VER"       >> "$GITHUB_OUTPUT"
           echo "asmver=$ASMVER" >> "$GITHUB_OUTPUT"
+
+      - name: Verify tag matches project version
+        shell: pwsh
+        run: |
+          [xml]$proj = Get-Content "GearGoblin.csproj"
+          $projectVersion = $proj.Project.PropertyGroup.InformationalVersion | Select-Object -First 1
+          if (-not $projectVersion) {
+            $projectVersion = $proj.Project.PropertyGroup.Version | Select-Object -First 1
+            $projectVersion = $projectVersion -replace '\.0$',''
+          }
+          if ($projectVersion -ne "${{ steps.ver.outputs.ver }}") {
+            Write-Error "Tag v${{ steps.ver.outputs.ver }} does not match project version $projectVersion"
+            exit 1
+          }
 
       - name: Restore
         run: dotnet restore
@@ -118,14 +140,15 @@ jobs:
              )' repo.json > repo.json.new
           mv repo.json.new repo.json
 
-      - name: Commit and push repo.json
+      - name: Commit and push repo.json to main
         shell: bash
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add repo.json
           if git diff --cached --quiet; then
-            echo "repo.json unchanged"; exit 0
+            echo "repo.json unchanged"
+            exit 0
           fi
           git commit -m "chore(repo): bump GearGoblin to ${{ steps.ver.outputs.ver }} [skip ci]"
           for i in 1 2 3 4 5; do
