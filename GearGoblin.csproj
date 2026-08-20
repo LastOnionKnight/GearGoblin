@@ -8,54 +8,11 @@
     <FileVersion>1.6.1.0</FileVersion>
     <Version>1.6.1.0</Version>
     <InformationalVersion>1.6.1</InformationalVersion>
-    <!-- v0.6.7 Ã¢â‚¬â€ Track 2 era begins. First surface in the new
-         ember/frost-blue visual language that replaces TlfTheme
-         (gold/navy) over the v0.6.7 Ã¢â€ â€™ v1.0 migration arc.
-
-         Scope (per the split locked 2026-05-20):
-           v0.6.7 = visual rebuild only (Plan tab repaint).
-           v0.6.8 = injector deprecation banner + plan persistence.
-
-         New module:
-           Theme/TtChrome.cs Ã¢â‚¬â€ Track 2 chrome helper. Palette tokens
-           lifted verbatim from RUNTIME_PORT.md Ã‚Â§1.3 (the TLF HUD v0.1
-           design handoff). Doubled-frame card chrome via ImGui
-           drawlist channel-split (outer 2px frost-outline, inner 1px
-           hairline at 6px inset Ã¢â‚¬â€ the signature look).
-
-         Updated:
-           Theme/FontAtlasManager.cs Ã¢â‚¬â€ adds five Track 2 font handles
-           (Cormorant Garamond Regular/Italic, JetBrains Mono
-           Regular/Bold, Eorzea rune). All optional via the existing
-           TryBuild pattern. No callers reference them yet Ã¢â‚¬â€ that's
-           v0.6.7.1's job. Brian can drop the .ttf files into
-           Assets/Fonts/ at any pace.
-
-           UI/PlanTab.cs Ã¢â‚¬â€ repainted in TtChrome chrome. Three cards:
-           paste form (eyebrow + quip + URL input + Fetch/Clear),
-           empty state (when no BiS loaded), and diff (when loaded).
-           Status messages use TtChrome severity palette. Match/farm
-           status pills in HpGreen / Farm orange. Data flow
-           (StartFetch, BisFetcher, slot-by-slot diff) unchanged.
-
-           PlanTab.Draw signature changed from Draw(InventoryReader)
-           to Draw(Plugin) so it can reach plugin.Fonts. MainWindow.cs
-           line ~203 needs a one-line update Ã¢â‚¬â€ see CHANGELOG.
-
-         Both font tracks coexist during the migration:
-           - TlfTheme surfaces (Character, Materia, Quick Start,
-             About, Settings, Diagnostics, Feedback) use Track 1 fonts
-             (Cinzel + EB Garamond + Press Start 2P).
-           - TtChrome surfaces (Plan tab, future repaints) will use
-             Track 2 fonts (Cormorant Garamond + JetBrains Mono +
-             Eorzea) starting in v0.6.7.1.
-
-         Core and Web at v0.6.7 lockstep (version-only). -->
     <MinimumDalamudVersion>15.0.0</MinimumDalamudVersion>
-    <Punchline>BiS planner, Materia Advisor, and round-trip optimizer for FFXIV. The in-game half of Tonberry Tactics; coexists with CharacterPanelRefined.</Punchline>
-    <Description>In-game half of Tonberry Tactics. v0.6.7 begins the Track 2 (ember/frost-blue) visual era with the Plan tab repainted as the first surface. New Theme/TtChrome.cs module provides the doubled-frame card chrome (outer 2px frost-outline + inner 1px hairline at 6px inset) plus the ember/frost-blue palette lifted from the TLF HUD v0.1 design handoff. FontAtlasManager gains five Track 2 font handles (Cormorant Garamond, JetBrains Mono, Eorzea rune) Ã¢â‚¬â€ all optional, no callers wired yet. Plan tab data flow unchanged; only the chrome changes. Core and Web at v0.6.7 lockstep (version-only).</Description>
+    <Punchline>BiS planner, Materia Advisor, and round-trip optimizer for FFXIV.</Punchline>
+    <Description>In-game half of Tonberry Tactics. Reads equipped gear and current stats, audits materia, compares Etro/XIVGear targets, exports GG-EXPORT:v2 payloads to the web companion, and imports GG-PLAN:v1 recommendations. Shares optimizer and formula logic with GearGoblin.Core.</Description>
     <RepoUrl>https://github.com/LastOnionKnight/GearGoblin</RepoUrl>
-    <Tags>gear;bis;materia;etro;xivgear;raid;advisor;cpr;character-panel;tonberry-tactics</Tags>
+    <Tags>gear;bis;materia;etro;xivgear;raid;advisor;tonberry-tactics</Tags>
 
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
@@ -86,7 +43,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="external\GearGoblin.Core\GearGoblin.Core\GearGoblin.Core.csproj" />
+    <ProjectReference Include="external\GearGoblin.Core\GearGoblin.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -99,15 +56,5 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.8" />
   </ItemGroup>
+
 </Project>
-
-
-
-
-
-
-
-
-
-
-
