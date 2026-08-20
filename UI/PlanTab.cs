@@ -5,6 +5,7 @@ using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface;
 using GearGoblin.Core;
 using GearGoblin.Planning;
 using GearGoblin.Services;

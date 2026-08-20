@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.6.2] - 2026-08-20
+- **Character Identity & Plan Persistence**: Paired plans are now saved per character (`ContentId`) and job rather than using a hardcoded placeholder. Rejects imports when character identity is unavailable.
+- **Command Lifecycle**: Ensured all command families (`/tt*`, `/tactics*`, `/goblin*`) are fully unregistered upon plugin disposal to prevent memory leaks or command conflicts.
+- **Release Workflow**: Configured tag-triggered releases to build from the exact tagged commit instead of overriding to `main`.
+- **Materia XII Projections**: Consolidated materia tier projections to inherit from Core's `MateriaTiers`, fixing combat projections to correctly recommend +54.
+- **Target Item Metadata Hydration**: Enabled target item level and metadata hydration from local Lumina sheets.
+- **Safer Verdict Semantics**: Corrected BiS verdict logic to only display `MATCH` when items and known melds align, and `ITEM MATCH` when target melds are unknown or incomplete.
+- **UI**: Changed the hardcoded "offline · no backend" footer label to "thick client · no telemetry" to prevent user confusion.
+- **Project Reference**: Fixed the project reference path to the shared `GearGoblin.Core` assembly.
+
 ## [1.6.1] - 2026-08-14
 - **Lockstep Patch**: Version bump to sync with FFXIV Patch 2026.08.11.
 

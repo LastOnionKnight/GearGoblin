@@ -4,10 +4,10 @@
     <Author>LastOnionKnight</Author>
     <Name>Tonberry Tactics</Name>
     <InternalName>GearGoblin</InternalName>
-    <AssemblyVersion>1.6.1.0</AssemblyVersion>
-    <FileVersion>1.6.1.0</FileVersion>
-    <Version>1.6.1.0</Version>
-    <InformationalVersion>1.6.1</InformationalVersion>
+    <AssemblyVersion>1.6.2.0</AssemblyVersion>
+    <FileVersion>1.6.2.0</FileVersion>
+    <Version>1.6.2.0</Version>
+    <InformationalVersion>1.6.2</InformationalVersion>
     <MinimumDalamudVersion>15.0.0</MinimumDalamudVersion>
     <Punchline>BiS planner, Materia Advisor, and round-trip optimizer for FFXIV.</Punchline>
     <Description>In-game half of Tonberry Tactics. Reads equipped gear and current stats, audits materia, compares Etro/XIVGear targets, exports GG-EXPORT:v2 payloads to the web companion, and imports GG-PLAN:v1 recommendations. Shares optimizer and formula logic with GearGoblin.Core.</Description>
@@ -43,7 +43,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="external\GearGoblin.Core\GearGoblin.Core.csproj" />
+    <ProjectReference Include="external\GearGoblin.Core\GearGoblin.Core\GearGoblin.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

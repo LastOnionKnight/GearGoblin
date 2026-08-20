@@ -1,7 +1,7 @@
 # Tonberry Tactics — GearGoblin Plugin
 
-**Current released version: 1.6.1**  
-**Current `main`: unreleased 1.6.2 stabilization work**
+**Current released version: 1.6.2**  
+**Current `main`: unreleased 1.7 solver foundation work**
 
 GearGoblin is the internal/plugin name for the in-game half of **Tonberry Tactics**, a Final Fantasy XIV character optimization platform built as a Dalamud plugin, a shared Core library, and a Blazor WebAssembly companion app.
 
