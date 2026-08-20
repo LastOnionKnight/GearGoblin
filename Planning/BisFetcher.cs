@@ -1,15 +1,3 @@
-// Planning/BisFetcher.cs
-// Fetches BiS gearsets from Etro or XIVGear, parses the JSON into a common BisGearset.
-//
-// URL patterns:
-//   Etro:      https://etro.gg/gearset/{uuid}
-//              API: https://etro.gg/api/gearsets/{uuid}/
-//   XIVGear:   https://xivgear.app/?page=sl|{uuid}        (single set)
-//              https://xivgear.app/?page=sg|{uuid}        (sheet/multi)
-//              API: https://api.xivgear.app/shortlink/{uuid}
-//
-// Both APIs return JSON. Their shapes differ; the parsers below handle each.
-
 using System;
 using System.Net.Http;
 using System.Text.RegularExpressions;
@@ -18,24 +6,16 @@ using System.Threading.Tasks;
 
 namespace GearGoblin.Planning;
 
+/// <summary>Fetches Etro or XIVGear target sets and normalizes them into BisGearset.</summary>
 public static class BisFetcher
 {
-    // Single shared HttpClient for the whole plugin lifetime
-    private static readonly HttpClient s_http = new()
+    private static readonly HttpClient Http = new()
     {
         Timeout = TimeSpan.FromSeconds(15),
     };
 
-    /// <summary>
-    /// Result of a fetch attempt. Either Gearset is non-null (success) or
-    /// Error is non-null (failure). Never both.
-    /// </summary>
     public sealed record FetchResult(BisGearset? Gearset, string? Error);
 
-    /// <summary>
-    /// Fetch and parse a BiS URL. Auto-detects Etro vs XIVGear from the URL.
-    /// Returns parsed gearset on success, error message on failure.
-    /// </summary>
     public static async Task<FetchResult> FetchAsync(string url, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(url))
@@ -46,12 +26,11 @@ public static class BisFetcher
             if (TryParseEtroUrl(url, out var etroId))
                 return await FetchEtroAsync(etroId, url, ct);
 
-            if (TryParseXivGearUrl(url, out var xgId, out var xgIsSheet))
-                return await FetchXivGearAsync(xgId, xgIsSheet, url, ct);
+            if (IsXivGearUrl(url))
+                return await FetchXivGearAsync(url, ct);
 
             return new FetchResult(null,
-                "URL doesn't look like Etro or XIVGear. Expected something like " +
-                "https://etro.gg/gearset/<uuid> or https://xivgear.app/?page=sl|<uuid>.");
+                "URL doesn't look like Etro or XIVGear. Expected an Etro gearset URL or a xivgear.app URL.");
         }
         catch (TaskCanceledException)
         {
@@ -67,63 +46,58 @@ public static class BisFetcher
         }
     }
 
-    // ─── Etro ──────────────────────────────────────────────────────────────
-
-    private static readonly Regex s_etroRe =
+    private static readonly Regex EtroRegex =
         new(@"etro\.gg/gearset/([0-9a-fA-F\-]{36})", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static bool TryParseEtroUrl(string url, out string id)
     {
-        var m = s_etroRe.Match(url);
-        if (m.Success)
+        var match = EtroRegex.Match(url);
+        if (match.Success)
         {
-            id = m.Groups[1].Value;
+            id = match.Groups[1].Value;
             return true;
         }
-        id = "";
+
+        id = string.Empty;
         return false;
     }
 
     private static async Task<FetchResult> FetchEtroAsync(string id, string sourceUrl, CancellationToken ct)
     {
         var apiUrl = $"https://etro.gg/api/gearsets/{id}/";
-        var resp = await s_http.GetAsync(apiUrl, ct);
-        if (!resp.IsSuccessStatusCode)
-            return new FetchResult(null, $"Etro returned {(int)resp.StatusCode}.");
+        using var response = await Http.GetAsync(apiUrl, ct);
+        if (!response.IsSuccessStatusCode)
+            return new FetchResult(null, $"Etro returned {(int)response.StatusCode}.");
 
-        var json = await resp.Content.ReadAsStringAsync(ct);
+        var json = await response.Content.ReadAsStringAsync(ct);
         var parsed = EtroParser.Parse(json, sourceUrl);
-        return new FetchResult(parsed, null);
+        return parsed is null
+            ? new FetchResult(null, "Etro returned data but no usable gearset was found.")
+            : new FetchResult(parsed, null);
     }
 
-    // ─── XIVGear ───────────────────────────────────────────────────────────
-
-    private static readonly Regex s_xgRe =
-        new(@"xivgear\.app.*?page=(sl|sg)\|([0-9a-fA-F\-]{36})", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
-    private static bool TryParseXivGearUrl(string url, out string id, out bool isSheet)
+    private static bool IsXivGearUrl(string url)
     {
-        var m = s_xgRe.Match(url);
-        if (m.Success)
-        {
-            isSheet = m.Groups[1].Value.Equals("sg", StringComparison.OrdinalIgnoreCase);
-            id      = m.Groups[2].Value;
-            return true;
-        }
-        id = "";
-        isSheet = false;
-        return false;
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            return false;
+
+        return uri.Host.Equals("xivgear.app", StringComparison.OrdinalIgnoreCase) ||
+               uri.Host.EndsWith(".xivgear.app", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static async Task<FetchResult> FetchXivGearAsync(string id, bool isSheet, string sourceUrl, CancellationToken ct)
+    private static async Task<FetchResult> FetchXivGearAsync(string sourceUrl, CancellationToken ct)
     {
-        var apiUrl = $"https://api.xivgear.app/shortlink/{id}";
-        var resp = await s_http.GetAsync(apiUrl, ct);
-        if (!resp.IsSuccessStatusCode)
-            return new FetchResult(null, $"XIVGear returned {(int)resp.StatusCode}.");
+        // Feb 2026 XIVGear API: pass the full source URL to /basedata so the
+        // API owns page/shortlink/query parsing and future URL evolution.
+        var apiUrl = $"https://api.xivgear.app/basedata?url={Uri.EscapeDataString(sourceUrl)}";
+        using var response = await Http.GetAsync(apiUrl, ct);
+        if (!response.IsSuccessStatusCode)
+            return new FetchResult(null, $"XIVGear returned {(int)response.StatusCode}.");
 
-        var json = await resp.Content.ReadAsStringAsync(ct);
-        var parsed = XivGearParser.Parse(json, sourceUrl, isSheet);
-        return new FetchResult(parsed, null);
+        var json = await response.Content.ReadAsStringAsync(ct);
+        var parsed = XivGearParser.Parse(json, sourceUrl);
+        return parsed is null
+            ? new FetchResult(null, "XIVGear returned data but no usable gearset was found.")
+            : new FetchResult(parsed, null);
     }
 }
