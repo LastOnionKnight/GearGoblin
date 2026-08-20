@@ -7,6 +7,8 @@ obj/
 # NuGet
 packages/
 *.nupkg
+*.snupkg
+packages.lock.json
 
 # IDEs
 .vs/
@@ -16,8 +18,6 @@ packages/
 *.suo
 *.userosscache
 *.sln.docstates
-
-# Rider
 _ReSharper*/
 *.DotSettings
 *.DotSettings.user
@@ -34,13 +34,9 @@ desktop.ini
 Hooks/
 addon/
 
-# Local Dalamud refs
-Hooks/
-addon/
-
-# NuGet lock file
-packages.lock.json
-# Dropin zips (v0.6.4+)
+# Generated / local working artifacts
 *-dropin.zip
 *-dropin/
 graphify-out/
+*.rar
+*.patch
