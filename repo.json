@@ -4,8 +4,8 @@
     "Name": "Tonberry Tactics",
     "InternalName": "GearGoblin",
     "AssemblyVersion": "1.6.1.0",
-    "Description": "In-game half of Tonberry Tactics. v1.6.0 is the Dawntrail era for BUG-001 (Materia Advisor header ghost text): shortens the advisor header label to test text-overflow theory; unifies /ttinfo and header-pill version strings via a single ResolveVersion() call so they always agree. See CHANGELOG.md for the full hypothesis history.",
-    "Punchline": "BiS planner with acquisition tracking and materia advisor.",
+    "Description": "In-game half of Tonberry Tactics. Reads equipped gear and live character stats, audits materia, compares Etro/XIVGear targets, exports GG-EXPORT:v2 gear data to the web companion, and imports GG-PLAN:v1 recommendations. Shared optimizer and formula logic comes from GearGoblin.Core.",
+    "Punchline": "BiS planner, Materia Advisor, and round-trip optimizer for FFXIV.",
     "RepoUrl": "https://github.com/LastOnionKnight/GearGoblin",
     "ApplicableVersion": "any",
     "Tags": [
@@ -13,7 +13,9 @@
       "bis",
       "materia",
       "raid",
-      "etro"
+      "etro",
+      "xivgear",
+      "optimizer"
     ],
     "DalamudApiLevel": 15,
     "IconUrl": "https://raw.githubusercontent.com/LastOnionKnight/GearGoblin/main/images/icon.png",
