@@ -1,54 +1,38 @@
-using GearGoblin.Core;
-using GearGoblin.Core.Materia;
-// Planning/XivGearParser.cs
-// Parses XIVGear API responses into BisGearset.
-//
-// XIVGear response is wrapped: {"name": "...", "description": "...",
-//   "items": { "Weapon": {...}, "Head": {...}, ... } }
-// or a "sheet" with multiple sets, in which case we take the first.
-//
-// XIVGear slot keys:
-//   Weapon, Head, Body, Hand, Legs, Feet,
-//   Ears, Neck, Wrist, RingLeft, RingRight
-// Each item has { id, materia: [{ id, ... }, ...] }
-
+using System;
 using System.Collections.Generic;
 using System.Text.Json;
-using GearGoblin.Services;
+using GearGoblin.Core;
 
 namespace GearGoblin.Planning;
 
+/// <summary>
+/// Parses XIVGear's current /basedata response (SheetStatsExport) into the
+/// source-neutral BiS model. The endpoint returns a sheet shape even when the
+/// source URL identifies a single set.
+/// </summary>
 public static class XivGearParser
 {
-    public static BisGearset? Parse(string json, string sourceUrl, bool isSheet)
+    public static BisGearset? Parse(string json, string sourceUrl)
     {
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
 
-        // For a sheet, the structure has a "sets" array; pick the first.
-        // For a single set, the data is at root level.
-        JsonElement set;
-        if (isSheet && root.TryGetProperty("sets", out var sets) &&
-            sets.ValueKind == JsonValueKind.Array && sets.GetArrayLength() > 0)
-        {
-            set = sets[0];
-        }
-        else
-        {
-            set = root;
-        }
+        var set = SelectSet(root);
+        if (set is null)
+            return null;
 
-        var name        = set.GetStringOrEmpty("name");
-        var description = set.GetStringOrEmpty("description");
+        var setValue = set.Value;
+        var name = setValue.GetStringOrEmpty("name");
+        var description = setValue.GetStringOrEmpty("description");
 
-        // Job is sometimes at root, sometimes on the set
-        var jobAbbrev = root.GetStringOrEmpty("job");
+        var jobAbbrev = setValue.GetStringOrEmpty("jobOverride");
         if (string.IsNullOrEmpty(jobAbbrev))
-            jobAbbrev = set.GetStringOrEmpty("job");
-        var jobId = JobAbbrevToId(jobAbbrev);
+            jobAbbrev = root.GetStringOrEmpty("job");
+        if (string.IsNullOrEmpty(jobAbbrev))
+            jobAbbrev = setValue.GetStringOrEmpty("job");
 
         var slots = new List<BisSlot>();
-        if (set.TryGetProperty("items", out var items) && items.ValueKind == JsonValueKind.Object)
+        if (setValue.TryGetProperty("items", out var items) && items.ValueKind == JsonValueKind.Object)
         {
             AddSlot(slots, items, "Weapon",    EquipSlot.MainHand);
             AddSlot(slots, items, "OffHand",   EquipSlot.OffHand);
@@ -64,61 +48,122 @@ public static class XivGearParser
             AddSlot(slots, items, "RingRight", EquipSlot.RingRight);
         }
 
+        uint? foodItemId = null;
+        if (setValue.TryGetProperty("food", out var food) &&
+            food.ValueKind == JsonValueKind.Number &&
+            food.TryGetUInt32(out var foodId) && foodId != 0)
+        {
+            foodItemId = foodId;
+        }
+
         return new BisGearset
         {
-            Name        = name,
-            SourceUrl   = sourceUrl,
-            Source      = "xivgear",
-            JobId       = jobId,
-            Slots       = slots,
+            Name = name,
+            SourceUrl = sourceUrl,
+            Source = "xivgear",
+            JobId = JobAbbrevToId(jobAbbrev),
+            Slots = slots,
             Description = description,
+            FoodItemId = foodItemId,
         };
+    }
+
+    private static JsonElement? SelectSet(JsonElement root)
+    {
+        if (root.TryGetProperty("sets", out var sets) && sets.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var candidate in sets.EnumerateArray())
+            {
+                if (candidate.ValueKind != JsonValueKind.Object)
+                    continue;
+
+                bool isSeparator = candidate.TryGetProperty("isSeparator", out var sep) &&
+                                   sep.ValueKind == JsonValueKind.True;
+                if (!isSeparator)
+                    return candidate;
+            }
+            return null;
+        }
+
+        // Backward-compatible fallback for old shortlink/single-set payloads.
+        return root.ValueKind == JsonValueKind.Object ? root : null;
     }
 
     private static void AddSlot(List<BisSlot> slots, JsonElement items, string key, EquipSlot slot)
     {
-        if (!items.TryGetProperty(key, out var item)) return;
-        if (item.ValueKind != JsonValueKind.Object) return;
-        if (!item.TryGetProperty("id", out var idEl) || idEl.ValueKind != JsonValueKind.Number) return;
+        if (!items.TryGetProperty(key, out var item) || item.ValueKind != JsonValueKind.Object)
+            return;
+        if (!item.TryGetProperty("id", out var idEl) || idEl.ValueKind != JsonValueKind.Number)
+            return;
 
         var itemId = idEl.GetUInt32();
-        if (itemId == 0) return;
+        if (itemId == 0)
+            return;
 
         var melds = new List<BisMeld>();
-        if (item.TryGetProperty("materia", out var matArr) && matArr.ValueKind == JsonValueKind.Array)
+        bool meldDataComplete = item.TryGetProperty("materia", out var materia) &&
+                                materia.ValueKind == JsonValueKind.Array;
+
+        if (meldDataComplete)
         {
-            int idx = 0;
-            foreach (var mat in matArr.EnumerateArray())
+            int slotIndex = 0;
+            foreach (var entry in materia.EnumerateArray())
             {
-                if (mat.TryGetProperty("id", out var mid) && mid.ValueKind == JsonValueKind.Number)
+                if (TryReadMateriaItemId(entry, out var materiaItemId))
                 {
-                    melds.Add(new BisMeld
-                    {
-                        SlotIndex = idx,
-                        StatName  = "", // resolved later via Lumina if needed
-                    });
+                    var resolved = BisMetadataResolver.ResolveMateriaItem(materiaItemId, slotIndex);
+                    if (resolved is null)
+                        meldDataComplete = false;
+                    else
+                        melds.Add(resolved);
                 }
-                idx++;
+                slotIndex++;
             }
         }
 
-        slots.Add(new BisSlot
-        {
-            Slot   = slot,
-            ItemId = itemId,
-            Melds  = melds,
-        });
+        slots.Add(BisMetadataResolver.HydrateItem(slot, itemId, melds, meldDataComplete));
     }
 
-    private static uint JobAbbrevToId(string abbrev) => abbrev?.ToUpperInvariant() switch
+    private static bool TryReadMateriaItemId(JsonElement entry, out uint materiaItemId)
     {
-        "PLD" => 19, "WAR" => 21, "DRK" => 32, "GNB" => 37,
-        "MNK" => 20, "DRG" => 22, "NIN" => 30, "SAM" => 34,
-        "RPR" => 39, "VPR" => 41,
-        "BRD" => 23, "MCH" => 31, "DNC" => 38,
-        "BLM" => 25, "SMN" => 27, "RDM" => 35, "PCT" => 42,
-        "WHM" => 24, "SCH" => 28, "AST" => 33, "SGE" => 40,
+        materiaItemId = 0;
+
+        if (entry.ValueKind == JsonValueKind.Null || entry.ValueKind == JsonValueKind.Undefined)
+            return false;
+
+        JsonElement idElement;
+        if (entry.ValueKind == JsonValueKind.Object)
+        {
+            if (!entry.TryGetProperty("id", out idElement))
+                return false;
+        }
+        else
+        {
+            idElement = entry;
+        }
+
+        if (idElement.ValueKind != JsonValueKind.Number || !idElement.TryGetInt64(out var rawId))
+            return false;
+
+        // XIVGear uses -1/null for an empty materia slot.
+        if (rawId <= 0 || rawId > uint.MaxValue)
+            return false;
+
+        materiaItemId = (uint)rawId;
+        return true;
+    }
+
+    private static uint JobAbbrevToId(string? abbrev) => abbrev?.ToUpperInvariant() switch
+    {
+        "CRP" => 8, "BSM" => 9, "ARM" => 10, "GSM" => 11,
+        "LTW" => 12, "WVR" => 13, "ALC" => 14, "CUL" => 15,
+        "MIN" => 16, "BTN" => 17, "FSH" => 18,
+        "PLD" => 19, "MNK" => 20, "WAR" => 21, "DRG" => 22,
+        "BRD" => 23, "WHM" => 24, "BLM" => 25, "SMN" => 27,
+        "SCH" => 28, "NIN" => 30, "MCH" => 31, "DRK" => 32,
+        "AST" => 33, "SAM" => 34, "RDM" => 35, "GNB" => 37,
+        "DNC" => 38, "RPR" => 39, "SGE" => 40, "VPR" => 41,
+        "PCT" => 42,
         _ => 0,
     };
 }
-
