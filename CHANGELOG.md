@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.6.3] - 2026-09-09
+- **Lockstep Patch**: Version bump to sync with FFXIV Patch 2026.09.09.
+
 ## [1.6.2] - 2026-08-20
 - **Character Identity & Plan Persistence**: Paired plans are now saved per character (`ContentId`) and job rather than using a hardcoded placeholder. Rejects imports when character identity is unavailable.
 - **Command Lifecycle**: Ensured all command families (`/tt*`, `/tactics*`, `/goblin*`) are fully unregistered upon plugin disposal to prevent memory leaks or command conflicts.

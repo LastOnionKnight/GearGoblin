@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+    <Target Name="CustomPackager" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+        <Exec Command="powershell -ExecutionPolicy Bypass -Command &quot;$out = '$(TargetDir)GearGoblin'; New-Item -ItemType Directory -Force -Path $out | Out-Null; Copy-Item '$(TargetDir)*' $out -Recurse -Force -Exclude 'GearGoblin','*.zip'; $json = @{ Author='LastOnionKnight'; Name='Tonberry Tactics'; InternalName='GearGoblin'; AssemblyVersion='1.6.3.0'; Description='In-game half of Tonberry Tactics.'; Punchline='BiS planner, Materia Advisor, and round-trip optimizer for FFXIV.'; RepoUrl='https://github.com/LastOnionKnight/GearGoblin'; ApplicableVersion='any'; Tags=@('gear','bis','materia','etro','xivgear','raid','advisor','tonberry-tactics'); DalamudApiLevel=15 } | ConvertTo-Json -Depth 5; Set-Content (Join-Path $out 'GearGoblin.json') $json; Compress-Archive -Path (Join-Path $out '*') -DestinationPath (Join-Path $out 'latest.zip') -Force&quot;" />
+    </Target>
+</Project>
