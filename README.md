@@ -72,7 +72,7 @@ Current capabilities include:
 - outdated/replacement auditing
 - Pure Math and Balance-weight modes
 - Tier XII combat materia projection from the shared Core tier table
-- all 21 standard combat jobs
+- all 26 combat jobs (21 standard, BLU & BST limited, plus Bastion & Zephyr Evercold baseline placeholders)
 - DoH/DoL identification/display with battle optimization intentionally disabled
 
 Current Tier XII combat projection is **+54**. Core owns the authoritative projection table so the plugin and web cannot drift independently.
